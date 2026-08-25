@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nubu2600:schema:level:1",
+  "title": "NuBu2600 level",
+  "description": "Candidate schema v1 для будущего общего формата runtime, редактора, импортёров и тестов.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schemaVersion",
+    "id",
+    "title",
+    "episode",
+    "sequence",
+    "role",
+    "size",
+    "objects"
+  ],
+  "properties": {
+    "kind": { "const": "nubu.level" },
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "episode": { "type": "integer", "minimum": 1, "maximum": 99 },
+    "sequence": { "type": "integer", "minimum": 1, "maximum": 999 },
+    "role": {
+      "enum": [
+        "intro",
+        "develop",
+        "exam",
+        "shop",
+        "boss",
+        "postboss",
+        "secret",
+        "training",
+        "lobby"
+      ]
+    },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 10, "maximum": 100 },
+        "height": { "type": "integer", "minimum": 10, "maximum": 100 }
+      }
+    },
+    "theme": { "type": "string" },
+    "learningGoal": { "type": "string" },
+    "designerNotes": { "type": "string" },
+    "parTimeSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "objects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/levelObject" }
+    },
+    "difficultyVariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "medium": { "$ref": "#/$defs/difficultyPatch" },
+        "hard": { "$ref": "#/$defs/difficultyPatch" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "status": { "enum": ["idea", "graybox", "playable", "tuning", "locked", "released"] },
+        "revision": { "type": "integer", "minimum": 1 },
+        "source": { "type": "string" },
+        "author": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "halfCell": {
+      "type": "number",
+      "multipleOf": 0.5
+    },
+    "positiveHalfCell": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "multipleOf": 0.5
+    },
+    "objectType": {
+      "enum": [
+        "solid",
+        "oneWay",
+        "fragilePlatform",
+        "blinkPlatform",
+        "movingPlatform",
+        "smartPlatform",
+        "fallingPlatform",
+        "conveyor",
+        "bouncePad",
+        "spike",
+        "crusherWall",
+        "door",
+        "levelDoor",
+        "button",
+        "portal",
+        "driftField",
+        "playerCannon",
+        "flyerSpawner",
+        "shooterSpawner",
+        "bomberSpawner",
+        "cannon",
+        "enemyGoomba",
+        "enemyFlyer",
+        "enemyLeech",
+        "enemySpikeCube",
+        "enemyBomb",
+        "pushBlock",
+        "coin",
+        "collectible",
+        "pickup",
+        "unlockSwitch",
+        "heartVendor",
+        "spawn",
+        "exit",
+        "label"
+      ]
+    },
+    "levelObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "x", "y", "w", "h", "layer", "props"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "type": { "$ref": "#/$defs/objectType" },
+        "x": { "$ref": "#/$defs/halfCell" },
+        "y": { "$ref": "#/$defs/halfCell" },
+        "w": { "$ref": "#/$defs/positiveHalfCell" },
+        "h": { "$ref": "#/$defs/positiveHalfCell" },
+        "layer": { "enum": ["terrain", "gameplay", "hazard", "entity", "meta", "decor"] },
+        "props": { "type": "object", "additionalProperties": true },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "spawn" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "w": { "const": 1 },
+              "h": { "const": 2 },
+              "props": {
+                "type": "object",
+                "required": ["semantics"],
+                "properties": {
+                  "semantics": { "const": "playerBody" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "objectOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "changes"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "changes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "difficultyPatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["add", "removeIds", "overrides"],
+      "properties": {
+        "add": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/levelObject" }
+        },
+        "removeIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/objectOverride" }
+        }
+      }
+    }
+  }
+}

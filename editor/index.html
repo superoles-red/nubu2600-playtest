@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>NuBu2600 · Редактор уровней</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">NB</span>
+        <span>
+          <strong>NuBu2600</strong>
+          <small>внутренний редактор уровней · прототип</small>
+        </span>
+      </div>
+
+      <div class="topbar-actions" aria-label="Команды файла">
+        <button id="newLevelButton" type="button">Новый</button>
+        <button id="loadSampleButton" type="button">Пример 1-1</button>
+        <label class="button file-button">
+          Импорт JSON
+          <input id="importInput" type="file" accept="application/json,.json">
+        </label>
+        <button id="exportButton" type="button" class="primary">Экспорт JSON</button>
+      </div>
+
+      <div class="history-actions" aria-label="История действий">
+        <button id="undoButton" type="button" title="Отменить (⌘/Ctrl+Z)">↶</button>
+        <button id="redoButton" type="button" title="Повторить (⌘/Ctrl+Shift+Z)">↷</button>
+      </div>
+    </header>
+
+    <aside class="palette-panel panel" aria-label="Палитра объектов">
+      <div class="panel-heading">
+        <div>
+          <small>Инструменты</small>
+          <h2>Палитра</h2>
+        </div>
+        <button id="selectionToolButton" type="button" class="icon-button" title="Выбор объекта (V)">⌖</button>
+      </div>
+      <div id="palette" class="palette"></div>
+      <div class="palette-help">
+        <p><kbd>V</kbd> выбор · <kbd>Delete</kbd> удалить · <kbd>Esc</kbd> отменить</p>
+        <p>Рисуйте прямоугольник мышью. Правой кнопкой можно быстро стереть объект.</p>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <div class="workspace-toolbar panel">
+        <div class="level-identity">
+          <span id="dirtyIndicator" class="status-dot" title="Состояние сохранения"></span>
+          <strong id="levelTitleDisplay">Новый уровень</strong>
+          <span id="levelSizeDisplay" class="muted">20×20</span>
+        </div>
+        <div class="zoom-controls">
+          <button id="zoomOutButton" type="button" title="Уменьшить">−</button>
+          <input id="zoomInput" type="range" min="35" max="150" step="5" value="100" aria-label="Масштаб">
+          <button id="zoomInButton" type="button" title="Увеличить">+</button>
+          <output id="zoomOutput" for="zoomInput">100%</output>
+          <button id="fitButton" type="button">Вместить</button>
+        </div>
+      </div>
+
+      <div id="canvasViewport" class="canvas-viewport" tabindex="0" aria-label="Рабочая сетка уровня">
+        <div class="canvas-stage">
+          <canvas id="levelCanvas"></canvas>
+          <div id="cursorReadout" class="cursor-readout">x 0 · y 0</div>
+        </div>
+      </div>
+
+      <div class="workspace-footer panel">
+        <div id="toolStatus">Инструмент: выбор</div>
+        <div id="objectCountStatus">0 объектов</div>
+        <button id="validateButton" type="button">Проверить уровень</button>
+      </div>
+    </main>
+
+    <aside class="inspector-panel panel" aria-label="Свойства уровня и объекта">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="level" role="tab">Уровень</button>
+        <button type="button" class="tab" data-tab="object" role="tab">Объект</button>
+        <button type="button" class="tab" data-tab="checks" role="tab">Проверка <span id="issueBadge" class="badge">0</span></button>
+      </div>
+
+      <section id="levelTab" class="tab-panel active" data-panel="level">
+        <label>ID уровня<input id="levelIdInput" type="text" spellcheck="false"></label>
+        <label>Название<input id="levelTitleInput" type="text"></label>
+        <div class="form-grid two">
+          <label>Эпизод<input id="episodeInput" type="number" min="1" max="99"></label>
+          <label>Номер<input id="sequenceInput" type="number" min="1" max="999"></label>
+        </div>
+        <div class="form-grid two">
+          <label>Ширина<input id="widthInput" type="number" min="10" max="100" step="1"></label>
+          <label>Высота<input id="heightInput" type="number" min="10" max="100" step="1"></label>
+        </div>
+        <label>Роль
+          <select id="roleInput">
+            <option value="intro">Вводный</option>
+            <option value="develop">Развитие</option>
+            <option value="exam">Экзамен / ремикс</option>
+            <option value="shop">Магазин / чекпоинт</option>
+            <option value="boss">Босс</option>
+            <option value="postboss">Послебоссовый</option>
+            <option value="secret">Секретный</option>
+            <option value="training">Обучение</option>
+            <option value="lobby">Лобби</option>
+          </select>
+        </label>
+        <label>Тема<textarea id="themeInput" rows="2"></textarea></label>
+        <label>Чему учит<textarea id="learningGoalInput" rows="3"></textarea></label>
+        <label>Заметки дизайнера<textarea id="notesInput" rows="4"></textarea></label>
+        <button id="applySizeButton" type="button">Применить размер</button>
+      </section>
+
+      <section id="objectTab" class="tab-panel" data-panel="object">
+        <div id="noSelection" class="empty-state">Выберите объект на сетке.</div>
+        <div id="objectForm" hidden>
+          <div class="object-chip-row">
+            <span id="objectSwatch" class="object-swatch"></span>
+            <strong id="objectTypeLabel"></strong>
+          </div>
+          <label>ID объекта<input id="objectIdInput" type="text" spellcheck="false"></label>
+          <div class="form-grid two">
+            <label>X<input id="objectXInput" type="number" step="0.5"></label>
+            <label>Y<input id="objectYInput" type="number" step="0.5"></label>
+            <label>Ширина<input id="objectWInput" type="number" min="0.5" step="0.5"></label>
+            <label>Высота<input id="objectHInput" type="number" min="0.5" step="0.5"></label>
+          </div>
+          <label>Слой
+            <select id="objectLayerInput">
+              <option value="terrain">Геометрия</option>
+              <option value="gameplay">Геймплей</option>
+              <option value="hazard">Опасности</option>
+              <option value="entity">Сущности</option>
+              <option value="meta">Мета</option>
+              <option value="decor">Декор</option>
+            </select>
+          </label>
+          <label>Свойства JSON<textarea id="objectPropsInput" rows="8" spellcheck="false"></textarea></label>
+          <div class="row-actions">
+            <button id="duplicateObjectButton" type="button">Дублировать</button>
+            <button id="deleteObjectButton" type="button" class="danger">Удалить</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="checksTab" class="tab-panel" data-panel="checks">
+        <div class="checks-summary">
+          <strong id="checksHeadline">Проверка ещё не запускалась</strong>
+          <p id="checksDescription">Редактор проверяет границы, вход, выход, ID и критические пересечения.</p>
+        </div>
+        <ol id="issuesList" class="issues-list"></ol>
+      </section>
+    </aside>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  <script src="editor.js"></script>
+</body>
+</html>
