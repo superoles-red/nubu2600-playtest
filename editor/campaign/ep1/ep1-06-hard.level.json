@@ -1,0 +1,163 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-06-hard",
+  "title": "Эпизод 1 · Сложная · Уровень 1-6",
+  "episode": 1,
+  "sequence": 6,
+  "role": "develop",
+  "size": {
+    "width": 20,
+    "height": 20
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes. Полная самостоятельная карта сложности создана копированием easy и ещё не настроена.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 4,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 4,
+      "y": 0,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 17,
+      "y": 1,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 13.5,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-01",
+      "type": "oneWay",
+      "x": 12,
+      "y": 4,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 10.0,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-02",
+      "type": "oneWay",
+      "x": 9,
+      "y": 8,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 10.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 12,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "oneway-03",
+      "type": "oneWay",
+      "x": 8,
+      "y": 12,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 0,
+      "y": 16,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 16,
+      "y": 16,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "enemygoomba-01",
+      "type": "enemyGoomba",
+      "x": 9,
+      "y": 18,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "Level 1-06.xlsx",
+    "difficulty": "hard",
+    "unmappedNotes": []
+  }
+}

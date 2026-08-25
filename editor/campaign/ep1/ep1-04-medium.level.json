@@ -1,0 +1,928 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-04-medium",
+  "title": "Эпизод 1 · Средняя · Уровень 1-4",
+  "episode": 1,
+  "sequence": 4,
+  "role": "develop",
+  "size": {
+    "width": 40,
+    "height": 40
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes. Полная самостоятельная карта сложности создана копированием easy и ещё не настроена.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 16,
+      "y": 0,
+      "w": 24,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 1.5,
+      "y": 1.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 4.5,
+      "y": 1.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 7.5,
+      "y": 1.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 10.5,
+      "y": 1.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 13.5,
+      "y": 1.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 3.0,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 6.0,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 9.0,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 12.0,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-01",
+      "type": "oneWay",
+      "x": 4,
+      "y": 4,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-02",
+      "type": "oneWay",
+      "x": 12,
+      "y": 4,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 1.5,
+      "y": 5.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-11",
+      "type": "coin",
+      "x": 4.5,
+      "y": 5.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-12",
+      "type": "coin",
+      "x": 7.5,
+      "y": 5.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 10.5,
+      "y": 5.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-14",
+      "type": "coin",
+      "x": 13.5,
+      "y": 5.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-15",
+      "type": "coin",
+      "x": 3.0,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-16",
+      "type": "coin",
+      "x": 6.0,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-17",
+      "type": "coin",
+      "x": 9.0,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-18",
+      "type": "coin",
+      "x": 12.0,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-03",
+      "type": "oneWay",
+      "x": 0,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-04",
+      "type": "oneWay",
+      "x": 8,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 27,
+      "y": 8,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false,
+        "linkGroup": "button-2"
+      }
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 32,
+      "y": 8,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "coin-19",
+      "type": "coin",
+      "x": 1.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-20",
+      "type": "coin",
+      "x": 4.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-21",
+      "type": "coin",
+      "x": 7.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-22",
+      "type": "coin",
+      "x": 10.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-23",
+      "type": "coin",
+      "x": 13.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-24",
+      "type": "coin",
+      "x": 16.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-25",
+      "type": "coin",
+      "x": 19.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-26",
+      "type": "coin",
+      "x": 22.5,
+      "y": 9.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 37,
+      "y": 9,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "coin-27",
+      "type": "coin",
+      "x": 3.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-28",
+      "type": "coin",
+      "x": 6.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-29",
+      "type": "coin",
+      "x": 9.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-30",
+      "type": "coin",
+      "x": 12.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-31",
+      "type": "coin",
+      "x": 15.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-32",
+      "type": "coin",
+      "x": 18.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-33",
+      "type": "coin",
+      "x": 21.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-34",
+      "type": "coin",
+      "x": 24.0,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 0,
+      "y": 12,
+      "w": 28,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 32,
+      "y": 12,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 0,
+      "y": 13,
+      "w": 24,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 24,
+      "y": 13,
+      "w": 2,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 26,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 33,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-09",
+      "type": "solid",
+      "x": 34,
+      "y": 13,
+      "w": 2,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
+      "x": 36,
+      "y": 13,
+      "w": 4,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-35",
+      "type": "coin",
+      "x": 29.5,
+      "y": 15.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-11",
+      "type": "solid",
+      "x": 0,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 1,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-05",
+      "type": "oneWay",
+      "x": 28,
+      "y": 16,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-13",
+      "type": "solid",
+      "x": 0,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-36",
+      "type": "coin",
+      "x": 25.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-37",
+      "type": "coin",
+      "x": 33.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-06",
+      "type": "oneWay",
+      "x": 24,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-14",
+      "type": "solid",
+      "x": 32,
+      "y": 20,
+      "w": 8,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-38",
+      "type": "coin",
+      "x": 2.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-39",
+      "type": "coin",
+      "x": 8.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-40",
+      "type": "coin",
+      "x": 14.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-41",
+      "type": "coin",
+      "x": 21.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-07",
+      "type": "oneWay",
+      "x": 2,
+      "y": 24,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-08",
+      "type": "oneWay",
+      "x": 8,
+      "y": 24,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-09",
+      "type": "oneWay",
+      "x": 14,
+      "y": 24,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-10",
+      "type": "oneWay",
+      "x": 20,
+      "y": 24,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-42",
+      "type": "coin",
+      "x": 0.5,
+      "y": 27.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-11",
+      "type": "oneWay",
+      "x": 0,
+      "y": 28,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-15",
+      "type": "solid",
+      "x": 20,
+      "y": 28,
+      "w": 4,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-16",
+      "type": "solid",
+      "x": 36,
+      "y": 28,
+      "w": 4,
+      "h": 12,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-43",
+      "type": "coin",
+      "x": 2.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-44",
+      "type": "coin",
+      "x": 9.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-45",
+      "type": "coin",
+      "x": 33.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-12",
+      "type": "oneWay",
+      "x": 2,
+      "y": 32,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-13",
+      "type": "oneWay",
+      "x": 8,
+      "y": 32,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-03",
+      "type": "door",
+      "x": 32,
+      "y": 32,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "coin-46",
+      "type": "coin",
+      "x": 13.5,
+      "y": 35.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-47",
+      "type": "coin",
+      "x": 29.5,
+      "y": 35.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-14",
+      "type": "oneWay",
+      "x": 12,
+      "y": 36,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 19,
+      "y": 36,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "door-04",
+      "type": "door",
+      "x": 28,
+      "y": 36,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "solid-17",
+      "type": "solid",
+      "x": 0,
+      "y": 38,
+      "w": 6,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 37.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-02",
+          "door-03",
+          "door-04"
+        ],
+        "linkGroup": "button-1",
+        "startOn": false
+      }
+    },
+    {
+      "id": "button-02",
+      "type": "button",
+      "x": 37.5,
+      "y": 27.0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-01"
+        ],
+        "linkGroup": "button-2",
+        "startOn": false
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "Level 1-04.xlsx",
+    "difficulty": "medium",
+    "unmappedNotes": []
+  }
+}

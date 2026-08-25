@@ -1,7 +1,7 @@
 {
   "kind": "nubu.level",
   "schemaVersion": 1,
-  "id": "ep1-01",
+  "id": "ep1-01-easy",
   "title": "Эпизод 1 · Лёгкая · Уровень 1-1",
   "episode": 1,
   "sequence": 1,
@@ -29,13 +29,10 @@
     { "id": "spawn-01", "type": "spawn", "x": 1, "y": 16, "w": 1, "h": 2, "layer": "meta", "props": { "anchor": "topLeft", "semantics": "playerBody" } },
     { "id": "exit-main", "type": "exit", "x": 17, "y": 5, "w": 2, "h": 3, "layer": "meta", "props": { "route": "main" } }
   ],
-  "difficultyVariants": {
-    "medium": { "add": [], "removeIds": [], "overrides": [] },
-    "hard": { "add": [], "removeIds": [], "overrides": [] }
-  },
   "metadata": {
     "status": "graybox",
     "revision": 1,
-    "source": "Level 1-01.xlsx"
+    "source": "Level 1-01.xlsx",
+    "difficulty": "easy"
   }
 }

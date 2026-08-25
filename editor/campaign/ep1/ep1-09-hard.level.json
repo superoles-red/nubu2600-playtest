@@ -1,0 +1,583 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-09-hard",
+  "title": "Эпизод 1 · Сложная · Уровень 1-9",
+  "episode": 1,
+  "sequence": 9,
+  "role": "develop",
+  "size": {
+    "width": 20,
+    "height": 40
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes. Полная самостоятельная карта сложности создана копированием easy и ещё не настроена.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 2,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 2,
+      "y": 0,
+      "w": 2,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 13,
+      "y": 1,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 9.5,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-01",
+      "type": "fallingPlatform",
+      "x": 9,
+      "y": 4,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "oneway-01",
+      "type": "oneWay",
+      "x": 12,
+      "y": 4,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 5.5,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 17.5,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-02",
+      "type": "fallingPlatform",
+      "x": 5,
+      "y": 8,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 16,
+      "y": 8,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 1.5,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 13.5,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-03",
+      "type": "fallingPlatform",
+      "x": 1,
+      "y": 12,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 12,
+      "y": 12,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneway-02",
+      "type": "oneWay",
+      "x": 0,
+      "y": 16,
+      "w": 9,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 9,
+      "y": 16,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 16,
+      "y": 16,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 9,
+      "y": 17,
+      "w": 2,
+      "h": 11,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "enemygoomba-01",
+      "type": "enemyGoomba",
+      "x": 6,
+      "y": 18,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 17.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-03",
+      "type": "oneWay",
+      "x": 5,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 11,
+      "y": 20,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 16,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 1.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 17.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-04",
+      "type": "oneWay",
+      "x": 0,
+      "y": 24,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 11,
+      "y": 24,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-03",
+      "type": "door",
+      "x": 16,
+      "y": 24,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 5.5,
+      "y": 27.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 17.5,
+      "y": 27.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-05",
+      "type": "oneWay",
+      "x": 0,
+      "y": 28,
+      "w": 9,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-09",
+      "type": "solid",
+      "x": 9,
+      "y": 28,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-04",
+      "type": "door",
+      "x": 16,
+      "y": 28,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true,
+        "linkGroup": "button-1"
+      }
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
+      "x": 9,
+      "y": 29,
+      "w": 2,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-11",
+      "type": "coin",
+      "x": 1.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-12",
+      "type": "coin",
+      "x": 17.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-04",
+      "type": "fallingPlatform",
+      "x": 1,
+      "y": 32,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "oneway-06",
+      "type": "oneWay",
+      "x": 16,
+      "y": 32,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 5.5,
+      "y": 35.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-14",
+      "type": "coin",
+      "x": 13.5,
+      "y": 35.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-05",
+      "type": "fallingPlatform",
+      "x": 5,
+      "y": 36,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 9,
+      "y": 36,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "oneway-07",
+      "type": "oneWay",
+      "x": 12,
+      "y": 36,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-11",
+      "type": "solid",
+      "x": 0,
+      "y": 38,
+      "w": 4,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 16,
+      "y": 38,
+      "w": 4,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 11.0,
+      "y": 18.0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "right"
+        ],
+        "targets": [
+          "door-01",
+          "door-02",
+          "door-03",
+          "door-04"
+        ],
+        "linkGroup": "button-1",
+        "startOn": false
+      }
+    },
+    {
+      "id": "button-02",
+      "type": "button",
+      "x": 11.0,
+      "y": 22.0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "right"
+        ],
+        "targets": [
+          "door-01",
+          "door-02",
+          "door-03",
+          "door-04"
+        ],
+        "linkGroup": "button-1",
+        "startOn": false
+      }
+    },
+    {
+      "id": "button-03",
+      "type": "button",
+      "x": 11.0,
+      "y": 26.0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "right"
+        ],
+        "targets": [
+          "door-01",
+          "door-02",
+          "door-03",
+          "door-04"
+        ],
+        "linkGroup": "button-1",
+        "startOn": false
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "Level 1-09.xlsx",
+    "difficulty": "hard",
+    "unmappedNotes": []
+  }
+}

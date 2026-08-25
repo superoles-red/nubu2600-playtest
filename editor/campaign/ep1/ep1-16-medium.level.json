@@ -1,0 +1,174 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-16-medium",
+  "title": "Эпизод 1 · Средняя · Уровень 1-16 · Смотровой мост",
+  "episode": 1,
+  "sequence": 16,
+  "role": "exam",
+  "size": {
+    "width": 60,
+    "height": 20
+  },
+  "theme": "Спуск к кнопке на падающей платформе и возврат по изменившемуся пути.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N16: Спуск к кнопке на падающей платформе и возврат по изменившемуся пути. Можно очистить или заменить; это не утверждённый финальный уровень. Карта средняя сложности — отдельная полная копия для дальнейшей настройки.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 60,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 21,
+      "y": 13,
+      "w": 18,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 56,
+      "y": 15,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 47,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 27,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-01"
+        ]
+      }
+    },
+    {
+      "id": "fallingPlatform-01",
+      "type": "fallingPlatform",
+      "x": 13,
+      "y": 12,
+      "w": 6,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.45,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 40,
+      "y": 10,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 22,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 25,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 28,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 31,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 34,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "medium",
+    "template": true
+  }
+}

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:nubu2600:schema:level:1",
   "title": "NuBu2600 level",
-  "description": "Candidate schema v1 для будущего общего формата runtime, редактора, импортёров и тестов.",
+  "description": "Candidate schema v1 для одной полной карты одной сложности. Easy, medium и hard хранятся отдельными level payload, а не patches.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -57,14 +57,6 @@
       "type": "array",
       "items": { "$ref": "#/$defs/levelObject" }
     },
-    "difficultyVariants": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "medium": { "$ref": "#/$defs/difficultyPatch" },
-        "hard": { "$ref": "#/$defs/difficultyPatch" }
-      }
-    },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
@@ -72,7 +64,8 @@
         "status": { "enum": ["idea", "graybox", "playable", "tuning", "locked", "released"] },
         "revision": { "type": "integer", "minimum": 1 },
         "source": { "type": "string" },
-        "author": { "type": "string" }
+        "author": { "type": "string" },
+        "difficulty": { "enum": ["easy", "medium", "hard"] }
       }
     }
   },
@@ -100,7 +93,6 @@
         "spike",
         "crusherWall",
         "door",
-        "levelDoor",
         "button",
         "portal",
         "driftField",
@@ -113,7 +105,6 @@
         "enemyFlyer",
         "enemyLeech",
         "enemySpikeCube",
-        "enemyBomb",
         "pushBlock",
         "coin",
         "collectible",
@@ -163,37 +154,22 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "solid" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "x": { "type": "integer" },
+              "y": { "type": "integer" },
+              "w": { "type": "integer", "minimum": 1 },
+              "h": { "type": "integer", "minimum": 1 }
+            }
+          }
         }
       ]
-    },
-    "objectOverride": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "changes"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "changes": { "type": "object", "additionalProperties": true }
-      }
-    },
-    "difficultyPatch": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["add", "removeIds", "overrides"],
-      "properties": {
-        "add": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/levelObject" }
-        },
-        "removeIds": {
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 },
-          "uniqueItems": true
-        },
-        "overrides": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/objectOverride" }
-        }
-      }
     }
   }
 }

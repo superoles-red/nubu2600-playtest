@@ -1,0 +1,212 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-18-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-18 · Башня обслуживания",
+  "episode": 1,
+  "sequence": 18,
+  "role": "develop",
+  "size": {
+    "width": 20,
+    "height": 100
+  },
+  "theme": "Вертикальная петля памяти: кнопка ниже открывает дверь выше.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N18: Вертикальная петля памяти: кнопка ниже открывает дверь выше. Можно очистить или заменить; это не утверждённый финальный уровень.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 98,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 96,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 16,
+      "y": 2,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 10,
+      "y": 14,
+      "w": 6,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false
+      }
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 2,
+      "y": 82,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "right"
+        ],
+        "targets": [
+          "door-01"
+        ]
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 2,
+      "y": 90,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-02",
+      "type": "oneWay",
+      "x": 11,
+      "y": 81,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-03",
+      "type": "oneWay",
+      "x": 2,
+      "y": 72,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingPlatform-01",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 68,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "oneWay-04",
+      "type": "oneWay",
+      "x": 11,
+      "y": 63,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-05",
+      "type": "oneWay",
+      "x": 2,
+      "y": 54,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-06",
+      "type": "oneWay",
+      "x": 11,
+      "y": 45,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingPlatform-02",
+      "type": "fallingPlatform",
+      "x": 5,
+      "y": 41,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "oneWay-07",
+      "type": "oneWay",
+      "x": 2,
+      "y": 36,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-08",
+      "type": "oneWay",
+      "x": 11,
+      "y": 27,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 7,
+      "y": 58,
+      "w": 4,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "cycle",
+        "cycle": 2,
+        "phase": 0.8
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "easy",
+    "template": true
+  }
+}

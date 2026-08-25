@@ -2,164 +2,186 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
   <meta name="color-scheme" content="dark">
-  <title>NuBu2600 · Редактор уровней</title>
+  <title>NuBu2600 · Конструктор уровней</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">NB</span>
-        <span>
-          <strong>NuBu2600</strong>
-          <small>внутренний редактор уровней · прототип</small>
-        </span>
+  <div class="app-shell" id="appShell">
+    <header class="command-bar">
+      <button class="brand-button" id="libraryButton" type="button" aria-label="Открыть библиотеку">
+        <span class="brand-mark">NB</span><span class="brand-copy"><strong>Конструктор</strong><small>уровни NuBu2600</small></span>
+      </button>
+
+      <div class="level-picker" aria-label="Выбор уровня">
+        <label><span>Эпизод</span><select id="episodeSelect"><option value="1">1</option></select></label>
+        <label><span>Уровень</span><select id="levelSelect"></select></label>
       </div>
 
-      <div class="topbar-actions" aria-label="Команды файла">
-        <button id="newLevelButton" type="button">Новый</button>
-        <button id="loadSampleButton" type="button">Пример 1-1</button>
-        <label class="button file-button">
-          Импорт JSON
-          <input id="importInput" type="file" accept="application/json,.json">
-        </label>
-        <button id="exportButton" type="button" class="primary">Экспорт JSON</button>
+      <div class="difficulty-switch" role="group" aria-label="Сложность">
+        <button type="button" data-difficulty="easy" data-short="Л">Легко</button>
+        <button type="button" data-difficulty="medium" data-short="СР">Средне</button>
+        <button type="button" data-difficulty="hard" data-short="СЛ">Сложно</button>
       </div>
 
-      <div class="history-actions" aria-label="История действий">
+      <label class="title-field"><span class="sr-only">Название уровня</span><input id="levelTitleInput" maxlength="48" placeholder="Название уровня"></label>
+
+      <div class="save-state" id="saveState" aria-live="polite"><span></span><b>Загрузка…</b></div>
+
+      <div class="command-actions">
         <button id="undoButton" type="button" title="Отменить (⌘/Ctrl+Z)">↶</button>
         <button id="redoButton" type="button" title="Повторить (⌘/Ctrl+Shift+Z)">↷</button>
+        <button id="fitButton" type="button" title="Показать весь уровень">⌗</button>
+        <button id="playButton" type="button" class="play-button"><span>▶</span> Play</button>
       </div>
     </header>
 
-    <aside class="palette-panel panel" aria-label="Палитра объектов">
-      <div class="panel-heading">
-        <div>
-          <small>Инструменты</small>
-          <h2>Палитра</h2>
-        </div>
-        <button id="selectionToolButton" type="button" class="icon-button" title="Выбор объекта (V)">⌖</button>
+    <aside class="palette-panel drawer" id="palettePanel" aria-label="Предметы">
+      <div class="drawer-heading">
+        <div><small>Перетащите или выберите</small><h2>Предметы</h2></div>
+        <button class="drawer-close" data-close-drawer="palettePanel" type="button" aria-label="Закрыть">×</button>
       </div>
-      <div id="palette" class="palette"></div>
-      <div class="palette-help">
-        <p><kbd>V</kbd> выбор · <kbd>Delete</kbd> удалить · <kbd>Esc</kbd> отменить</p>
-        <p>Рисуйте прямоугольник мышью. Правой кнопкой можно быстро стереть объект.</p>
-      </div>
+      <div class="palette-search"><input id="paletteSearch" type="search" placeholder="Найти предмет…" autocomplete="off"></div>
+      <div class="palette" id="palette"></div>
+      <p class="drawer-hint">Мышь: протяните, чтобы нарисовать блок. Touch: выберите предмет и проведите пальцем. Два пальца — масштаб и камера.</p>
     </aside>
 
     <main class="workspace">
-      <div class="workspace-toolbar panel">
-        <div class="level-identity">
-          <span id="dirtyIndicator" class="status-dot" title="Состояние сохранения"></span>
-          <strong id="levelTitleDisplay">Новый уровень</strong>
-          <span id="levelSizeDisplay" class="muted">20×20</span>
-        </div>
-        <div class="zoom-controls">
-          <button id="zoomOutButton" type="button" title="Уменьшить">−</button>
-          <input id="zoomInput" type="range" min="35" max="150" step="5" value="100" aria-label="Масштаб">
-          <button id="zoomInButton" type="button" title="Увеличить">+</button>
-          <output id="zoomOutput" for="zoomInput">100%</output>
-          <button id="fitButton" type="button">Вместить</button>
-        </div>
-      </div>
+      <nav class="quick-tray" id="quickTray" aria-label="Быстрые инструменты">
+        <button type="button" data-tool="select" class="tool-command active"><span>⌖</span><small>Выбор</small></button>
+        <button type="button" data-tool="pan" class="tool-command"><span>✋</span><small>Камера</small></button>
+        <button type="button" data-tool="erase" class="tool-command"><span>⌫</span><small>Ластик</small></button>
+        <button type="button" id="rotateButton" class="tool-command"><span>↻</span><small>Повернуть</small></button>
+        <button type="button" id="testHereButton" class="tool-command"><span>◇</span><small>Тест отсюда</small></button>
+        <span class="tray-divider"></span>
+        <div id="favoriteTools" class="favorite-tools"></div>
+        <button type="button" id="openPaletteButton" class="tool-command more-tool"><span>＋</span><small>Все</small></button>
+      </nav>
 
-      <div id="canvasViewport" class="canvas-viewport" tabindex="0" aria-label="Рабочая сетка уровня">
-        <div class="canvas-stage">
+      <div class="canvas-viewport" id="canvasViewport" tabindex="0" aria-label="Сетка уровня">
+        <div class="canvas-stage" id="canvasStage">
           <canvas id="levelCanvas"></canvas>
-          <div id="cursorReadout" class="cursor-readout">x 0 · y 0</div>
+          <div class="cursor-readout" id="cursorReadout">0 · 0</div>
         </div>
       </div>
 
-      <div class="workspace-footer panel">
-        <div id="toolStatus">Инструмент: выбор</div>
-        <div id="objectCountStatus">0 объектов</div>
-        <button id="validateButton" type="button">Проверить уровень</button>
-      </div>
+      <footer class="workspace-status">
+        <div><strong id="toolStatus">Выбор</strong><span id="cursorStatus">x 0 · y 0</span></div>
+        <div class="budget-meter"><span id="budgetBar"></span></div>
+        <div><span id="objectCountStatus">0 объектов</span><button id="issuesButton" type="button">Проверка <b id="issueBadge">0</b></button></div>
+      </footer>
     </main>
 
-    <aside class="inspector-panel panel" aria-label="Свойства уровня и объекта">
-      <div class="tabs" role="tablist">
-        <button type="button" class="tab active" data-tab="level" role="tab">Уровень</button>
-        <button type="button" class="tab" data-tab="object" role="tab">Объект</button>
-        <button type="button" class="tab" data-tab="checks" role="tab">Проверка <span id="issueBadge" class="badge">0</span></button>
+    <aside class="inspector-panel drawer" id="inspectorPanel" aria-label="Свойства">
+      <div class="drawer-heading">
+        <div><small id="inspectorKicker">Уровень</small><h2 id="inspectorTitle">Настройки</h2></div>
+        <button class="drawer-close" data-close-drawer="inspectorPanel" type="button" aria-label="Закрыть">×</button>
       </div>
 
-      <section id="levelTab" class="tab-panel active" data-panel="level">
-        <label>ID уровня<input id="levelIdInput" type="text" spellcheck="false"></label>
-        <label>Название<input id="levelTitleInput" type="text"></label>
-        <div class="form-grid two">
-          <label>Эпизод<input id="episodeInput" type="number" min="1" max="99"></label>
-          <label>Номер<input id="sequenceInput" type="number" min="1" max="999"></label>
+      <div class="inspector-tabs" role="tablist">
+        <button class="active" type="button" data-inspector-tab="level">Уровень</button>
+        <button type="button" data-inspector-tab="object">Предмет</button>
+        <button type="button" data-inspector-tab="checks">Проверка</button>
+      </div>
+
+      <section class="inspector-section active" data-inspector-panel="level">
+        <div class="field-pair">
+          <label>Ширина<input id="widthInput" type="number" min="10" max="100"></label>
+          <label>Высота<input id="heightInput" type="number" min="10" max="100"></label>
         </div>
-        <div class="form-grid two">
-          <label>Ширина<input id="widthInput" type="number" min="10" max="100" step="1"></label>
-          <label>Высота<input id="heightInput" type="number" min="10" max="100" step="1"></label>
+        <button id="applySizeButton" type="button" class="wide-button">Изменить размер</button>
+        <label>Заметки автора<textarea id="notesInput" rows="4" maxlength="1000" placeholder="Что здесь надо доработать…"></textarea></label>
+        <div class="section-card">
+          <strong>Три отдельные карты</strong>
+          <p>Каждая сложность хранится целиком. Копирование создаёт новую независимую карту.</p>
+          <label>Скопировать текущую в
+            <select id="copyDifficultySelect">
+              <option value="medium">Среднюю</option>
+              <option value="hard">Сложную</option>
+              <option value="easy">Лёгкую</option>
+            </select>
+          </label>
+          <button id="copyDifficultyButton" type="button" class="wide-button">Скопировать карту</button>
         </div>
-        <label>Роль
-          <select id="roleInput">
-            <option value="intro">Вводный</option>
-            <option value="develop">Развитие</option>
-            <option value="exam">Экзамен / ремикс</option>
-            <option value="shop">Магазин / чекпоинт</option>
-            <option value="boss">Босс</option>
-            <option value="postboss">Послебоссовый</option>
-            <option value="secret">Секретный</option>
-            <option value="training">Обучение</option>
-            <option value="lobby">Лобби</option>
-          </select>
-        </label>
-        <label>Тема<textarea id="themeInput" rows="2"></textarea></label>
-        <label>Чему учит<textarea id="learningGoalInput" rows="3"></textarea></label>
-        <label>Заметки дизайнера<textarea id="notesInput" rows="4"></textarea></label>
-        <button id="applySizeButton" type="button">Применить размер</button>
+        <div class="button-grid">
+          <button id="restoreTemplateButton" type="button">Вернуть шаблон</button>
+          <button id="clearLevelButton" type="button">Очистить</button>
+          <button id="duplicateLevelButton" type="button">Сделать ремикс</button>
+          <button id="exportButton" type="button">Скачать JSON</button>
+        </div>
+        <label class="file-button">Импортировать JSON<input id="importInput" type="file" accept="application/json,.json"></label>
       </section>
 
-      <section id="objectTab" class="tab-panel" data-panel="object">
-        <div id="noSelection" class="empty-state">Выберите объект на сетке.</div>
+      <section class="inspector-section" data-inspector-panel="object">
+        <div id="noSelection" class="empty-state">Коснитесь предмета на карте, чтобы переместить или настроить его.</div>
         <div id="objectForm" hidden>
-          <div class="object-chip-row">
-            <span id="objectSwatch" class="object-swatch"></span>
-            <strong id="objectTypeLabel"></strong>
-          </div>
-          <label>ID объекта<input id="objectIdInput" type="text" spellcheck="false"></label>
-          <div class="form-grid two">
+          <div class="object-heading"><canvas id="selectedObjectIcon" width="52" height="42"></canvas><div><strong id="objectTypeLabel"></strong><small id="objectPositionLabel"></small></div></div>
+          <div class="field-pair">
             <label>X<input id="objectXInput" type="number" step="0.5"></label>
             <label>Y<input id="objectYInput" type="number" step="0.5"></label>
             <label>Ширина<input id="objectWInput" type="number" min="0.5" step="0.5"></label>
             <label>Высота<input id="objectHInput" type="number" min="0.5" step="0.5"></label>
           </div>
-          <label>Слой
-            <select id="objectLayerInput">
-              <option value="terrain">Геометрия</option>
-              <option value="gameplay">Геймплей</option>
-              <option value="hazard">Опасности</option>
-              <option value="entity">Сущности</option>
-              <option value="meta">Мета</option>
-              <option value="decor">Декор</option>
-            </select>
-          </label>
-          <label>Свойства JSON<textarea id="objectPropsInput" rows="8" spellcheck="false"></textarea></label>
-          <div class="row-actions">
-            <button id="duplicateObjectButton" type="button">Дублировать</button>
+          <div id="friendlyProperties" class="friendly-properties"></div>
+          <div class="button-grid">
+            <button id="rotateObjectButton" type="button">↻ Повернуть</button>
+            <button id="linkObjectButton" type="button">⌁ Связать</button>
+            <button id="duplicateObjectButton" type="button">⧉ Копия</button>
             <button id="deleteObjectButton" type="button" class="danger">Удалить</button>
           </div>
         </div>
       </section>
 
-      <section id="checksTab" class="tab-panel" data-panel="checks">
-        <div class="checks-summary">
-          <strong id="checksHeadline">Проверка ещё не запускалась</strong>
-          <p id="checksDescription">Редактор проверяет границы, вход, выход, ID и критические пересечения.</p>
-        </div>
+      <section class="inspector-section" data-inspector-panel="checks">
+        <div class="checks-summary"><strong id="checksHeadline">Проверка ещё не запускалась</strong><p id="checksDescription">Play сначала проверит критические ошибки, затем откроет этот уровень в игре.</p></div>
+        <div class="budget-details" id="budgetDetails" aria-label="Бюджет уровня"></div>
         <ol id="issuesList" class="issues-list"></ol>
+        <div class="section-card publish-card">
+          <strong id="clearStatus">Авторское прохождение не засчитано</strong>
+          <p>После любой правки зачёт аннулируется. Публичная публикация появится вместе с сервером и модерацией.</p>
+          <button id="publishButton" type="button" disabled>Публикация пока локальная</button>
+        </div>
       </section>
     </aside>
+
+    <nav class="mobile-dock" aria-label="Мобильные команды">
+      <button type="button" data-open-drawer="palettePanel"><span>▦</span>Предметы</button>
+      <button type="button" data-tool="select"><span>⌖</span>Выбор</button>
+      <button type="button" data-tool="erase"><span>⌫</span>Ластик</button>
+      <button type="button" data-open-drawer="inspectorPanel"><span>⚙</span>Свойства</button>
+      <button type="button" id="mobilePlayButton" class="mobile-play"><span>▶</span>Play</button>
+    </nav>
   </div>
 
-  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  <div class="modal" id="libraryModal" aria-hidden="true">
+    <div class="modal-panel">
+      <header><div><small>Local Coursebot</small><h1>Мои уровни</h1><p>До 100 пользовательских уровней на этом устройстве.</p></div><button id="closeLibraryButton" type="button" aria-label="Закрыть">×</button></header>
+      <div class="library-actions">
+        <button id="newUserLevelButton" type="button" class="primary">＋ Новый уровень</button>
+        <button id="randomStarterButton" type="button">Случайная заготовка</button>
+        <span id="userSlotCount">0 / 100</span>
+      </div>
+      <div class="template-size-row" id="templateSizeRow">
+        <span>Размер нового:</span>
+        <button type="button" data-size="20x20" class="active">20×20</button>
+        <button type="button" data-size="20x40">20×40</button>
+        <button type="button" data-size="40x20">40×20</button>
+        <button type="button" data-size="40x40">40×40</button>
+        <button type="button" data-size="100x20">100×20</button>
+        <button type="button" data-size="20x100">20×100</button>
+      </div>
+      <div class="library-list" id="libraryList"></div>
+      <p class="local-warning">Сейчас библиотека хранится локально в браузере. Share-коды, жалобы, цензура публикации и облако требуют backend и будут отдельным этапом.</p>
+    </div>
+  </div>
+
+  <div class="modal compact-modal" id="confirmModal" aria-hidden="true">
+    <div class="modal-panel confirm-panel"><h2 id="confirmTitle">Подтвердите действие</h2><p id="confirmText"></p><div><button id="confirmCancelButton" type="button">Отмена</button><button id="confirmAcceptButton" type="button" class="primary">Продолжить</button></div></div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
   <script src="editor.js"></script>
 </body>
 </html>

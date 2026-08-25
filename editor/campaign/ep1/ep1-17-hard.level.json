@@ -1,0 +1,152 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-17-hard",
+  "title": "Эпизод 1 · Сложная · Уровень 1-17 · Выбор двери",
+  "episode": 1,
+  "sequence": 17,
+  "role": "intro",
+  "size": {
+    "width": 20,
+    "height": 20
+  },
+  "theme": "Две кнопки и две двери: главный маршрут против бонусного.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N17: Две кнопки и две двери: главный маршрут против бонусного. Можно очистить или заменить; это не утверждённый финальный уровень. Карта сложная сложности — отдельная полная копия для дальнейшей настройки.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 3,
+      "y": 11,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 12,
+      "y": 11,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 16,
+      "y": 8,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 8,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 11,
+      "y": 8,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 5,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-01"
+        ]
+      }
+    },
+    {
+      "id": "button-02",
+      "type": "button",
+      "x": 14,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-02"
+        ]
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 8,
+      "y": 6,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "hard",
+    "template": true
+  }
+}

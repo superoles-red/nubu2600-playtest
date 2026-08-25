@@ -1,0 +1,145 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-13-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-13 · Пульс шлюза",
+  "episode": 1,
+  "sequence": 13,
+  "role": "intro",
+  "size": {
+    "width": 20,
+    "height": 20
+  },
+  "theme": "Первый честный урок циклических шипов с безопасным ожиданием.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N13: Первый честный урок циклических шипов с безопасным ожиданием. Можно очистить или заменить; это не утверждённый финальный уровень.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 4,
+      "y": 13,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 12,
+      "y": 9,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 16,
+      "y": 6,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 8,
+      "y": 17,
+      "w": 3,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "cycle",
+        "cycle": 2,
+        "phase": 0
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 9,
+      "y": 13,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 5,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 8,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 11,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 14,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "easy",
+    "template": true
+  }
+}

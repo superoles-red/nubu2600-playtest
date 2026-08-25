@@ -106,6 +106,10 @@
   }
 
   @media (hover:hover) and (pointer:fine){.controls{display:none}}
+  .editor-playtest-bar{position:fixed;z-index:70;left:50%;bottom:max(12px, env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 20px);padding:8px 10px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
+  .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
+  .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
+  @media (pointer:coarse){.editor-playtest-bar{top:max(8px, env(safe-area-inset-top));bottom:auto}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
 </style>
 </head>
 <body>
@@ -134,6 +138,11 @@
       <div class="jump-label">ПРЫЖОК</div>
     </div>
   </div>
+  <div class="editor-playtest-bar hidden" id="editorPlaytestBar">
+    <span id="editorPlaytestLabel">Тест уровня</span>
+    <button id="editorRestartBtn" type="button">↻ Заново</button>
+    <button id="editorReturnBtn" type="button">← В редактор</button>
+  </div>
 </div>
 
 <div class="overlay show" id="startOverlay">
@@ -153,6 +162,7 @@
     <div class="btns">
       <button class="action" id="startBtn">Начать игру</button>
       <button class="action secondary" id="startTestBtn">Начать тестовый уровень 1-8</button>
+      <button class="action secondary" id="openEditorBtn">Редактор уровней</button>
       <button class="action secondary hidden" id="resetRoomItemsBtn">Сброс JP / FL / V</button>
     </div>
     <div class="confirm-box hidden" id="startConfirmBox" style="display:none">
@@ -198,6 +208,7 @@
       <button class="action secondary" id="restartRunBtn">Заново связку</button>
       <button class="action secondary" id="restartEpisodeBtn">Заново эпизод</button>
       <button class="action secondary" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
+      <button class="action secondary" id="pauseEditorBtn">Редактор уровней</button>
     </div>
   </div>
 </div>
@@ -273,6 +284,7 @@ const JUMP_BUFFER = 0.10;
 const WALL_JUMP_X = 10 * CELL;
 const MAX_FALL = 28 * CELL;
 const COLLISION_SKIN = Math.max(1, CELL * 0.08);
+const COLLISION_LEADING_EDGE_EPSILON = 0.001;
 const SAFE_VIEW = 22 * CELL;
 const CAMERA_MARGIN_PORTRAIT_TOP = 5 * CELL;
 const CAMERA_MARGIN_PORTRAIT_BOTTOM = 10 * CELL;
@@ -305,6 +317,8 @@ const BULLET_SPEED = 4.4 * CELL;
 const CANNON_SPIT_DISTANCE = 2 * CELL;
 const FLYER_SPAWN_SPIT_DISTANCE = 5 * CELL;
 const FLYER_SPAWN_SPIT_DURATION = 0.42;
+const SPAWNER_OUTPUT_LIMIT_PER_GENERATOR = 4;
+const SPAWNER_OUTPUT_LIMIT_GLOBAL = 16;
 const JETPACK_SPEED = 9.5 * CELL;
 const DRIFT_FIELD_ASCEND_SPEED = 8.75 * CELL;
 const DRIFT_FIELD_ASCEND_ACCEL = 30.5 * CELL;
@@ -358,6 +372,7 @@ const state = {
   messages: [],
   debug: { showCollisions: false },
   roomTransition: null,
+  editorPlaytest: null,
   progress: {
     abilities: { grab:false, wall:false, dj:false },
     roomItemsUnlocked: { jp:false, fl:false, vv:false },
@@ -369,6 +384,8 @@ const state = {
 const moveTouch = { left:false, right:false, ids:new Map() };
 const jumpTouch = { held: false, id: null };
 const PROGRESS_STORAGE_KEY = 'NuBu2600_progress_v1';
+const EDITOR_PLAYTEST_STORAGE_KEY = 'nubu2600.editor.playtest.v1';
+const EDITOR_RESULT_STORAGE_KEY = 'nubu2600.editor.playtest.result.v1';
 const COLLECTION_CATALOG = {
   COL_SUN:   { id:'COL_SUN',   label:'Сигил Солнца', emblem:'SUN',   fill:'#ffd66b', accent:'#fff3b0', shape:'sun' },
   COL_MOON:  { id:'COL_MOON',  label:'Сигил Луны',   emblem:'MOON',  fill:'#9ed7ff', accent:'#eff8ff', shape:'moon' },
@@ -2431,6 +2448,229 @@ function makeRoomFromExcelMap(title, innerW, innerH, entries, opts={}) {
     r.hudText = `Уровень из Excel: ${r.title}. Объекты перенесены по сетке ${innerW}×${innerH} с учётом объединённых ячеек.`;
   }
   return { room:r, notes };
+}
+
+function editorDirection(value, fallback='r') {
+  const map = {
+    up:'u', top:'u', u:'u',
+    down:'d', bottom:'b', d:'d', b:'b',
+    left:'l', l:'l',
+    right:'r', r:'r',
+  };
+  return map[String(value || '').toLowerCase()] || fallback;
+}
+function editorButtonSides(value) {
+  const incoming = Array.isArray(value) ? value : [value || 'up'];
+  const mapped = incoming.map(side => editorDirection(side, 'u')).map(side => side === 'd' ? 'b' : side);
+  return [...new Set(mapped)].join('') || 'u';
+}
+function editorSpikeDirection(value) {
+  const direction = editorDirection(value, 'u');
+  return direction === 'b' ? 'd' : direction;
+}
+function editorLevelObjectOptions(object) {
+  return object && object.props && typeof object.props === 'object' ? object.props : {};
+}
+function makeRoomFromEditorLevel(level, testSpawn=null) {
+  if (!level || level.kind !== 'nubu.level' || level.schemaVersion !== 1) throw new Error('Редактор передал неподдерживаемый формат уровня.');
+  const width = clamp(Math.round(Number(level.size && level.size.width) || 20), 10, 100);
+  const height = clamp(Math.round(Number(level.size && level.size.height) || 20), 10, 100);
+  const room = createRoom(width, height, 'внлп', String(level.title || 'Пользовательский уровень'));
+  room.worldId = 'editor';
+  room.roomType = 'editor_playtest';
+  room.levelCode = `${Number(level.episode) || 1}-${Number(level.sequence) || 1}`;
+  room.infiniteLives = true;
+  room.showDefaultExit = true;
+  room.hudText = '';
+  room.editorWarnings = [];
+  let spawnFound = false;
+  let exitFound = false;
+
+  for (const object of (Array.isArray(level.objects) ? level.objects : [])) {
+    if (!object || !Number.isFinite(object.x) || !Number.isFinite(object.y)) continue;
+    const x = snapHalfCell(object.x);
+    const y = snapHalfCell(object.y);
+    const w = Math.max(0.5, snapHalfCell(Number(object.w) || 1));
+    const h = Math.max(0.5, snapHalfCell(Number(object.h) || 1));
+    const props = editorLevelObjectOptions(object);
+    const id = String(object.id || `${object.type}_${room.editorWarnings.length + 1}`);
+    switch (object.type) {
+      case 'solid':
+        setSolid(room, Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+        break;
+      case 'oneWay':
+        for (let row = 0; row < Math.max(1, Math.round(h)); row++) addOneWay(room, x, y + row, w);
+        break;
+      case 'fragilePlatform': addFragile(room, x, y, w, Number(props.respawnDelay) || 2); break;
+      case 'blinkPlatform': addBlink(room, x, y, w, { ...props, id }); break;
+      case 'movingPlatform': {
+        const path = Array.isArray(props.path) ? props.path : [];
+        const end = path.length > 1 ? path[path.length - 1] : { x:Number(props.endX), y:Number(props.endY) };
+        const endX = Number.isFinite(Number(end && end.x)) ? Number(end.x) : x + (Number(props.distance) || 6);
+        const endY = Number.isFinite(Number(end && end.y)) ? Number(end.y) : y;
+        const dx = endX - x;
+        const dy = endY - y;
+        const axis = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+        const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
+        const dist = Math.max(0.5, Math.abs(axis === 'v' ? dy : dx));
+        addMover(room, id, x, y, w, h, axis, dir, dist, { enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
+        break;
+      }
+      case 'smartPlatform': {
+        const path = Array.isArray(props.path) && props.path.length > 1 ? props.path.map(point => [Number(point.x), Number(point.y)]) : [[x, y], [x + 5, y]];
+        addSmart(room, id, path, { ...props, w, h, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
+        break;
+      }
+      case 'fallingPlatform': addDropPlatform(room, id, x, y, w, props); break;
+      case 'conveyor': addConveyor(room, id, x, y, w, editorDirection(props.direction, 'r'), props.speed || 'slow', props); break;
+      case 'bouncePad': (room.bouncePads ||= []).push({ x, y, w, h }); break;
+      case 'spike': addSpike(room, x, y, editorSpikeDirection(props.direction), w, h, { ...props, id }); break;
+      case 'crusherWall': {
+        const points = Array.isArray(props.path) && props.path.length > 1
+          ? props.path.map(point => [Number(point.x), Number(point.y)])
+          : undefined;
+        addCrusherWall(room, id, x, y, w, h, {
+          ...props,
+          points,
+          dir:editorDirection(props.direction || props.dir, 'r'),
+          speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond) * CELL : undefined,
+        });
+        break;
+      }
+      case 'door': addDoor(room, id, x, y, props.orientation === 'horizontal' ? w : h, props.orientation === 'horizontal' ? 'h' : 'v', !!props.open); break;
+      case 'button': addButton(room, props.buttonType || 'T', editorButtonSides(props.sides), x, y, Array.isArray(props.targets) ? props.targets : [], { startOn:!!props.startOn }); break;
+      case 'portal': addPortal(room, props.pairId || id, props.color || 'purple', x, y, props.orientation === 'horizontal' ? 'h' : 'v', editorDirection(props.side, props.orientation === 'horizontal' ? 'u' : 'r'), Number(props.length) || (props.orientation === 'horizontal' ? w : h)); break;
+      case 'driftField': addDriftField(room, id, x, y, w, h, props); break;
+      case 'playerCannon': addPlayerCannon(room, id, x, y, { ...props, w, h }); break;
+      case 'flyerSpawner': addFlyerSpawner(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, w, h }); break;
+      case 'shooterSpawner': addShooter(room, id, x, y, editorDirection(props.direction, 'l'), { ...props, w, h }); break;
+      case 'bomberSpawner': addBomberSpawner(room, id, x, y, editorDirection(props.direction, 'r'), props); break;
+      case 'cannon': addCannon(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, w, h }); break;
+      case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1 }); break;
+      case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
+      case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, editorDirection(props.direction, 'r'), Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
+      case 'enemySpikeCube': addSpikeCube(room, x, y, w, h, props.sides || 'udlr', props.move || null); break;
+      case 'pushBlock': addPushCube(room, x, y, w, h, props); break;
+      case 'coin': addCoin(room, x, y); break;
+      case 'collectible': addCollection(room, props.collectionId || id, x, y, { ...props, w, h }); break;
+      case 'pickup': addPickup(room, props.pickupType || 'PDJ', x, y, { ...props, w, h }); break;
+      case 'unlockSwitch': addUnlockSwitch(room, props.key || 'jp', x, y, props.label || null); break;
+      case 'heartVendor': addHeartVendor(room, x, y, { ...props, id }); break;
+      case 'spawn':
+        if (!spawnFound) {
+          room.spawn = { x, y };
+          spawnFound = true;
+        }
+        break;
+      case 'exit':
+        if (!exitFound) {
+          room.exit = { x, y, w, h };
+          exitFound = true;
+        }
+        break;
+      case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff'); break;
+      default: room.editorWarnings.push(`Не поддержан объект ${object.type} (${id})`); break;
+    }
+  }
+
+  if (!spawnFound) throw new Error('В уровне нет единственного входа.');
+  if (!exitFound) throw new Error('В уровне нет единственного выхода.');
+  if (testSpawn && Number.isFinite(testSpawn.x) && Number.isFinite(testSpawn.y)) {
+    room.spawn = { x:snapHalfCell(testSpawn.x), y:snapHalfCell(testSpawn.y) };
+  }
+  normalizeRoomGeometryToHalfGrid(room);
+  normalizeRoomPortals(room);
+  return room;
+}
+
+function stableEditorLevelHash(level) {
+  const text = JSON.stringify(level);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+function editorUrlFromRuntime(payload=null) {
+  if (payload && payload.returnUrl) {
+    try {
+      const target = new URL(payload.returnUrl, window.location.href);
+      if (target.origin === window.location.origin) return target.href;
+    } catch (error) {}
+  }
+  const decodedPath = decodeURIComponent(window.location.pathname);
+  return decodedPath.includes('/02 Разработка/game/')
+    ? new URL('../../tools/level-editor/', window.location.href).href
+    : new URL('editor/', window.location.href).href;
+}
+function openLevelEditor() {
+  window.location.href = editorUrlFromRuntime(state.editorPlaytest);
+}
+function readEditorPlaytestRequest() {
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('editorPlay') !== '1') return null;
+  try {
+    const payload = JSON.parse(localStorage.getItem(EDITOR_PLAYTEST_STORAGE_KEY) || 'null');
+    if (!payload || payload.kind !== 'nubu.editor.playtest' || payload.version !== 1 || !payload.level) throw new Error('Запрос теста не найден. Вернитесь в редактор и нажмите Play ещё раз.');
+    return payload;
+  } catch (error) {
+    console.error('NuBu editor playtest:', error);
+    try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify({ kind:'nubu.editor.result', version:1, ok:false, error:String(error.message || error), finishedAt:Date.now() })); } catch (storageError) {}
+    return null;
+  }
+}
+function startEditorPlaytest(payload) {
+  const room = makeRoomFromEditorLevel(payload.level, payload.testSpawn || null);
+  state.editorPlaytest = { ...payload, died:false, startedAt:Date.now(), levelHash:stableEditorLevelHash(payload.level) };
+  state.currentWorldId = 'editor';
+  state.currentWorldName = 'Редактор уровней';
+  state.rooms = [room];
+  state.coins = 0;
+  state.lives = MAX_LIVES;
+  state.player = null;
+  loadRoom(0, false, true);
+  state.mode = 'playing';
+  state.messages = [];
+  showOverlay(null);
+  document.getElementById('editorPlaytestBar').classList.remove('hidden');
+  document.getElementById('editorPlaytestLabel').textContent = payload.testSpawn ? 'Тест отсюда · без зачёта' : `Проверка · ${payload.level.title}`;
+  updateHUD();
+  pushMsg(payload.testSpawn ? 'ТЕСТ ОТСЮДА' : 'ПРОХОЖДЕНИЕ ОТ ВХОДА', '#e7ff72', 1.2);
+}
+function restartEditorPlaytest() {
+  if (!state.editorPlaytest) return;
+  state.editorPlaytest.died = false;
+  state.editorPlaytest.startedAt = Date.now();
+  state.lives = MAX_LIVES;
+  loadRoom(0, false, true);
+  state.mode = 'playing';
+  state.messages = [];
+  showOverlay(null);
+  updateHUD();
+  pushMsg('НОВАЯ ПОПЫТКА', '#e7ff72', 0.9);
+}
+function finishEditorPlaytest() {
+  if (!state.editorPlaytest) return false;
+  const payload = state.editorPlaytest;
+  const clearEarned = !!(payload.clearCheck && !payload.testSpawn && !payload.died);
+  const result = {
+    kind:'nubu.editor.result',
+    version:1,
+    ok:true,
+    completed:true,
+    slotKey:payload.slotKey || null,
+    difficulty:payload.difficulty || 'easy',
+    attemptId:payload.attemptId || null,
+    levelHash:payload.levelHash,
+    clearEarned,
+    died:!!payload.died,
+    durationMs:Math.max(0, Date.now() - payload.startedAt),
+    finishedAt:Date.now(),
+  };
+  try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify(result)); } catch (error) {}
+  window.location.href = editorUrlFromRuntime(payload);
+  return true;
 }
 
 function makeExcelTestRoom101() {
@@ -5243,6 +5483,7 @@ function fullRestart() { restartBundle(); }
 function loseLife() {
   if (state.roomTransition && state.roomTransition.kind === 'death') return;
   if (state.mode !== 'playing') return;
+  if (state.editorPlaytest) state.editorPlaytest.died = true;
   if ((state.room && state.room.infiniteLives) || hasInfiniteHeartsEnabled()) {
     state.lives = MAX_LIVES;
     updateHUD();
@@ -5518,10 +5759,24 @@ function tryLandOnTopDuringCarry(p, prevY, nextY, carrierRef=null) {
   if (nextY <= prevY) return false;
   const prevBottom = prevY + p.h;
   const nextBottom = nextY + p.h;
-  for (const r of getCarryTopPlatforms(carrierRef)) {
+  const candidates = getCarryTopPlatforms(carrierRef).map(r => ({ ...r, top:r.top }));
+  const startTileX = Math.floor(p.x / CELL);
+  const endTileX = Math.floor((p.x + p.w - COLLISION_LEADING_EDGE_EPSILON) / CELL);
+  const startTileY = Math.floor((prevBottom - STOMP_TOLERANCE) / CELL);
+  const endTileY = Math.floor(nextBottom / CELL);
+  for (let ty = startTileY; ty <= endTileY; ty++) {
+    const top = ty * CELL;
+    if (prevBottom > top + STOMP_TOLERANCE || nextBottom < top) continue;
+    for (let tx = startTileX; tx <= endTileX; tx++) {
+      if (!solidAtTile(tx, ty)) continue;
+      candidates.push({ kind:'solid', ref:null, x:tx*CELL, w:CELL, top });
+    }
+  }
+  candidates.sort((a, b) => a.top - b.top);
+  for (const r of candidates) {
     if (isIgnoredKinematicTopForPlayer(r.ref)) continue;
     const xOverlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
-    if (xOverlap <= CELL * 0.2) continue;
+    if (xOverlap <= KINEMATIC_TOP_MIN_OVERLAP) continue;
     const top = r.top;
     if (prevBottom <= top + STOMP_TOLERANCE && nextBottom >= top) {
       // This sweep covers the carrier's real one-frame delta exactly once.
@@ -6274,7 +6529,7 @@ function moveHorizontal(p, dt, inputX) {
   if (Math.abs(p.vx) > 0.01 && tryPortalTeleport(p, { player:true, dt, nextX, nextY:p.y, allowShell:true })) return;
 
   if (p.vx > 0) {
-    const right = nextX + p.w - 1;
+    const right = nextX + p.w - COLLISION_LEADING_EDGE_EPSILON;
     const tileX = Math.floor(right / CELL);
     for (let ty = topCell; ty <= bottomCell; ty++) {
       if (solidAtTile(tileX, ty)) {
@@ -10817,15 +11072,63 @@ function applyConveyorToEnemy(enemy, dt) {
   return moved;
 }
 
+function prepareSpawnerOutputBudget(room) {
+  const spawners = new Set(room.spawners || []);
+
+  // Spawned enemies can die long before a room reload. Keep authored/preplaced
+  // entities intact and remove only dead outputs whose owner is a live spawner
+  // object in this room.
+  room.enemies = (room.enemies || []).filter(enemy => !(enemy && enemy.dead && spawners.has(enemy.owner)));
+
+  const perGenerator = new Map();
+  let total = 0;
+  const count = output => {
+    const owner = output && output.owner;
+    if (!spawners.has(owner)) return;
+    total += 1;
+    perGenerator.set(owner, (perGenerator.get(owner) || 0) + 1);
+  };
+  for (const enemy of (room.enemies || [])) if (enemy && !enemy.dead) count(enemy);
+  for (const bullet of (room.bullets || [])) if (bullet && bullet.ttl > 0) count(bullet);
+
+  return {
+    canSpawn(spawner) {
+      return total < SPAWNER_OUTPUT_LIMIT_GLOBAL
+        && (perGenerator.get(spawner) || 0) < SPAWNER_OUTPUT_LIMIT_PER_GENERATOR;
+    },
+    recordSpawn(spawner) {
+      total += 1;
+      perGenerator.set(spawner, (perGenerator.get(spawner) || 0) + 1);
+    },
+  };
+}
+
 function updateEnemies(dt) {
   const room = state.room;
   const p = state.player;
+  const spawnerOutputBudget = prepareSpawnerOutputBudget(room);
 
   for (const sp of room.spawners) {
     if (sp.enabled) sp.timer += dt;
     sp.toggleCooldown = Math.max(0, (sp.toggleCooldown || 0) - dt);
-    while (sp.enabled && sp.timer >= sp.interval) {
-      sp.timer -= sp.interval;
+    const rawInterval = Number(sp.interval);
+    const interval = Number.isFinite(rawInterval) && rawInterval > 0 ? rawInterval : 1;
+    let catchUpAttempts = 0;
+    while (sp.enabled && sp.timer >= interval) {
+      if (!spawnerOutputBudget.canSpawn(sp)) {
+        // Do not build an unbounded backlog while the room is at capacity.
+        // Keeping at most one interval makes the next free slot refill promptly
+        // without releasing a burst of historical shots.
+        sp.timer = Math.min(sp.timer, interval);
+        break;
+      }
+      if (catchUpAttempts >= SPAWNER_OUTPUT_LIMIT_GLOBAL) {
+        sp.timer = Math.min(sp.timer, interval);
+        break;
+      }
+      catchUpAttempts += 1;
+      sp.timer -= interval;
+      let spawned = false;
       const dir = sp.dir || 'r';
       const sign = (dir === 'l' || dir === 'u') ? -1 : 1;
       const bw = (sp.blockW || 2) * CELL;
@@ -10837,6 +11140,7 @@ function updateEnemies(dt) {
       if (dir === 'u') { sx = sp.x * CELL + (sp.w * CELL - bw) * 0.5; sy = sp.y * CELL; }
       if (sp.kind === 'C1') {
         spawnCannonBullet(room, sp);
+        spawned = true;
       } else if (sp.kind === 'E3') {
         room.bullets.push({
           x: sx,
@@ -10855,6 +11159,7 @@ function updateEnemies(dt) {
           sides: sp.blockSides || '',
           safeTime: sp.emergeTime || 0.5,
         });
+        spawned = true;
       } else if (sp.kind === 'E2') {
         const enemyW = 2 * CELL;
         const enemyH = 2 * CELL;
@@ -10870,7 +11175,7 @@ function updateEnemies(dt) {
         const startRect = { x:ex, y:ey, w:enemyW, h:enemyH };
         const endRect = { x:toX, y:toY, w:enemyW, h:enemyH };
         if (rectHitsObstacle(startRect, null) || rectHitsObstacle(endRect, null)) continue;
-        room.enemies.push(createFlyerEnemy(ex, ey, sp.flyerAxis || ((dir === 'u' || dir === 'd') ? 'v' : 'h'), sp.flyerDir || dir, sp.flyerDist ?? 4, {
+        const spawnedFlyer = createFlyerEnemy(ex, ey, sp.flyerAxis || ((dir === 'u' || dir === 'd') ? 'v' : 'h'), sp.flyerDir || dir, sp.flyerDist ?? 4, {
           speed: sp.flyerSpeed || MOVE_PLATFORM_SPEED * 0.8,
           motionMode: sp.flyerMotionMode || 'oneway',
           startX: toX,
@@ -10883,7 +11188,10 @@ function updateEnemies(dt) {
             t: 0,
             duration: sp.spitDuration ?? FLYER_SPAWN_SPIT_DURATION,
           },
-        }));
+        });
+        spawnedFlyer.owner = sp;
+        room.enemies.push(spawnedFlyer);
+        spawned = true;
       } else {
         const enemyW = 2 * CELL;
         const enemyH = 2 * CELL;
@@ -10894,7 +11202,9 @@ function updateEnemies(dt) {
         if (dir === 'd') ey = sp.y * CELL + sp.h * CELL + 1;
         if (dir === 'u') ey = sp.y * CELL - enemyH - 1;
         room.enemies.push({ type:'E6', x:ex, y:ey, w:2, h:2, dir:sign, axis:(dir==='u'||dir==='d')?'v':'h', speed:2.2*CELL, vx:(dir==='l'||dir==='r')?sign*2.2*CELL:0, vy:(dir==='u'||dir==='d')?sign*2.2*CELL:(CELL * 0.25), dead:false, onGround:false, owner:sp, safeTime:0.18 });
+        spawned = true;
       }
+      if (spawned) spawnerOutputBudget.recordSpawn(sp);
     }
   }
 
@@ -11519,6 +11829,10 @@ function checkExit() {
   const e = state.room.exit;
   const box = getExitDoorWorldRect(e);
   if (!rectsOverlap(p, box)) return;
+  if (state.editorPlaytest && state.room.roomType === 'editor_playtest') {
+    finishEditorPlaytest();
+    return;
+  }
   if (state.room.completeEpisode) {
     completeEpisodeRun(state.room.completeEpisode);
     return;
@@ -13562,6 +13876,10 @@ function step(ts) {
 // buttons
 const startBtn = document.getElementById('startBtn');
 const startTestBtn = document.getElementById('startTestBtn');
+const openEditorBtn = document.getElementById('openEditorBtn');
+const pauseEditorBtn = document.getElementById('pauseEditorBtn');
+const editorRestartBtn = document.getElementById('editorRestartBtn');
+const editorReturnBtn = document.getElementById('editorReturnBtn');
 const worldPrevBtn = document.getElementById('worldPrevBtn');
 const worldNextBtn = document.getElementById('worldNextBtn');
 const worldCycleText = document.getElementById('worldCycleText');
@@ -13604,6 +13922,10 @@ function updatePauseAbilityButtons() {
 
 startBtn.addEventListener('click', () => startRun(0));
 startTestBtn.addEventListener('click', () => startTestLevel());
+openEditorBtn.addEventListener('click', openLevelEditor);
+pauseEditorBtn.addEventListener('click', openLevelEditor);
+editorRestartBtn.addEventListener('click', restartEditorPlaytest);
+editorReturnBtn.addEventListener('click', openLevelEditor);
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
 worldPrevBtn.addEventListener('click', () => setSelectedWorld(0));
 worldNextBtn.addEventListener('click', () => setSelectedWorld(0));
@@ -13663,10 +13985,24 @@ menuBtn.addEventListener('click', () => {
   else if (state.mode === 'pause') { state.mode = 'playing'; showOverlay(null); }
 });
 
-setSelectedWorld(0);
-updateTestLevelButtons();
-updatePauseAbilityButtons();
-showOverlay('start');
+const pendingEditorPlaytest = readEditorPlaytestRequest();
+if (pendingEditorPlaytest) {
+  try {
+    startEditorPlaytest(pendingEditorPlaytest);
+  } catch (error) {
+    console.error('NuBu editor loader:', error);
+    try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify({ kind:'nubu.editor.result', version:1, ok:false, error:String(error.message || error), finishedAt:Date.now() })); } catch (storageError) {}
+    setSelectedWorld(0);
+    updateTestLevelButtons();
+    updatePauseAbilityButtons();
+    showOverlay('start');
+  }
+} else {
+  setSelectedWorld(0);
+  updateTestLevelButtons();
+  updatePauseAbilityButtons();
+  showOverlay('start');
+}
 requestAnimationFrame(step);
 })();
 </script>

@@ -1,0 +1,153 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-12-medium",
+  "title": "Эпизод 1 · Средняя · Уровень 1-12 · Смотровой карман",
+  "episode": 1,
+  "sequence": 12,
+  "role": "exam",
+  "size": {
+    "width": 40,
+    "height": 20
+  },
+  "theme": "Основной маршрут и заметная необязательная верхняя награда.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N12: Основной маршрут и заметная необязательная верхняя награда. Можно очистить или заменить; это не утверждённый финальный уровень. Карта средняя сложности — отдельная полная копия для дальнейшей настройки.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 40,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 7,
+      "y": 13,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 26,
+      "y": 8,
+      "w": 11,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 36,
+      "y": 15,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "bouncePad-01",
+      "type": "bouncePad",
+      "x": 16,
+      "y": 17.5,
+      "w": 3,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 20,
+      "y": 12,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "collectible-01",
+      "type": "collectible",
+      "x": 32,
+      "y": 6,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "collectionId": "EP1_N12_BONUS",
+        "label": "Верхняя награда"
+      }
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 21,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 24,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 27,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 30,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "medium",
+    "template": true
+  }
+}

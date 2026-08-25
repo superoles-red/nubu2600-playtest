@@ -1,0 +1,173 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-01-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-1",
+  "episode": 1,
+  "sequence": 1,
+  "role": "intro",
+  "size": {
+    "width": 20,
+    "height": 20
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 4,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 4,
+      "y": 0,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 8,
+      "y": 0,
+      "w": 4,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 17,
+      "y": 5,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 16,
+      "y": 8,
+      "w": 4,
+      "h": 7,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 13.5,
+      "y": 10.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-01",
+      "type": "oneWay",
+      "x": 12,
+      "y": 11,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 9.5,
+      "y": 13.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 8,
+      "y": 14,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 12,
+      "y": 14,
+      "w": 4,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always"
+      }
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 8,
+      "y": 15,
+      "w": 12,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 5.5,
+      "y": 17.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 4,
+      "y": 18,
+      "w": 16,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 1,
+    "source": "Level 1-01.xlsx",
+    "difficulty": "easy",
+    "unmappedNotes": []
+  }
+}

@@ -1,0 +1,802 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-07-hard",
+  "title": "Эпизод 1 · Сложная · Уровень 1-7",
+  "episode": 1,
+  "sequence": 7,
+  "role": "develop",
+  "size": {
+    "width": 20,
+    "height": 100
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes. Полная самостоятельная карта сложности создана копированием easy и ещё не настроена.",
+  "objects": [
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 0,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 16,
+      "y": 0,
+      "w": 4,
+      "h": 15,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 13.5,
+      "y": 3.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 0,
+      "y": 4,
+      "w": 12,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-01",
+      "type": "fallingPlatform",
+      "x": 12,
+      "y": 4,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 13.5,
+      "y": 7.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 5.5,
+      "y": 8.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 4,
+      "y": 9,
+      "w": 4,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 9.5,
+      "y": 10.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-02",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 11,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 13.5,
+      "y": 11.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 1.5,
+      "y": 15.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 8,
+      "y": 15,
+      "w": 12,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-03",
+      "type": "fallingPlatform",
+      "x": 0,
+      "y": 16,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 13.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 17.5,
+      "y": 19.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 12,
+      "y": 20,
+      "w": 4,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-04",
+      "type": "fallingPlatform",
+      "x": 16,
+      "y": 20,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 1.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 10.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-11",
+      "type": "coin",
+      "x": 17.5,
+      "y": 23.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-05",
+      "type": "fallingPlatform",
+      "x": 0,
+      "y": 24,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "fallingplatform-06",
+      "type": "fallingPlatform",
+      "x": 10,
+      "y": 24,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "enemygoomba-01",
+      "type": "enemyGoomba",
+      "x": 7,
+      "y": 26,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "coin-12",
+      "type": "coin",
+      "x": 17.5,
+      "y": 27.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 0,
+      "y": 28,
+      "w": 16,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 17.5,
+      "y": 31.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 0,
+      "y": 32,
+      "w": 4,
+      "h": 12,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 4,
+      "y": 32,
+      "w": 4,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-14",
+      "type": "coin",
+      "x": 17.5,
+      "y": 35.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-09",
+      "type": "solid",
+      "x": 12,
+      "y": 36,
+      "w": 8,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
+      "x": 16,
+      "y": 40,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-15",
+      "type": "coin",
+      "x": 9.5,
+      "y": 43.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-07",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 44,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-16",
+      "type": "coin",
+      "x": 5.5,
+      "y": 51.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-17",
+      "type": "coin",
+      "x": 13.5,
+      "y": 51.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-08",
+      "type": "fallingPlatform",
+      "x": 4,
+      "y": 52,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "fallingplatform-09",
+      "type": "fallingPlatform",
+      "x": 12,
+      "y": 52,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "enemygoomba-02",
+      "type": "enemyGoomba",
+      "x": 3,
+      "y": 58,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "enemygoomba-03",
+      "type": "enemyGoomba",
+      "x": 15,
+      "y": 58,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "coin-18",
+      "type": "coin",
+      "x": 9.5,
+      "y": 59.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-11",
+      "type": "solid",
+      "x": 0,
+      "y": 60,
+      "w": 8,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-10",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 60,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 12,
+      "y": 60,
+      "w": 8,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-19",
+      "type": "coin",
+      "x": 9.5,
+      "y": 63.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-20",
+      "type": "coin",
+      "x": 9.5,
+      "y": 67.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "oneway-01",
+      "type": "oneWay",
+      "x": 4,
+      "y": 68,
+      "w": 12,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-21",
+      "type": "coin",
+      "x": 1.5,
+      "y": 71.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-22",
+      "type": "coin",
+      "x": 17.5,
+      "y": 71.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-11",
+      "type": "fallingPlatform",
+      "x": 0,
+      "y": 72,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "fallingplatform-12",
+      "type": "fallingPlatform",
+      "x": 16,
+      "y": 72,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-23",
+      "type": "coin",
+      "x": 1.5,
+      "y": 75.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-24",
+      "type": "coin",
+      "x": 17.5,
+      "y": 75.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-13",
+      "type": "fallingPlatform",
+      "x": 0,
+      "y": 76,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "fallingplatform-14",
+      "type": "fallingPlatform",
+      "x": 16,
+      "y": 76,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 0,
+      "y": 79,
+      "w": 4,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always"
+      }
+    },
+    {
+      "id": "coin-25",
+      "type": "coin",
+      "x": 9.5,
+      "y": 79.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "spike-02",
+      "type": "spike",
+      "x": 16,
+      "y": 79,
+      "w": 4,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always"
+      }
+    },
+    {
+      "id": "solid-13",
+      "type": "solid",
+      "x": 0,
+      "y": 80,
+      "w": 4,
+      "h": 20,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-15",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 80,
+      "w": 4,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-14",
+      "type": "solid",
+      "x": 16,
+      "y": 80,
+      "w": 4,
+      "h": 20,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-26",
+      "type": "coin",
+      "x": 5.5,
+      "y": 83.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-16",
+      "type": "fallingPlatform",
+      "x": 5,
+      "y": 84,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-27",
+      "type": "coin",
+      "x": 9.5,
+      "y": 87.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-17",
+      "type": "fallingPlatform",
+      "x": 9,
+      "y": 88,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "enemygoomba-04",
+      "type": "enemyGoomba",
+      "x": 13,
+      "y": 90,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "solid-15",
+      "type": "solid",
+      "x": 12,
+      "y": 92,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-28",
+      "type": "coin",
+      "x": 9.5,
+      "y": 93.0,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "fallingplatform-18",
+      "type": "fallingPlatform",
+      "x": 9,
+      "y": 94,
+      "w": 2,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 13,
+      "y": 97,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "Level 1-07.xlsx",
+    "difficulty": "hard",
+    "unmappedNotes": []
+  }
+}

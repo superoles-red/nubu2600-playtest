@@ -1,0 +1,82 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-05-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-5 · Магазин сердечек",
+  "episode": 1,
+  "sequence": 5,
+  "role": "shop",
+  "size": {
+    "width": 20,
+    "height": 20
+  },
+  "theme": "Импортированная авторская карта первого эпизода.",
+  "learningGoal": "",
+  "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 20,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 1,
+      "y": 12,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 17,
+      "y": 13,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "heartvendor-01",
+      "type": "heartVendor",
+      "x": 9.0,
+      "y": 14.0,
+      "w": 2,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "price": 10
+      }
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 0,
+      "y": 16,
+      "w": 20,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 1,
+    "source": "Level 1-05.xlsx",
+    "difficulty": "easy",
+    "unmappedNotes": []
+  }
+}

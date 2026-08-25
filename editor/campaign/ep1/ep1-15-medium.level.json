@@ -1,0 +1,162 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-15-medium",
+  "title": "Эпизод 1 · Средняя · Уровень 1-15 · Ритм коридора",
+  "episode": 1,
+  "sequence": 15,
+  "role": "develop",
+  "size": {
+    "width": 100,
+    "height": 20
+  },
+  "theme": "Патруль, циклические шипы, дверь и батут в горизонтальном ритме.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N15: Патруль, циклические шипы, дверь и батут в горизонтальном ритме. Можно очистить или заменить; это не утверждённый финальный уровень. Карта средняя сложности — отдельная полная копия для дальнейшей настройки.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 100,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 97,
+      "y": 15,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 22,
+      "y": 12,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-02",
+      "type": "oneWay",
+      "x": 70,
+      "y": 10,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "enemyGoomba-01",
+      "type": "enemyGoomba",
+      "x": 14,
+      "y": 16,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 9
+      }
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 34,
+      "y": 17,
+      "w": 5,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "cycle",
+        "cycle": 2,
+        "phase": 0.4
+      }
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 51,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 43,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-01"
+        ]
+      }
+    },
+    {
+      "id": "bouncePad-01",
+      "type": "bouncePad",
+      "x": 64,
+      "y": 17.5,
+      "w": 3,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "enemyGoomba-02",
+      "type": "enemyGoomba",
+      "x": 84,
+      "y": 16,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "left",
+        "patrol": 8
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "medium",
+    "template": true
+  }
+}

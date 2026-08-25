@@ -1,0 +1,185 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-20-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-20 · Обход разрушенного шлюза",
+  "episode": 1,
+  "sequence": 20,
+  "role": "exam",
+  "size": {
+    "width": 40,
+    "height": 60
+  },
+  "theme": "Безопасная пара порталов как мост между половинами маршрута.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N20: Безопасная пара порталов как мост между половинами маршрута. Можно очистить или заменить; это не утверждённый финальный уровень.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 58,
+      "w": 40,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 0,
+      "y": 38,
+      "w": 13,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 27,
+      "y": 24,
+      "w": 13,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 56,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 36,
+      "y": 21,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "portal-01",
+      "type": "portal",
+      "x": 10,
+      "y": 47,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "pairId": "P20",
+        "color": "blue",
+        "orientation": "vertical",
+        "side": "right",
+        "length": 4
+      }
+    },
+    {
+      "id": "portal-02",
+      "type": "portal",
+      "x": 28,
+      "y": 29,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "pairId": "P20",
+        "color": "blue",
+        "orientation": "vertical",
+        "side": "left",
+        "length": 4
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 14,
+      "y": 44,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fallingPlatform-01",
+      "type": "fallingPlatform",
+      "x": 22,
+      "y": 35,
+      "w": 5,
+      "h": 0.5,
+      "layer": "gameplay",
+      "props": {
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 15,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 17,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 19,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 21,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 23,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "easy",
+    "template": true
+  }
+}

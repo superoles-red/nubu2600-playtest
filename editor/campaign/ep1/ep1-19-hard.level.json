@@ -1,0 +1,234 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-19-hard",
+  "title": "Эпизод 1 · Сложная · Уровень 1-19 · Галерея сигналов",
+  "episode": 1,
+  "sequence": 19,
+  "role": "develop",
+  "size": {
+    "width": 100,
+    "height": 20
+  },
+  "theme": "Четыре разные сцены кнопок, дверей и патрулей.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N19: Четыре разные сцены кнопок, дверей и патрулей. Можно очистить или заменить; это не утверждённый финальный уровень. Карта сложная сложности — отдельная полная копия для дальнейшей настройки.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 100,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 97,
+      "y": 15,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 18,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 11,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-01"
+        ],
+        "startOn": false
+      }
+    },
+    {
+      "id": "enemyGoomba-01",
+      "type": "enemyGoomba",
+      "x": 23,
+      "y": 16,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "left",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 40,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": true
+      }
+    },
+    {
+      "id": "button-02",
+      "type": "button",
+      "x": 33,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-02"
+        ],
+        "startOn": true
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 43,
+      "y": 11,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "door-03",
+      "type": "door",
+      "x": 62,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "button-03",
+      "type": "button",
+      "x": 55,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "H",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-03"
+        ],
+        "startOn": false
+      }
+    },
+    {
+      "id": "enemyGoomba-02",
+      "type": "enemyGoomba",
+      "x": 67,
+      "y": 16,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "left",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "door-04",
+      "type": "door",
+      "x": 84,
+      "y": 15,
+      "w": 1,
+      "h": 3,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": true
+      }
+    },
+    {
+      "id": "button-04",
+      "type": "button",
+      "x": 77,
+      "y": 17,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "H",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "door-04"
+        ],
+        "startOn": true
+      }
+    },
+    {
+      "id": "oneWay-02",
+      "type": "oneWay",
+      "x": 87,
+      "y": 11,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "hard",
+    "template": true
+  }
+}

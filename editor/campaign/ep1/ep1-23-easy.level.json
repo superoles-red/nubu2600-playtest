@@ -1,0 +1,189 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 1,
+  "id": "ep1-23-easy",
+  "title": "Эпизод 1 · Лёгкая · Уровень 1-23 · Катапульта доступа",
+  "episode": 1,
+  "sequence": 23,
+  "role": "develop",
+  "size": {
+    "width": 100,
+    "height": 20
+  },
+  "theme": "Пушка игрока, читаемая монетами траектория и широкая посадка.",
+  "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
+  "designerNotes": "Шаблон N23: Пушка игрока, читаемая монетами траектория и широкая посадка. Можно очистить или заменить; это не утверждённый финальный уровень.",
+  "objects": [
+    {
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 38,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 52,
+      "y": 18,
+      "w": 48,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn-01",
+      "type": "spawn",
+      "x": 2,
+      "y": 16,
+      "w": 1,
+      "h": 2,
+      "layer": "meta",
+      "props": {
+        "anchor": "topLeft",
+        "semantics": "playerBody"
+      }
+    },
+    {
+      "id": "exit-main",
+      "type": "exit",
+      "x": 97,
+      "y": 15,
+      "w": 2,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "playerCannon-01",
+      "type": "playerCannon",
+      "x": 40,
+      "y": 15,
+      "w": 2,
+      "h": 2,
+      "layer": "gameplay",
+      "props": {
+        "dirs": [
+          "right",
+          "up-right"
+        ],
+        "manual": false,
+        "rotateInterval": 0.5
+      }
+    },
+    {
+      "id": "oneWay-01",
+      "type": "oneWay",
+      "x": 55,
+      "y": 12,
+      "w": 14,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 47,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 51,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 55,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 59,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 63,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 67,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 71,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 75,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "collectible-01",
+      "type": "collectible",
+      "x": 75,
+      "y": 15,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "collectionId": "EP1_N23_LANDING"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "idea",
+    "revision": 1,
+    "source": "episode 1.pages graybox proposal",
+    "difficulty": "easy",
+    "template": true
+  }
+}
