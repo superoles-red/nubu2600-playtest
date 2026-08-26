@@ -162,7 +162,7 @@
     <div class="btns">
       <button class="action" id="startBtn">Начать игру</button>
       <button class="action secondary" id="startTestBtn">Начать тестовый уровень 1-8</button>
-      <button class="action secondary" id="openEditorBtn">Редактор уровней</button>
+      <button class="action secondary" id="openEditorBtn">Редактор</button>
       <button class="action secondary hidden" id="resetRoomItemsBtn">Сброс JP / FL / V</button>
     </div>
     <div class="confirm-box hidden" id="startConfirmBox" style="display:none">
@@ -208,7 +208,7 @@
       <button class="action secondary" id="restartRunBtn">Заново связку</button>
       <button class="action secondary" id="restartEpisodeBtn">Заново эпизод</button>
       <button class="action secondary" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
-      <button class="action secondary" id="pauseEditorBtn">Редактор уровней</button>
+      <button class="action secondary" id="pauseEditorBtn">Редактор</button>
     </div>
   </div>
 </div>
@@ -1247,7 +1247,9 @@ function addPushCube(room, x, y, w=2, h=2, opts={}) {
     portalBlockedTimer: 0,
   });
 }
-function addLabel(room, x, y, text, color='#d8e2ff') { room.labels.push({ x, y, text, color }); }
+function addLabel(room, x, y, text, color='#d8e2ff', w=8, h=2) {
+  room.labels.push({ x, y, w:w <= 6 ? 4 : 8, h:2, text, color, decorative:true, marquee:true });
+}
 function addHeartVendor(room, x, y, opts={}) {
   room.isHeartShop = true;
   room.heartVendors.push({ id: opts.id || `HV_${room.heartVendors.length+1}`, x, y, w:2, h:2, price: opts.price || HEART_VENDOR_COST, pressLatch:false, cooldown:0 });
@@ -2545,7 +2547,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'flyerSpawner': addFlyerSpawner(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, w, h }); break;
       case 'shooterSpawner': addShooter(room, id, x, y, editorDirection(props.direction, 'l'), { ...props, w, h }); break;
       case 'bomberSpawner': addBomberSpawner(room, id, x, y, editorDirection(props.direction, 'r'), props); break;
-      case 'cannon': addCannon(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, w, h }); break;
+      case 'cannon': addCannon(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, shotMode:props.shotMode || props.projectileMode || 'soft', w, h }); break;
       case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1 }); break;
       case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
       case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, editorDirection(props.direction, 'r'), Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
@@ -2568,7 +2570,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
           exitFound = true;
         }
         break;
-      case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff'); break;
+      case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff', w, h); break;
       default: room.editorWarnings.push(`Не поддержан объект ${object.type} (${id})`); break;
     }
   }
@@ -2633,7 +2635,10 @@ function startEditorPlaytest(payload) {
   state.mode = 'playing';
   state.messages = [];
   showOverlay(null);
-  document.getElementById('editorPlaytestBar').classList.remove('hidden');
+  const editorBar = document.getElementById('editorPlaytestBar');
+  editorBar.dataset.labelCount = String(room.labels.length);
+  editorBar.dataset.decorativeLabelsValid = room.labels.every(label => label.decorative && label.marquee && label.h === 2 && (label.w === 4 || label.w === 8)) ? 'true' : 'false';
+  editorBar.classList.remove('hidden');
   document.getElementById('editorPlaytestLabel').textContent = payload.testSpawn ? 'Тест отсюда · без зачёта' : `Проверка · ${payload.level.title}`;
   updateHUD();
   pushMsg(payload.testSpawn ? 'ТЕСТ ОТСЮДА' : 'ПРОХОЖДЕНИЕ ОТ ВХОДА', '#e7ff72', 1.2);
@@ -5105,7 +5110,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
     btn.dx = 0;
     btn.dy = 0;
   }
-  for (const btn of state.room.buttons) setTargetsState(btn.targets, btn.toggled);
+  syncButtonTargetStates(state.room);
   syncButtonVisualGroups(state.room);
   validateRoomLayout(state.room);
 
@@ -7238,9 +7243,19 @@ function activateTargets(targets, toggle) {
   const room = state.room;
   for (const target of targets) applyTargetRoomState(room, target, true);
 }
-function setTargetsState(targets, isOn) {
-  const room = state.room;
-  for (const target of targets) applyTargetRoomState(room, target, isOn);
+function syncButtonTargetStates(room = state.room) {
+  if (!room) return;
+  const previous = room.buttonTargetStates && typeof room.buttonTargetStates === 'object' ? room.buttonTargetStates : {};
+  const targetStates = new Map();
+  for (const btn of (room.buttons || [])) {
+    for (const target of (btn.targets || [])) targetStates.set(target, (targetStates.get(target) || false) || !!btn.toggled);
+  }
+  const next = {};
+  for (const [target, isOn] of targetStates) {
+    next[target] = !!isOn;
+    if (previous[target] !== next[target]) applyTargetRoomState(room, target, next[target]);
+  }
+  room.buttonTargetStates = next;
 }
 function rectOnTopOfSurface(rect, top, x, w, tol = 1.5, overlapMin = CELL * 0.2) {
   if (!rect) return false;
@@ -7349,7 +7364,6 @@ function updateButtons(dt=0) {
         btn.used = true;
         const nextState = !btn.toggled;
         setButtonGroupState(btn, nextState, 0.12);
-        setTargetsState(btn.targets, nextState);
         pushMsg(nextState ? 'Кнопка ON' : 'Кнопка OFF', '#b8ffcf', 1);
       }
       if (!activeNow) {
@@ -7363,7 +7377,6 @@ function updateButtons(dt=0) {
       if (activeNow !== !!btn.toggled) {
         const nextState = !!activeNow;
         setButtonGroupState(btn, nextState, 0.12);
-        setTargetsState(btn.targets, nextState);
         pushMsg(nextState ? 'Свич ON' : 'Свич OFF', '#b8ffcf', 0.7);
       }
       btn.pressed = !!activeNow;
@@ -7374,12 +7387,12 @@ function updateButtons(dt=0) {
       btn.pressed = true;
       const nextState = !btn.toggled;
       setButtonGroupState(btn, nextState, 0.12);
-      setTargetsState(btn.targets, nextState);
       pushMsg(nextState ? 'Переключатель ON' : 'Переключатель OFF', '#b8ffcf', 1);
     }
     if (!activeNow) btn.pressed = false;
   }
   syncButtonVisualGroups();
+  syncButtonTargetStates();
 }
 
 function updateCannons(dt) {
@@ -13316,7 +13329,37 @@ function drawEnemies() {
   }
 }
 function drawLabels() {
-  return;
+  for (const label of (state.room.labels || [])) {
+    const worldX = label.x * CELL;
+    const worldY = label.y * CELL;
+    const worldW = (label.w || 8) * CELL;
+    const worldH = 2 * CELL;
+    const pos = worldToScreen(worldX, worldY);
+    const w = worldW * state.cam.scale;
+    const h = worldH * state.cam.scale;
+    if (pos.x + w < 0 || pos.y + h < 0 || pos.x > canvas.width || pos.y > canvas.height) continue;
+    const text = String(label.text || 'NuBu2600').trim() || 'NuBu2600';
+    const stream = `  ◆  ${text}  ◆  ${text}  ◆  `;
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,15,25,.42)';
+    ctx.fillRect(pos.x, pos.y, w, h);
+    ctx.strokeStyle = label.color || '#d8e2ff';
+    ctx.globalAlpha = .58;
+    ctx.setLineDash([Math.max(3, state.cam.scale * 4), Math.max(2, state.cam.scale * 3)]);
+    ctx.strokeRect(pos.x + .5, pos.y + .5, Math.max(0, w - 1), Math.max(0, h - 1));
+    ctx.setLineDash([]);
+    ctx.globalAlpha = .78;
+    ctx.beginPath();
+    ctx.rect(pos.x + 3, pos.y + 2, Math.max(1, w - 6), Math.max(1, h - 4));
+    ctx.clip();
+    ctx.font = `900 ${Math.max(10, Math.min(24, h * .36))}px ui-monospace, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = label.color || '#d8e2ff';
+    const textWidth = Math.max(1, ctx.measureText(stream).width);
+    const offset = (getRoomLocalTime() * Math.max(18, CELL * state.cam.scale * .7)) % textWidth;
+    for (let x = pos.x - offset - textWidth; x < pos.x + w + textWidth; x += textWidth) ctx.fillText(stream, x, pos.y + h * .52);
+    ctx.restore();
+  }
 }
 function drawCrusherWalls() {
   for (const wall of (state.room.crusherWalls || [])) {
@@ -13513,6 +13556,7 @@ function render() {
   if (!state.room || !state.player) { if (ui.rulersOverlay) ui.rulersOverlay.classList.add('hidden'); ui.rulerTop.innerHTML=''; ui.rulerLeft.innerHTML=''; return; }
   updateCamera();
   drawBackgroundAndGrid();
+  drawLabels();
   drawTiles();
   drawDriftFields();
   drawPlatforms();
@@ -13530,7 +13574,6 @@ function render() {
   drawPlayer();
   drawPortals();
   drawCrusherWalls();
-  drawLabels();
   drawMessages();
   drawCollisionDebugOverlay();
   updateRulersOverlay();

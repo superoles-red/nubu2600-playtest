@@ -15,56 +15,85 @@
         <span class="brand-mark">NB</span><span class="brand-copy"><strong>Конструктор</strong><small>уровни NuBu2600</small></span>
       </button>
 
-      <div class="level-picker" aria-label="Выбор уровня">
-        <label><span>Эпизод</span><select id="episodeSelect"><option value="1">1</option></select></label>
-        <label><span>Уровень</span><select id="levelSelect"></select></label>
-      </div>
+      <section class="author-controls" aria-label="Авторские настройки">
+        <span class="author-badge">АВТОР</span>
+        <div class="level-picker" aria-label="Выбор уровня">
+          <label><span>Эпизод</span><select id="episodeSelect"><option value="1">1</option></select></label>
+          <label><span>Уровень</span><select id="levelSelect"></select></label>
+        </div>
+        <div class="difficulty-switch" role="group" aria-label="Сложность">
+          <button type="button" data-difficulty="easy" data-short="Л">Легко</button>
+          <button type="button" data-difficulty="medium" data-short="СР">Средне</button>
+          <button type="button" data-difficulty="hard" data-short="СЛ">Сложно</button>
+        </div>
+        <label class="title-field"><span class="sr-only">Название уровня</span><input id="levelTitleInput" maxlength="48" placeholder="Название уровня"></label>
+        <div class="map-clipboard" aria-label="Буфер карты">
+          <button id="copyMapButton" type="button" title="Скопировать всю карту">Копия</button>
+          <button id="pasteMapButton" type="button" title="Вставить карту в текущую сложность">Вставить</button>
+        </div>
+      </section>
 
-      <div class="difficulty-switch" role="group" aria-label="Сложность">
-        <button type="button" data-difficulty="easy" data-short="Л">Легко</button>
-        <button type="button" data-difficulty="medium" data-short="СР">Средне</button>
-        <button type="button" data-difficulty="hard" data-short="СЛ">Сложно</button>
-      </div>
+      <button class="player-level-button" id="mobileLevelButton" type="button" aria-label="Открыть список уровней" aria-haspopup="dialog">
+        <span id="playerLevelTitle">Мои уровни</span>
+        <small id="playerLevelStatus" data-status="draft">Черновик</small>
+      </button>
 
-      <label class="title-field"><span class="sr-only">Название уровня</span><input id="levelTitleInput" maxlength="48" placeholder="Название уровня"></label>
+      <div class="zoom-controls" aria-label="Масштаб">
+        <button id="zoomOutButton" type="button" aria-label="Уменьшить">−</button>
+        <input id="zoomSlider" type="range" min="25" max="200" value="100" aria-label="Масштаб карты">
+        <button id="zoomInButton" type="button" aria-label="Увеличить">＋</button>
+        <output id="zoomValue">100%</output>
+      </div>
 
       <div class="save-state" id="saveState" aria-live="polite"><span></span><b>Загрузка…</b></div>
 
       <div class="command-actions">
         <button id="undoButton" type="button" title="Отменить (⌘/Ctrl+Z)">↶</button>
         <button id="redoButton" type="button" title="Повторить (⌘/Ctrl+Shift+Z)">↷</button>
-        <button id="fitButton" type="button" title="Показать весь уровень">⌗</button>
         <button id="playButton" type="button" class="play-button"><span>▶</span> Play</button>
       </div>
     </header>
 
     <aside class="palette-panel drawer" id="palettePanel" aria-label="Предметы">
       <div class="drawer-heading">
-        <div><small>Перетащите или выберите</small><h2>Предметы</h2></div>
+        <div><small>Выберите и поставьте на карту</small><h2>Предметы</h2></div>
         <button class="drawer-close" data-close-drawer="palettePanel" type="button" aria-label="Закрыть">×</button>
       </div>
-      <div class="palette-search"><input id="paletteSearch" type="search" placeholder="Найти предмет…" autocomplete="off"></div>
+      <input id="paletteSearch" class="hidden" type="search" tabindex="-1" aria-hidden="true">
       <div class="palette" id="palette"></div>
-      <p class="drawer-hint">Мышь: протяните, чтобы нарисовать блок. Touch: выберите предмет и проведите пальцем. Два пальца — масштаб и камера.</p>
+      <div class="palette-help" id="paletteHelp" aria-live="polite"><strong>Что делает предмет?</strong><p>Наведите курсор или коснитесь карточки. На карте появится полупрозрачный макет.</p></div>
+      <p class="drawer-hint">Пустое место тянет карту. Предмет тянется сам. Два пальца меняют масштаб. Монолит и ластик рисуют прямоугольником.</p>
     </aside>
 
     <main class="workspace">
-      <nav class="quick-tray" id="quickTray" aria-label="Быстрые инструменты">
-        <button type="button" data-tool="select" class="tool-command active"><span>⌖</span><small>Выбор</small></button>
-        <button type="button" data-tool="pan" class="tool-command"><span>✋</span><small>Камера</small></button>
-        <button type="button" data-tool="erase" class="tool-command"><span>⌫</span><small>Ластик</small></button>
-        <button type="button" id="rotateButton" class="tool-command"><span>↻</span><small>Повернуть</small></button>
-        <button type="button" id="testHereButton" class="tool-command"><span>◇</span><small>Тест отсюда</small></button>
-        <span class="tray-divider"></span>
-        <div id="favoriteTools" class="favorite-tools"></div>
-        <button type="button" id="openPaletteButton" class="tool-command more-tool"><span>＋</span><small>Все</small></button>
-      </nav>
-
       <div class="canvas-viewport" id="canvasViewport" tabindex="0" aria-label="Сетка уровня">
+        <nav class="canvas-tools" aria-label="Инструменты карты">
+          <button type="button" data-tool="erase" class="eraser-tool" title="Ластик: протяните прямоугольник"><span>⌫</span><small>Ластик</small></button>
+          <button type="button" id="openPaletteButton" class="palette-opener"><span>＋</span><small>Предметы</small></button>
+        </nav>
+        <nav class="mobile-edit-controls" aria-label="Правка уровня">
+          <button type="button" data-tool="erase" aria-label="Ластик"><span>⌫</span><small>Ластик</small></button>
+          <div>
+            <button type="button" id="mobileUndoButton" aria-label="Отменить"><span>↶</span><small>Назад</small></button>
+            <button type="button" id="mobileRedoButton" aria-label="Повторить"><span>↷</span><small>Вперёд</small></button>
+          </div>
+        </nav>
         <div class="canvas-stage" id="canvasStage">
+          <div class="size-rail size-top" aria-label="Изменить верхний край"><button data-resize-side="top" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток сверху" title="Добавить 20 клеток сверху">＋</button><button data-resize-side="top" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток сверху" title="Убрать 20 клеток сверху">−</button></div>
+          <div class="size-rail size-right" aria-label="Изменить правый край"><button data-resize-side="right" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток справа" title="Добавить 20 клеток справа">＋</button><button data-resize-side="right" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток справа" title="Убрать 20 клеток справа">−</button></div>
+          <div class="size-rail size-bottom" aria-label="Изменить нижний край"><button data-resize-side="bottom" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток снизу" title="Добавить 20 клеток снизу">＋</button><button data-resize-side="bottom" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток снизу" title="Убрать 20 клеток снизу">−</button></div>
+          <div class="size-rail size-left" aria-label="Изменить левый край"><button data-resize-side="left" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток слева" title="Добавить 20 клеток слева">＋</button><button data-resize-side="left" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток слева" title="Убрать 20 клеток слева">−</button></div>
           <canvas id="levelCanvas"></canvas>
           <div class="cursor-readout" id="cursorReadout">0 · 0</div>
+          <div class="context-toolbar" id="contextToolbar" hidden aria-label="Настройки выбранного предмета"></div>
+          <div class="resize-handles" id="resizeHandles" hidden aria-label="Изменение размера">
+            <button type="button" data-resize-handle="nw" aria-label="Тянуть левый верхний угол"></button>
+            <button type="button" data-resize-handle="ne" aria-label="Тянуть правый верхний угол"></button>
+            <button type="button" data-resize-handle="sw" aria-label="Тянуть левый нижний угол"></button>
+            <button type="button" data-resize-handle="se" aria-label="Тянуть правый нижний угол"></button>
+          </div>
         </div>
+        <div class="editor-loading-veil visible" id="editorLoadingVeil" role="status"><span></span><b>Загружаю карту…</b></div>
       </div>
 
       <footer class="workspace-status">
@@ -74,7 +103,7 @@
       </footer>
     </main>
 
-    <aside class="inspector-panel drawer" id="inspectorPanel" aria-label="Свойства">
+    <aside class="inspector-panel drawer" id="inspectorPanel" aria-label="Проверка уровня">
       <div class="drawer-heading">
         <div><small id="inspectorKicker">Уровень</small><h2 id="inspectorTitle">Настройки</h2></div>
         <button class="drawer-close" data-close-drawer="inspectorPanel" type="button" aria-label="Закрыть">×</button>
@@ -128,8 +157,6 @@
           <div class="button-grid">
             <button id="rotateObjectButton" type="button">↻ Повернуть</button>
             <button id="linkObjectButton" type="button">⌁ Связать</button>
-            <button id="duplicateObjectButton" type="button">⧉ Копия</button>
-            <button id="deleteObjectButton" type="button" class="danger">Удалить</button>
           </div>
         </div>
       </section>
@@ -146,12 +173,10 @@
       </section>
     </aside>
 
-    <nav class="mobile-dock" aria-label="Мобильные команды">
-      <button type="button" data-open-drawer="palettePanel"><span>▦</span>Предметы</button>
-      <button type="button" data-tool="select"><span>⌖</span>Выбор</button>
-      <button type="button" data-tool="erase"><span>⌫</span>Ластик</button>
-      <button type="button" data-open-drawer="inspectorPanel"><span>⚙</span>Свойства</button>
-      <button type="button" id="mobilePlayButton" class="mobile-play"><span>▶</span>Play</button>
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+    <nav class="mobile-palette-shell" id="mobilePaletteShell" aria-label="Карусель предметов игрока">
+      <div class="mobile-carousel-rail" id="mobileCarouselRail" aria-label="Категории и предметы"></div>
     </nav>
   </div>
 
@@ -161,17 +186,19 @@
       <div class="library-actions">
         <button id="newUserLevelButton" type="button" class="primary">＋ Новый уровень</button>
         <button id="randomStarterButton" type="button">Случайная заготовка</button>
+        <button id="exportLibraryButton" class="developer-only" type="button">Скачать всю библиотеку</button>
+        <label class="file-button library-import developer-only">Восстановить библиотеку<input id="importLibraryInput" type="file" accept="application/json,.json"></label>
         <span id="userSlotCount">0 / 100</span>
       </div>
       <div class="template-size-row" id="templateSizeRow">
         <span>Размер нового:</span>
-        <button type="button" data-size="20x20" class="active">20×20</button>
-        <button type="button" data-size="20x40">20×40</button>
-        <button type="button" data-size="40x20">40×20</button>
-        <button type="button" data-size="40x40">40×40</button>
-        <button type="button" data-size="100x20">100×20</button>
-        <button type="button" data-size="20x100">20×100</button>
+        <label>Ширина<select id="newLevelWidth"><option>20</option><option>40</option><option>60</option><option>80</option></select></label>
+        <span>×</span>
+        <label>Высота<select id="newLevelHeight"><option>20</option><option>40</option><option>60</option><option>80</option></select></label>
+        <label class="author-name-field developer-only">Имя автора<input id="authorNameInput" maxlength="24" placeholder="Автор"></label>
+        <span class="storage-state developer-only" id="storageState">Проверяю защиту хранения…</span>
       </div>
+      <div class="player-status-legend"><span data-status="draft">Черновик</span><span data-status="ready">Готов к отправке</span><span data-status="submitted">В игре</span></div>
       <div class="library-list" id="libraryList"></div>
       <p class="local-warning">Сейчас библиотека хранится локально в браузере. Share-коды, жалобы, цензура публикации и облако требуют backend и будут отдельным этапом.</p>
     </div>
@@ -181,7 +208,12 @@
     <div class="modal-panel confirm-panel"><h2 id="confirmTitle">Подтвердите действие</h2><p id="confirmText"></p><div><button id="confirmCancelButton" type="button">Отмена</button><button id="confirmAcceptButton" type="button" class="primary">Продолжить</button></div></div>
   </div>
 
-  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <div class="legacy-editor-bridge hidden" aria-hidden="true">
+    <button type="button" data-tool="select"></button><button type="button" data-tool="pan"></button>
+    <button id="rotateButton" type="button"></button><button id="testHereButton" type="button"></button><button id="fitButton" type="button"></button>
+    <button id="mobilePlayButton" type="button"></button><button id="mobileCopyMapButton" type="button"></button><button id="mobilePasteMapButton" type="button"></button><button id="deleteObjectButton" type="button"></button>
+    <div id="favoriteTools"></div>
+  </div>
   <script src="editor.js"></script>
 </body>
 </html>
