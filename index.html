@@ -384,6 +384,9 @@ const state = {
 const moveTouch = { left:false, right:false, ids:new Map() };
 const jumpTouch = { held: false, id: null };
 const PROGRESS_STORAGE_KEY = 'NuBu2600_progress_v1';
+const PROGRESS_PRIMARY_KEY = 'NuBu2600_progress_primary_v2';
+const PROGRESS_BACKUP_KEY = 'NuBu2600_progress_backup_v2';
+let progressSaveRevision = 0;
 const EDITOR_PLAYTEST_STORAGE_KEY = 'nubu2600.editor.playtest.v1';
 const EDITOR_RESULT_STORAGE_KEY = 'nubu2600.editor.playtest.result.v1';
 const COLLECTION_CATALOG = {
@@ -422,6 +425,7 @@ function sanitizeProgress(raw) {
   const collections = raw && raw.collections ? raw.collections : {};
   const episodeStars = raw && raw.episodeStars ? raw.episodeStars : {};
   const preferences = raw && raw.preferences ? raw.preferences : {};
+  const marquee = raw && raw.marquee && typeof raw.marquee === 'object' ? raw.marquee : {};
   const normalizedCollections = {};
   for (const id of Object.keys(COLLECTION_CATALOG)) normalizedCollections[id] = !!collections[id];
   const normalizedEpisodeStars = createDefaultEpisodeStars();
@@ -452,19 +456,66 @@ function sanitizeProgress(raw) {
       infiniteHearts: preferences.infiniteHearts == null ? defaultPreferences.infiniteHearts : !!preferences.infiniteHearts,
       showGrid: preferences.showGrid == null ? defaultPreferences.showGrid : !!preferences.showGrid,
     },
+    marquee: {
+      lastByMode: marquee.lastByMode && typeof marquee.lastByMode === 'object' ? { ...marquee.lastByMode } : {},
+      weights: marquee.weights && typeof marquee.weights === 'object' ? { ...marquee.weights } : {},
+    },
   };
 }
-function savePersistentProgress() {
+function progressChecksum(progress) {
+  const text = JSON.stringify(progress);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+function readProgressEnvelope(storageKey) {
   try {
-    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(sanitizeProgress(state.progress)));
-  } catch (err) {}
+    const envelope = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    if (!envelope || envelope.kind !== 'nubu.progress' || envelope.version !== 2 || !envelope.data) return null;
+    const data = sanitizeProgress(envelope.data);
+    if (progressChecksum(data) !== envelope.checksum) return null;
+    return { ...envelope, revision:Number(envelope.revision) || 0, data };
+  } catch (error) {
+    return null;
+  }
+}
+function savePersistentProgress() {
+  const data = sanitizeProgress(state.progress);
+  state.progress = data;
+  progressSaveRevision = Math.max(Date.now(), progressSaveRevision + 1);
+  const envelope = {
+    kind:'nubu.progress',
+    version:2,
+    revision:progressSaveRevision,
+    savedAt:Date.now(),
+    checksum:progressChecksum(data),
+    data,
+  };
+  for (const storageKey of [PROGRESS_BACKUP_KEY, PROGRESS_PRIMARY_KEY]) {
+    try { localStorage.setItem(storageKey, JSON.stringify(envelope)); } catch (error) {}
+  }
+  try { localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(data)); } catch (error) {}
+  const adapter = window.NuBuProgressCloudAdapter;
+  if (adapter && typeof adapter.save === 'function') {
+    Promise.resolve(adapter.save(JSON.parse(JSON.stringify(envelope)))).catch(error => console.warn('NuBu cloud progress save failed:', error));
+  }
 }
 function loadPersistentProgress() {
-  try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    if (!raw) return;
-    state.progress = sanitizeProgress(JSON.parse(raw));
-  } catch (err) {}
+  const candidates = [readProgressEnvelope(PROGRESS_PRIMARY_KEY), readProgressEnvelope(PROGRESS_BACKUP_KEY)]
+    .filter(Boolean)
+    .sort((left, right) => right.revision - left.revision);
+  if (candidates.length) {
+    state.progress = candidates[0].data;
+    progressSaveRevision = candidates[0].revision;
+  } else {
+    try {
+      const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+      if (raw) state.progress = sanitizeProgress(JSON.parse(raw));
+    } catch (error) {}
+  }
   state.progress = sanitizeProgress(state.progress);
   if (!state.progress.preferences) state.progress.preferences = createDefaultPreferences();
   state.debug.showCollisions = !!state.progress.preferences.showCollisions;
@@ -911,7 +962,9 @@ function addMover(room, id, x, y, w, h, axis, dir, dist, opts={}) {
   const rawX = Number.isFinite(opts.vectorX) ? opts.vectorX : fallbackX;
   const rawY = Number.isFinite(opts.vectorY) ? opts.vectorY : fallbackY;
   const vectorLength = Math.hypot(rawX, rawY) || 1;
-  room.movers.push({ id, x, y, startX:sx, startY:sy, prevX:sx, prevY:sy, w, h, axis, dir, dist, vectorX:rawX/vectorLength, vectorY:rawY/vectorLength, speed:opts.speed||MOVE_PLATFORM_SPEED, progress:0, forward:true, wait:0, enabled:opts.enabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
+  const vectorX=rawX/vectorLength,vectorY=rawY/vectorLength,progress=clamp(Number(opts.initialProgress)||0,0,dist);
+  const initialX=sx+vectorX*progress,initialY=sy+vectorY*progress;
+  room.movers.push({ id, x:initialX, y:initialY, startX:sx, startY:sy, prevX:initialX, prevY:initialY, w, h, axis, dir, dist, vectorX, vectorY, speed:opts.speed||MOVE_PLATFORM_SPEED, progress, forward:true, wait:0, loop:opts.loop!==false, fallWait:0, falling:false, fallAge:0, verticalSpeed:0, respawnDelay:Number(opts.respawnDelay)||2, respawnTimer:0, enabled:opts.enabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
 }
 
 function addCrusherWall(room, id, x, y, w, h, opts={}) {
@@ -955,13 +1008,37 @@ function addConveyor(room, id, x, y, w, dir='r', speed='slow', opts={}) {
   const startActive = opts.startActive != null
     ? !!opts.startActive
     : (mode === 'cycle' ? ((((phase % cycle) + cycle) % cycle) < cycle * 0.5) : active);
-  room.conveyors.push({ id, x, y, w, h:1, dir, speed, mode, cycle, phase, active:startActive, startActive });
+  room.conveyors.push({ id, x, y, w, h:1, dir, startDir:dir, speed, mode, cycle, phase, active:startActive, startActive });
 }
 function conveyorSpeedValue(speed='slow') {
   return speed === 'fast' ? CONVEYOR_FAST_SPEED : CONVEYOR_SLOW_SPEED;
 }
 function addSmart(room, id, points, opts={}) {
-  room.smarts.push({ id, points: points.map(p=>({x:p[0],y:p[1]})), w:opts.w||2, h:opts.h||1, speed:opts.speed||SMART_PLATFORM_SPEED, loop:!!opts.loop, persistent:!!opts.persistent, timer:0, spawnInterval:opts.spawnInterval||2, controlledBy:opts.controlledBy||null, enabled:opts.enabled!==false, instances:[] });
+  room.smarts.push({ id, points: points.map(p=>({x:p[0],y:p[1]})), w:opts.w||2, h:opts.h||1, speed:opts.speed||SMART_PLATFORM_SPEED, loop:!!opts.loop, persistent:!!opts.persistent, spacingCells:Math.max(0,Number(opts.spacingCells)||0), timer:0, spawnInterval:opts.spawnInterval||2, controlledBy:opts.controlledBy||null, enabled:opts.enabled!==false, instances:[] });
+}
+function makeSmartInstanceAtDistance(smart, distanceCells=0) {
+  const points = smart.points || [];
+  if (!points.length) return null;
+  const segmentCount = smart.loop ? points.length : Math.max(0, points.length - 1);
+  let remaining = Math.max(0, distanceCells);
+  for (let seg=0; seg<segmentCount; seg++) {
+    const from=points[seg],to=points[(seg+1)%points.length],length=Math.hypot(to.x-from.x,to.y-from.y)||1;
+    if (remaining <= length || seg === segmentCount - 1) {
+      const segT=clamp(remaining/length,0,1),x=from.x+(to.x-from.x)*segT,y=from.y+(to.y-from.y)*segT;
+      return { active:true, x, y, prevX:x, prevY:y, dx:0, dy:0, seg, segT, wait:0.5, fallWait:0, falling:false, verticalSpeed:0, impactDelay:0 };
+    }
+    remaining -= length;
+  }
+  const first=points[0];
+  return { active:true, x:first.x, y:first.y, prevX:first.x, prevY:first.y, dx:0, dy:0, seg:0, segT:0, wait:0.5, fallWait:0, falling:false, verticalSpeed:0, impactDelay:0 };
+}
+function seedPersistentSmartInstances(smart) {
+  if (!smart || smart.instances.length || !smart.points.length) return;
+  const segmentCount=smart.loop?smart.points.length:Math.max(0,smart.points.length-1);
+  let routeLength=0;
+  for(let seg=0;seg<segmentCount;seg++){const from=smart.points[seg],to=smart.points[(seg+1)%smart.points.length];routeLength+=Math.hypot(to.x-from.x,to.y-from.y);}
+  const count=smart.loop&&smart.spacingCells>0?Math.max(1,Math.round(routeLength/smart.spacingCells)):1;
+  for(let index=0;index<count;index++){const instance=makeSmartInstanceAtDistance(smart,count===1?0:routeLength*index/count);if(instance)smart.instances.push(instance);}
 }
 function addDropPlatform(room, id, x, y, w=3, opts={}) {
   room.dropPlatforms.push({
@@ -998,7 +1075,8 @@ function addButton(room, type, sides, x, y, targets, opts={}) {
   });
 }
 function addGoomba(room, x, y, left, right, opts={}) {
-  room.enemies.push({ type:'E1', x:cellToPx(x), y:cellToPx(y), w:2, h:2, left:cellToPx(left), right:cellToPx(right), dir:(opts.dir||1), baseSpeed:2.2*CELL, speed:2.2*CELL, state:'patrol', timer:0, dead:false, xMul:opts.xMul||1, notice:8*CELL, vx:0, vy:0, onGround:false, targetDir:1 });
+  const size = Number(opts.size) >= 4 ? 4 : 2;
+  room.enemies.push({ type:'E1', x:cellToPx(x), y:cellToPx(y), w:size, h:size, splitOnDeath:size===4, splitHandled:false, left:cellToPx(left), right:cellToPx(right), dir:(opts.dir||1), baseSpeed:2.2*CELL, speed:2.2*CELL, state:'patrol', timer:0, dead:false, xMul:opts.xMul||1, notice:8*CELL, vx:0, vy:0, onGround:false, targetDir:1 });
 }
 function createFlyerEnemy(xPx, yPx, axis='h', dir='r', dist=4, opts={}) {
   return {
@@ -1252,8 +1330,24 @@ function addPushCube(room, x, y, w=2, h=2, opts={}) {
     portalBlockedTimer: 0,
   });
 }
-function addLabel(room, x, y, text, color='#d8e2ff', w=8, h=2) {
-  room.labels.push({ x, y, w:w <= 6 ? 4 : 8, h:2, text, color, decorative:true, marquee:true });
+const RUNTIME_MARQUEE_MESSAGES = ['НЕ ОСТАНАВЛИВАЙСЯ','ИЩИ ДРУГОЙ ПУТЬ','ОСТОРОЖНО: ЛОВУШКА','ЗДЕСЬ НУЖЕН РАЗБЕГ','ПРОВЕРЬ, ЧТО НАВЕРХУ','МОНЕТЫ ПОКАЗЫВАЮТ МАРШРУТ'];
+const RUNTIME_MARQUEE_EMOJIS = ['🚀 💨 ✨','😸 🌟 🎉','👾 👾 👾','⚡ 🔥 ⚡','🌈 ☁️ 🌈'];
+function chooseRuntimeMarquee(mode, fallback) {
+  if (mode === 'player') {
+    try { return `ИГРОК: ${(localStorage.getItem('NuBu2600_player_name_v1')||'ИГРОК').trim().slice(0,24)||'ИГРОК'}`; } catch (error) { return 'ИГРОК'; }
+  }
+  const source=mode==='emoji'?RUNTIME_MARQUEE_EMOJIS:RUNTIME_MARQUEE_MESSAGES;
+  state.progress.marquee ||= { lastByMode:{}, weights:{} };
+  const store=state.progress.marquee,modeWeights=store.weights[mode]&&typeof store.weights[mode]==='object'?{...store.weights[mode]}:{};
+  if(source.every((text,index)=>(Number(modeWeights[index])||1)<=.0625))for(let index=0;index<source.length;index++)modeWeights[index]=1;
+  const last=store.lastByMode[mode],candidates=source.map((text,index)=>({text,index,weight:Number(modeWeights[index])||1})).filter(item=>item.text!==last);
+  const total=candidates.reduce((sum,item)=>sum+item.weight,0);let pick=Math.random()*total,chosen=candidates[0]||{text:fallback||source[0],index:0,weight:1};
+  for(const item of candidates){pick-=item.weight;if(pick<=0){chosen=item;break;}}
+  modeWeights[chosen.index]=Math.max(.0625,chosen.weight*.5);store.weights[mode]=modeWeights;store.lastByMode[mode]=chosen.text;savePersistentProgress();return chosen.text;
+}
+function addLabel(room, x, y, text, color='#d8e2ff', w=8, h=2, opts={}) {
+  const resolved=opts.mode?chooseRuntimeMarquee(opts.mode,text):text;
+  room.labels.push({ x, y, w:w <= 6 ? 4 : 8, h:2, text:resolved, color, decorative:true, marquee:true, mode:opts.mode||'fixed' });
 }
 function addHeartVendor(room, x, y, opts={}) {
   room.isHeartShop = true;
@@ -2493,7 +2587,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   let spawnFound = false;
   let exitFound = false;
   const editorObjects = Array.isArray(level.objects) ? level.objects : [];
-  const linkedTargetIds = new Set(editorObjects.filter(object => object && object.type === 'button').flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets : []));
+  const linkedTargetIds = new Set(editorObjects.filter(object => object && object.type === 'button').flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets.map(target=>parseTargetDescriptor(target).id) : []));
 
   for (const object of editorObjects) {
     if (!object || !Number.isFinite(object.x) || !Number.isFinite(object.y)) continue;
@@ -2526,7 +2620,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const axis = diagonal ? 'xy' : (Math.abs(dy) > Math.abs(dx) ? 'v' : 'h');
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
         const dist = Math.max(0.5, Math.hypot(dx, dy));
-        addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
+        const repeatSpacing=Math.max(1,Number(props.repeatSpacing)||20),platformCount=Math.max(1,Math.ceil(dist/repeatSpacing));
+        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:false, initialProgress:Math.min(dist,index*repeatSpacing), respawnDelay:2 });
         break;
       }
       case 'smartPlatform': {
@@ -2561,9 +2656,9 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'shooterSpawner': addShooter(room, id, x, y, editorDirection(props.direction, 'l'), { ...props, w, h }); break;
       case 'bomberSpawner': addBomberSpawner(room, id, x, y, editorDirection(props.direction, 'r'), props); break;
       case 'cannon': addCannon(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, shotMode:props.shotMode || props.projectileMode || 'soft', w, h }); break;
-      case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1 }); break;
+      case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1, size:w>=4||h>=4?4:2 }); break;
       case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
-      case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, editorDirection(props.direction, 'r'), Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
+      case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, Math.random()<.5?'l':'r', Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
       case 'enemySpikeCube': addSpikeCube(room, x, y, w, h, props.sides || 'udlr', props.move || null); break;
       case 'pushBlock': addPushCube(room, x, y, w, h, { ...props, fallTrigger:'proximity', fallDelay:.5 }); break;
       case 'coin': addCoin(room, x, y); break;
@@ -2583,7 +2678,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
           exitFound = true;
         }
         break;
-      case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff', w, h); break;
+      case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff', w, h, props); break;
       default: room.editorWarnings.push(`Не поддержан объект ${object.type} (${id})`); break;
     }
   }
@@ -2623,7 +2718,7 @@ function editorUrlFromRuntime(payload=null) {
   return editorUrl.href;
 }
 function openLevelEditor() {
-  window.location.href = editorUrlFromRuntime(state.editorPlaytest);
+  window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
 }
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
@@ -2690,7 +2785,7 @@ function finishEditorPlaytest() {
     finishedAt:Date.now(),
   };
   try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify(result)); } catch (error) {}
-  window.location.href = editorUrlFromRuntime(payload);
+  window.location.replace(editorUrlFromRuntime(payload));
   return true;
 }
 
@@ -6958,16 +7053,37 @@ function updatePlatforms(dt) {
     const axisSign = (m.dir === 'l' || m.dir === 'u') ? -1 : 1;
     const vectorX = Number.isFinite(m.vectorX) ? m.vectorX : (m.axis === 'h' ? axisSign : 0);
     const vectorY = Number.isFinite(m.vectorY) ? m.vectorY : (m.axis === 'v' ? axisSign : 0);
-    if (m.wait > 0) {
-      m.wait = Math.max(0, m.wait - dt);
-    } else {
-      const step = (m.speed * dt) / CELL;
-      m.progress += (m.forward ? 1 : -1) * step;
-      if (m.progress >= m.dist) { m.progress = m.dist; m.forward = false; m.wait = 0.5; }
-      if (m.progress <= 0) { m.progress = 0; m.forward = true; m.wait = 0.5; }
+    if (m.loop !== false) {
+      if (m.wait > 0) m.wait = Math.max(0, m.wait - dt);
+      else {
+        const step = (m.speed * dt) / CELL;
+        m.progress += (m.forward ? 1 : -1) * step;
+        if (m.progress >= m.dist) { m.progress = m.dist; m.forward = false; m.wait = 0.5; }
+        if (m.progress <= 0) { m.progress = 0; m.forward = true; m.wait = 0.5; }
+      }
+      m.x = m.startX + vectorX * m.progress;
+      m.y = m.startY + vectorY * m.progress;
+    } else if (m.respawnTimer > 0) {
+      m.enabled=false;
+      m.respawnTimer=Math.max(0,m.respawnTimer-dt);
+      if(m.respawnTimer===0){m.x=m.startX;m.y=m.startY;m.progress=0;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=true;m.wait=.35;}
+    } else if (m.fallWait > 0) {
+      m.fallWait=Math.max(0,m.fallWait-dt);
+      if(m.fallWait===0){m.falling=true;m.verticalSpeed=0;m.fallAge=0;}
+    } else if (m.falling) {
+      m.fallAge+=dt;
+      m.verticalSpeed+=GRAVITY*.35*dt;
+      m.y+=(m.verticalSpeed*dt)/CELL;
+      if(m.y>room.innerH+6||m.fallAge>=2){m.respawnTimer=m.respawnDelay;m.enabled=false;}
+    } else if (m.enabled) {
+      if (m.wait > 0) m.wait=Math.max(0,m.wait-dt);
+      else {
+        m.progress=Math.min(m.dist,m.progress+(m.speed*dt)/CELL);
+        m.x=m.startX+vectorX*m.progress;
+        m.y=m.startY+vectorY*m.progress;
+        if(m.progress>=m.dist){m.fallWait=.25;m.verticalSpeed=0;}
+      }
     }
-    m.x = m.startX + vectorX * m.progress;
-    m.y = m.startY + vectorY * m.progress;
     m.dx = (m.x - m.prevX) * CELL; m.dy = (m.y - m.prevY) * CELL;
   }
   for (const wall of (room.crusherWalls || [])) {
@@ -7044,9 +7160,7 @@ function updatePlatforms(dt) {
   for (const s of room.smarts) {
     s.timer += dt;
     if (s.persistent) {
-      if (s.instances.length === 0) {
-        s.instances.push({ active:true, x:s.points[0].x, y:s.points[0].y, prevX:s.points[0].x, prevY:s.points[0].y, dx:0, dy:0, seg:0, segT:0, wait:0.5, fallWait:0, falling:false, verticalSpeed:0, impactDelay:0 });
-      }
+      seedPersistentSmartInstances(s);
     } else {
       while (s.timer >= s.spawnInterval) {
         s.timer -= s.spawnInterval;
@@ -7218,6 +7332,13 @@ function parseTargetDescriptor(raw) {
 }
 function applyTargetRoomState(room, rawTarget, isOn) {
   const { id, action } = parseTargetDescriptor(rawTarget);
+  if (action === 'reverse') {
+    for (const conveyor of (room.conveyors || [])) if (conveyor.id === id) {
+      const base=conveyor.startDir||(conveyor.dir==='l'?'l':'r');
+      conveyor.dir=isOn?(base==='l'?'r':'l'):base;
+    }
+    return;
+  }
   const wantsToggle = action === 'toggle' && !!isOn;
   const explicit = action === 'on'
     ? (isOn ? true : null)
@@ -11133,6 +11254,25 @@ function prepareSpawnerOutputBudget(room) {
   };
 }
 
+function splitDeadLargeGoombas(room) {
+  const parents = (room.enemies || []).filter(enemy => enemy && enemy.type === 'E1' && enemy.dead && enemy.splitOnDeath && !enemy.splitHandled);
+  for (const parent of parents) {
+    parent.splitHandled = true;
+    const floorY = (parent.y + Math.max(0, parent.h - 2) * CELL) / CELL;
+    const left = parent.left / CELL;
+    const right = parent.right / CELL;
+    const firstIndex = room.enemies.length;
+    addGoomba(room, parent.x / CELL, floorY, left, right, { dir:-1, size:2 });
+    addGoomba(room, parent.x / CELL + 2, floorY, left, right, { dir:1, size:2 });
+    for (const child of room.enemies.slice(firstIndex)) {
+      child.state = 'cool';
+      child.timer = 0.25;
+      child.vy = -CELL * 2.2;
+      child.onGround = false;
+    }
+  }
+}
+
 function updateEnemies(dt) {
   const room = state.room;
   const p = state.player;
@@ -11643,6 +11783,7 @@ function updateEnemies(dt) {
     }
   }
   room.bullets = room.bullets.filter(b => b.ttl > 0 && (((b.safeTime || 0) > 0) || !bulletHitsSolid(b)));
+  splitDeadLargeGoombas(room);
 }
 
 function bulletPassesThroughDynamicSolid(b, r) {
