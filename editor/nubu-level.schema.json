@@ -113,7 +113,8 @@
         "heartVendor",
         "spawn",
         "exit",
-        "label"
+        "label",
+        "developerNote"
       ]
     },
     "levelObject": {

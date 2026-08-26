@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>NuBu2600 · Конструктор уровней</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=fa64a3b59651">
+  <link rel="stylesheet" href="styles.css?v=0feda5571d54">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -34,8 +34,7 @@
       </section>
 
       <button class="player-level-button" id="mobileLevelButton" type="button" aria-label="Открыть список уровней" aria-haspopup="dialog">
-        <span id="playerLevelTitle">Мои уровни</span>
-        <small id="playerLevelStatus" data-status="draft">Черновик</small>
+        <b class="player-level-mark">NB</b><span><strong id="playerLevelTitle">Мои уровни</strong><small id="playerLevelStatus" data-status="draft">В работе</small></span>
       </button>
 
       <div class="zoom-controls" aria-label="Масштаб">
@@ -78,6 +77,7 @@
             <button type="button" id="mobileRedoButton" aria-label="Повторить"><span>↷</span><small>Вперёд</small></button>
           </div>
         </nav>
+        <div class="interaction-hint" id="interactionHint" aria-live="polite"><strong>Выберите предмет</strong><span>Коснитесь или наведите курсор — здесь появится подсказка.</span></div>
         <div class="canvas-stage" id="canvasStage">
           <div class="size-rail size-top" aria-label="Изменить верхний край"><button data-resize-side="top" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток сверху" title="Добавить 20 клеток сверху">＋</button><button data-resize-side="top" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток сверху" title="Убрать 20 клеток сверху">−</button></div>
           <div class="size-rail size-right" aria-label="Изменить правый край"><button data-resize-side="right" data-resize-delta="20" type="button" aria-label="Добавить 20 клеток справа" title="Добавить 20 клеток справа">＋</button><button data-resize-side="right" data-resize-delta="-20" type="button" aria-label="Убрать 20 клеток справа" title="Убрать 20 клеток справа">−</button></div>
@@ -190,7 +190,16 @@
       <header><div><small>Local Coursebot</small><h1>Мои уровни</h1><p>До 100 пользовательских уровней на этом устройстве.</p></div><button id="closeLibraryButton" type="button" aria-label="Закрыть">×</button></header>
       <div class="library-actions">
         <button id="newUserLevelButton" type="button" class="primary">＋ Новый уровень</button>
-        <button id="randomStarterButton" type="button">Случайная заготовка</button>
+        <label class="check-option"><input id="randomStarterCheckbox" type="checkbox"> Случайная заготовка</label>
+        <button id="manualSaveButton" type="button">Сохранить сейчас</button>
+        <label class="library-title-edit">Название<input id="libraryLevelTitleInput" maxlength="48" placeholder="Название уровня"></label>
+        <button id="editLevelButton" type="button">Изменить название</button>
+        <button id="libraryCopyMapButton" type="button">Копировать карту</button>
+        <button id="libraryPasteMapButton" type="button">Вставить карту</button>
+        <button id="examLevelButton" type="button">Экзамен</button>
+        <button id="shareLevelButton" type="button">Отправить уровень</button>
+        <label class="file-button">Получить уровень<input id="receiveLevelInput" type="file" accept="application/json,.json"></label>
+        <button id="randomStarterButton" class="hidden" type="button">Случайная заготовка</button>
         <button id="exportLibraryButton" class="developer-only" type="button">Скачать всю библиотеку</button>
         <label class="file-button library-import developer-only">Восстановить библиотеку<input id="importLibraryInput" type="file" accept="application/json,.json"></label>
         <span id="userSlotCount">0 / 100</span>
@@ -203,7 +212,12 @@
         <label class="author-name-field developer-only">Имя автора<input id="authorNameInput" maxlength="24" placeholder="Автор"></label>
         <span class="storage-state developer-only" id="storageState">Проверяю защиту хранения…</span>
       </div>
-      <div class="player-status-legend"><span data-status="draft">Черновик</span><span data-status="ready">Готов к отправке</span><span data-status="submitted">В игре</span></div>
+      <section class="library-author-controls">
+        <strong>Уровни кампании</strong>
+        <div class="library-selectors"><label>Эпизод <select id="libraryEpisodeSelect"><option value="1">1</option></select></label><label>Сложность <select id="libraryDifficultySelect"><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="hard">Сложная</option></select></label></div>
+        <div class="campaign-library-list" id="campaignLibraryList"></div>
+      </section>
+      <div class="player-status-legend"><span data-status="draft">В работе</span><span data-status="submitted">Опубликован</span></div>
       <div class="library-list" id="libraryList"></div>
       <p class="local-warning">Сейчас библиотека хранится локально в браузере. Share-коды, жалобы, цензура публикации и облако требуют backend и будут отдельным этапом.</p>
     </div>
@@ -213,12 +227,16 @@
     <div class="modal-panel confirm-panel"><h2 id="confirmTitle">Подтвердите действие</h2><p id="confirmText"></p><div><button id="confirmCancelButton" type="button">Отмена</button><button id="confirmAcceptButton" type="button" class="primary">Продолжить</button></div></div>
   </div>
 
+  <div class="modal compact-modal" id="developerNoteModal" aria-hidden="true">
+    <div class="modal-panel confirm-panel"><h2>Комментарий разработчику</h2><p>Опишите особый предмет или поведение, которого пока нет в игре.</p><textarea id="developerNoteInput" rows="6" maxlength="1200" placeholder="Например: здесь нужен лазер, который включается после третьей кнопки…"></textarea><div><button id="developerNoteCancelButton" type="button">Отмена</button><button id="developerNoteSaveButton" type="button" class="primary">Сохранить</button></div></div>
+  </div>
+
   <div class="legacy-editor-bridge hidden" aria-hidden="true">
     <button type="button" data-tool="select"></button><button type="button" data-tool="pan"></button>
     <button id="rotateButton" type="button"></button><button id="testHereButton" type="button"></button><button id="fitButton" type="button"></button>
     <button id="mobilePlayButton" type="button"></button><button id="mobileCopyMapButton" type="button"></button><button id="mobilePasteMapButton" type="button"></button><button id="deleteObjectButton" type="button"></button>
     <div id="favoriteTools"></div>
   </div>
-  <script src="editor.js?v=74831450d5fd"></script>
+  <script src="editor.js?v=eddd613ef21c"></script>
 </body>
 </html>

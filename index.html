@@ -106,10 +106,10 @@
   }
 
   @media (hover:hover) and (pointer:fine){.controls{display:none}}
-  .editor-playtest-bar{position:fixed;z-index:70;left:50%;bottom:max(12px, env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 20px);padding:8px 10px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
+  .editor-playtest-bar{position:fixed;z-index:70;top:max(8px, env(safe-area-inset-top));right:max(72px, calc(env(safe-area-inset-right) + 72px));display:flex;align-items:center;gap:8px;max-width:calc(100vw - 150px);padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
   .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
   .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
-  @media (pointer:coarse){.editor-playtest-bar{top:max(8px, env(safe-area-inset-top));bottom:auto}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
+  @media (pointer:coarse){.editor-playtest-bar{right:max(64px, calc(env(safe-area-inset-right) + 64px));max-width:calc(100vw - 132px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
 </style>
 </head>
 <body>
@@ -147,8 +147,8 @@
 
 <div class="overlay show" id="startOverlay">
   <div class="panel">
-    <h1 class="title">NuBu2600 — Ядерный бункер 2600</h1>
-    <p class="subtitle">Теперь игра стартует в лобби: оттуда можно войти в первый эпизод, зайти в обучение и постепенно открывать новые двери.</p>
+    <h1 class="title hidden">NuBu2600 — Ядерный бункер 2600</h1>
+    <p class="subtitle hidden">Главное меню</p>
     <div class="world-picker hidden">
       <button class="action secondary selector-btn" id="worldPrevBtn" aria-label="Предыдущий мир">←</button>
       <div class="world-card">
@@ -161,7 +161,7 @@
     </div>
     <div class="btns">
       <button class="action" id="startBtn">Начать игру</button>
-      <button class="action secondary" id="startTestBtn">Начать тестовый уровень 1-8</button>
+      <button class="action secondary hidden" id="startTestBtn">Начать тестовый уровень 1-8</button>
       <button class="action secondary" id="openEditorBtn">Редактор</button>
       <button class="action secondary hidden" id="resetRoomItemsBtn">Сброс JP / FL / V</button>
     </div>
@@ -172,7 +172,7 @@
         <button class="action secondary" id="startConfirmNoBtn">Нет</button>
       </div>
     </div>
-    <div class="tips">
+    <div class="tips hidden">
       <div class="tip">Прокачка героя постоянная: зацеп, отскок от стены и дабл-джамп сохраняются и помогают открывать новые двери лобби.</div>
       <div class="tip">Джетпак, парение и V — временные предметы комнаты. Пока их переключатель не нажат, они видны только как силуэты.</div>
       <div class="tip">На паузе есть временные тест-кнопки для зацепа, отскока и дабл-джампа. Кнопка запуска теперь стартует сразу, без подтверждения.</div>
@@ -198,17 +198,19 @@
       <button class="tiny-toggle" id="toggleGrabBtn">Зацеп</button>
       <button class="tiny-toggle" id="toggleWallBtn">Отскок</button>
       <button class="tiny-toggle" id="toggleDjBtn">Дабл-джамп</button>
-      <button class="tiny-toggle" id="toggleInfLivesBtn">Беск. сердца</button>
-      <button class="tiny-toggle" id="toggleCollisionsBtn">Коллизии</button>
-      <button class="tiny-toggle" id="toggleGridBtn">Сетка</button>
+      <button class="tiny-toggle" id="toggleGravityBtn">Гравитация</button>
+      <button class="tiny-toggle hidden" id="toggleInfLivesBtn">Беск. сердца</button>
+      <button class="tiny-toggle hidden" id="toggleCollisionsBtn">Коллизии</button>
+      <button class="tiny-toggle hidden" id="toggleGridBtn">Сетка</button>
     </div>
     <div class="btns">
       <button class="action" id="resumeBtn">Продолжить</button>
-      <button class="action secondary" id="retryRoomBtn">Заново комнату</button>
-      <button class="action secondary" id="restartRunBtn">Заново связку</button>
-      <button class="action secondary" id="restartEpisodeBtn">Заново эпизод</button>
-      <button class="action secondary" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
-      <button class="action secondary" id="pauseEditorBtn">Редактор</button>
+      <button class="action secondary" id="retryRoomBtn">Заново уровень</button>
+      <button class="action secondary" id="nextRoomBtn">Следующий уровень</button>
+      <button class="action secondary hidden" id="restartRunBtn">Заново связку</button>
+      <button class="action secondary hidden" id="restartEpisodeBtn">Заново эпизод</button>
+      <button class="action secondary hidden" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
+      <button class="action secondary hidden" id="pauseEditorBtn">Редактор</button>
     </div>
   </div>
 </div>
@@ -414,7 +416,7 @@ function createDefaultEpisodeStars() {
 function createDefaultPreferences() {
   return {
     showCollisions: false,
-    infiniteHearts: false,
+    infiniteHearts: true,
     showGrid: false,
   };
 }
@@ -443,6 +445,7 @@ function sanitizeProgress(raw) {
       grab: !!abilities.grab,
       wall: !!abilities.wall,
       dj: !!abilities.dj,
+      gravity: !!abilities.gravity,
     },
     roomItemsUnlocked: {
       jp: !!roomItemsUnlocked.jp,
@@ -453,7 +456,7 @@ function sanitizeProgress(raw) {
     episodeStars: normalizedEpisodeStars,
     preferences: {
       showCollisions: preferences.showCollisions == null ? defaultPreferences.showCollisions : !!preferences.showCollisions,
-      infiniteHearts: preferences.infiniteHearts == null ? defaultPreferences.infiniteHearts : !!preferences.infiniteHearts,
+      infiniteHearts: true,
       showGrid: preferences.showGrid == null ? defaultPreferences.showGrid : !!preferences.showGrid,
     },
     marquee: {
@@ -546,6 +549,7 @@ resize();
 function hasLedgeGrab() { return !!state.progress.abilities.grab; }
 function hasWallJumpAbility() { return !!state.progress.abilities.wall; }
 function hasDoubleJumpAbility() { return !!state.progress.abilities.dj; }
+function hasGravityAbility() { return !!state.progress.abilities.gravity; }
 function hasInfiniteHeartsEnabled() { return !!(state.progress.preferences && state.progress.preferences.infiniteHearts); }
 function hasGridEnabled() { return !!(state.progress.preferences && state.progress.preferences.showGrid); }
 function isRoomItemUnlocked(key) { return !!state.progress.roomItemsUnlocked[key]; }
@@ -607,6 +611,7 @@ function roomItemUnlockLabel(key) {
   return key;
 }
 function pickupIsAvailable(item) {
+  if (item.forceAvailable) return true;
   const key = item.unlockKey || pickupLockKey(item.type);
   return !key || isRoomItemUnlocked(key);
 }
@@ -902,7 +907,7 @@ function normalizeRoomPortals(room) {
   }
 }
 function addCoin(room, x, y) { room.coins.push({ x, y, w: 1, h: 1, taken: false }); }
-function addPickup(room, type, x, y, opts={}) { room.pickups.push({ type, x, y, w: opts.w || 2, h: opts.h || 2, taken: false, unlockKey: opts.unlockKey || pickupLockKey(type) || null }); }
+function addPickup(room, type, x, y, opts={}) { room.pickups.push({ type, x, y, w: opts.w || 2, h: opts.h || 2, taken: false, forceAvailable:!!opts.forceAvailable, unlockKey: opts.unlockKey || pickupLockKey(type) || null }); }
 function addCollection(room, id, x, y, opts={}) {
   const meta = COLLECTION_CATALOG[id] || { id, label: opts.label || id, emblem: opts.emblem || id, fill: opts.fill || '#ffd66b', accent: opts.accent || '#fff3b0', shape: opts.shape || 'sun' };
   room.collections.push({
@@ -2632,7 +2637,12 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'fallingPlatform': addDropPlatform(room, id, x, y, w, { ...props, respawnDelay:2 }); break;
       case 'conveyor': addConveyor(room, id, x, y, w, editorDirection(props.direction, 'r'), props.speed || 'slow', props); break;
       case 'bouncePad': (room.bouncePads ||= []).push({ x, y, w, h }); break;
-      case 'spike': addSpike(room, x, y, editorSpikeDirection(props.direction), w, h, { ...props, id }); break;
+      case 'spike': {
+        const direction=props.direction||'up', runtimeW=['left','right'].includes(direction)?.5:w, runtimeH=['up','down'].includes(direction)?.5:h;
+        const runtimeX=direction==='left'?x+w-runtimeW:x, runtimeY=direction==='up'?y+h-runtimeH:y;
+        addSpike(room, runtimeX, runtimeY, editorSpikeDirection(direction), runtimeW, runtimeH, { ...props, id });
+        break;
+      }
       case 'crusherWall': {
         const points = Array.isArray(props.path) && props.path.length > 1
           ? props.path.map(point => [Number(point.x), Number(point.y)])
@@ -2663,7 +2673,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'pushBlock': addPushCube(room, x, y, w, h, { ...props, fallTrigger:'proximity', fallDelay:.5 }); break;
       case 'coin': addCoin(room, x, y); break;
       case 'collectible': addCollection(room, props.collectionId || id, x, y, { ...props, w, h }); break;
-      case 'pickup': addPickup(room, props.pickupType || 'PDJ', x, y, { ...props, w, h }); break;
+      case 'pickup': addPickup(room, props.pickupType || 'PDJ', x, y, { ...props, w, h, forceAvailable:props.abilityGroup==='gravity' }); break;
+      case 'developerNote': break;
       case 'unlockSwitch': addUnlockSwitch(room, props.key || 'jp', x, y, props.label || null); break;
       case 'heartVendor': addHeartVendor(room, x, y, { ...props, id, price:30 }); break;
       case 'spawn':
@@ -5147,7 +5158,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   }
 
   for (const enemy of state.room.enemies) {
-    if (enemy.type === 'E1') settleFreeBodyDown(state.room, { x: enemy.x, y: enemy.y, w: enemy.w * CELL, h: enemy.h * CELL, set x(v){ enemy.x=v; }, set y(v){ enemy.y=v; }, get x(){ return enemy.x; }, get y(){ return enemy.y; } });
+    // Goombas placed in the air keep their authored height and fall through normal physics.
     enemy.x = snapHalfPx(enemy.x);
     enemy.y = snapHalfPx(enemy.y);
     if (enemy.type === 'E4') {
@@ -5261,6 +5272,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   p.crusherHeadBumpRef = null; p.crusherHeadBumpTimer = 0;
   p.portalCooldown = 0; p.portalIgnoreId = null; p.portalPreview = null; p.portalBumpTimer = 0; p.portalBlockedId = null; p.portalBlockedTimer = 0;
   p.buffs = { jp:false, fl:false, vv:false };
+  if (hasGravityAbility()) p.buffs.vv = true;
   p.extraJumpReady = false;
   p.gravityDir = 1;
   p.driftFieldActive = false;
@@ -11264,10 +11276,12 @@ function splitDeadLargeGoombas(room) {
     const firstIndex = room.enemies.length;
     addGoomba(room, parent.x / CELL, floorY, left, right, { dir:-1, size:2 });
     addGoomba(room, parent.x / CELL + 2, floorY, left, right, { dir:1, size:2 });
-    for (const child of room.enemies.slice(firstIndex)) {
+    for (const [index, child] of room.enemies.slice(firstIndex).entries()) {
       child.state = 'cool';
       child.timer = 0.25;
       child.vy = -CELL * 2.2;
+      child.vx = (index ? 1 : -1) * CELL * (1.35 + Math.random() * .9);
+      child.x += (index ? 1 : -1) * CELL * Math.random() * .35;
       child.onGround = false;
     }
   }
@@ -12016,6 +12030,15 @@ function checkExit() {
     pushMsg('Снова комната 1', '#ffd7a1', 1.2);
     loadRoom(0, true, true);
   } else loadRoom(state.roomIndex + 1, true, true);
+}
+
+function goToNextRoomFromPause() {
+  const next = Number.isFinite(state.room?.nextRoomIndex)
+    ? state.room.nextRoomIndex
+    : (state.roomIndex >= state.rooms.length - 1 ? 0 : state.roomIndex + 1);
+  loadRoom(next, true, true);
+  state.mode = 'playing';
+  showOverlay(null);
 }
 
 function hangingShouldAutoRelease(p) {
@@ -14096,6 +14119,7 @@ const heartVendorYesBtn = document.getElementById('heartVendorYesBtn');
 const heartVendorNoBtn = document.getElementById('heartVendorNoBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const retryRoomBtn = document.getElementById('retryRoomBtn');
+const nextRoomBtn = document.getElementById('nextRoomBtn');
 const restartRunBtn = document.getElementById('restartRunBtn');
 const restartEpisodeBtn = document.getElementById('restartEpisodeBtn');
 const restartTestLevelBtn = document.getElementById('restartTestLevelBtn');
@@ -14106,6 +14130,7 @@ const resetRoomItemsBtn = document.getElementById('resetRoomItemsBtn');
 const toggleGrabBtn = document.getElementById('toggleGrabBtn');
 const toggleWallBtn = document.getElementById('toggleWallBtn');
 const toggleDjBtn = document.getElementById('toggleDjBtn');
+const toggleGravityBtn = document.getElementById('toggleGravityBtn');
 const toggleInfLivesBtn = document.getElementById('toggleInfLivesBtn');
 const toggleCollisionsBtn = document.getElementById('toggleCollisionsBtn');
 const toggleGridBtn = document.getElementById('toggleGridBtn');
@@ -14115,7 +14140,8 @@ function updatePauseAbilityButtons() {
   const apply = (btn, on, name) => { btn.classList.toggle('on', !!on); btn.textContent = `${name}: ${on ? 'ON' : 'OFF'}`; };
   apply(toggleGrabBtn, hasLedgeGrab(), 'Зацеп');
   apply(toggleWallBtn, hasWallJumpAbility(), 'Отскок');
-  apply(toggleDjBtn, hasDoubleJumpAbility(), 'DJ');
+  apply(toggleDjBtn, hasDoubleJumpAbility(), 'Дабл-джамп');
+  apply(toggleGravityBtn, hasGravityAbility(), 'Гравитация');
   apply(toggleInfLivesBtn, hasInfiniteHeartsEnabled(), 'Беск. сердца');
   apply(toggleCollisionsBtn, state.debug.showCollisions, 'Коллизии');
   apply(toggleGridBtn, hasGridEnabled(), 'Сетка');
@@ -14149,6 +14175,7 @@ heartVendorNoBtn.addEventListener('click', () => {
 });
 resumeBtn.addEventListener('click', () => { state.mode = 'playing'; showOverlay(null); });
 retryRoomBtn.addEventListener('click', () => { restartRoom(); state.mode = 'playing'; showOverlay(null); });
+nextRoomBtn.addEventListener('click', goToNextRoomFromPause);
 restartRunBtn.addEventListener('click', () => { restartBundle(); });
 restartEpisodeBtn.addEventListener('click', () => { restartEpisode(); });
 restartTestLevelBtn.addEventListener('click', () => { restartTestLevel(); });
@@ -14156,6 +14183,11 @@ if (backToMenuBtn) backToMenuBtn.addEventListener('click', () => { returnToStart
 toggleGrabBtn.addEventListener('click', () => { state.progress.abilities.grab = !state.progress.abilities.grab; savePersistentProgress(); applyAbilityToggleSideEffects(); updatePauseAbilityButtons(); });
 toggleWallBtn.addEventListener('click', () => { state.progress.abilities.wall = !state.progress.abilities.wall; savePersistentProgress(); applyAbilityToggleSideEffects(); updatePauseAbilityButtons(); });
 toggleDjBtn.addEventListener('click', () => { state.progress.abilities.dj = !state.progress.abilities.dj; savePersistentProgress(); applyAbilityToggleSideEffects(); updatePauseAbilityButtons(); });
+toggleGravityBtn.addEventListener('click', () => {
+  state.progress.abilities.gravity = !state.progress.abilities.gravity;
+  if (state.player) { state.player.buffs.vv = state.progress.abilities.gravity; state.player.gravityDir = 1; }
+  savePersistentProgress(); updatePauseAbilityButtons(); updateHUD();
+});
 toggleInfLivesBtn.addEventListener('click', () => {
   if (!state.progress.preferences) state.progress.preferences = createDefaultPreferences();
   state.progress.preferences.infiniteHearts = !state.progress.preferences.infiniteHearts;
