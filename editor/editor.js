@@ -12,6 +12,7 @@
   const GRID_STEP = 0.5;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
   const RESULT_KEY = 'nubu2600.editor.playtest.result.v1';
+  const PLAYTEST_RETURN_PARAM = 'playtestReturn';
   const LAST_SLOT_KEY = 'nubu2600.editor.last-slot.v2';
   const LAST_DIFFICULTY_KEY = 'nubu2600.editor.last-difficulty.v1';
   const VIEW_STATE_KEY = 'nubu2600.editor.view.v1';
@@ -204,6 +205,8 @@
     zoom: 1,
     dirty: false,
     saving: false,
+    savePending: 0,
+    saveQueue: Promise.resolve(),
     saveTimer: null,
     history: [],
     historyIndex: -1,
@@ -549,7 +552,18 @@
     state.saveTimer = setTimeout(() => saveNow().catch(error => toast(`Автосохранение: ${error.message}`, 'error')), AUTOSAVE_DELAY);
   }
 
-  async function saveNow({ revision = false } = {}) {
+  function saveNow(options = {}) {
+    state.savePending += 1;
+    updateSaveState();
+    const operation = state.saveQueue.then(() => performSave(options));
+    state.saveQueue = operation.catch(() => {});
+    return operation.finally(() => {
+      state.savePending = Math.max(0, state.savePending - 1);
+      updateSaveState();
+    });
+  }
+
+  async function performSave({ revision = false } = {}) {
     if (!state.slot || !state.db) return;
     clearTimeout(state.saveTimer);
     state.saving = true;
@@ -588,16 +602,20 @@
 
   function updateSaveState(error = '') {
     const el = $('saveState');
-    el.classList.toggle('dirty', state.dirty || state.saving || !state.ready);
+    const saving = state.saving || state.savePending > 0;
+    el.classList.toggle('dirty', state.dirty || saving || !state.ready);
     el.classList.toggle('error', !!error);
-    el.querySelector('b').textContent = error ? 'Ошибка' : !state.ready ? 'Загрузка…' : state.saving ? 'Сохраняю…' : state.dirty ? 'Автосохранение…' : 'Сохранено';
+    el.querySelector('b').textContent = error ? 'Ошибка' : !state.ready ? 'Загрузка…' : saving ? 'Сохраняю…' : state.dirty ? 'Автосохранение…' : 'Сохранено';
   }
 
   function setEditorReady(ready) {
     state.ready = !!ready;
     document.documentElement.dataset.editorReady = ready ? 'true' : 'false';
     $('appShell')?.setAttribute('aria-busy', ready ? 'false' : 'true');
-    $('editorLoadingVeil')?.classList.toggle('visible', !ready);
+    const veil = $('editorLoadingVeil');
+    veil?.classList.toggle('visible', !ready);
+    veil?.classList.remove('error');
+    if (veil?.querySelector('b')) veil.querySelector('b').textContent = 'Загружаю карту…';
     const controls = [
       $('episodeSelect'), $('levelSelect'), $('levelTitleInput'), $('playButton'), $('mobilePlayButton'),
       $('copyMapButton'), $('pasteMapButton'), $('mobileCopyMapButton'), $('mobilePasteMapButton'),
@@ -605,6 +623,17 @@
     ].filter(Boolean);
     for (const control of controls) control.disabled = !ready;
     updateSaveState();
+  }
+
+  function showEditorLoadError(error) {
+    state.ready = false;
+    state.loadingSlot = false;
+    document.documentElement.dataset.editorReady = 'error';
+    $('appShell')?.setAttribute('aria-busy', 'false');
+    const veil = $('editorLoadingVeil');
+    veil?.classList.add('visible', 'error');
+    if (veil?.querySelector('b')) veil.querySelector('b').textContent = `Не удалось загрузить карту: ${error?.message || error}`;
+    updateSaveState(error?.message || String(error));
   }
 
   async function refreshUserSlots() {
@@ -632,44 +661,36 @@
     const requestId = ++state.loadRequestId;
     state.loadingSlot = true;
     setEditorReady(false);
-    let slot;
     try {
       await saveNow();
-      slot = await dbGet(key);
-    } catch (error) {
+      const slot = await dbGet(key);
+      if (requestId !== state.loadRequestId) return false;
+      if (!slot) throw new Error('Уровень не найден в локальной библиотеке.');
+      state.slot = slot;
+      state.slotKey = key;
+      state.difficulty = DIFFICULTIES.includes(difficulty) ? difficulty : 'easy';
+      if (!slot.difficulties[state.difficulty]) slot.difficulties[state.difficulty] = cloneForDifficulty(slot.difficulties.easy, state.difficulty);
+      state.level = normalizeLevel(slot.difficulties[state.difficulty], { episode: slot.episode || 1, sequence: slot.sequence || 1, difficulty: state.difficulty });
+      state.slot.difficulties[state.difficulty] = state.level;
+      state.selectedId = null;
+      state.testSpawn = null;
+      state.issues = [];
+      state.dirty = false;
+      state.activePaletteId = null;
+      state.tool = 'select';
+      resetHistory();
+      try { localStorage.setItem(LAST_SLOT_KEY, key); } catch (error) {}
+      try { localStorage.setItem(LAST_DIFFICULTY_KEY, state.difficulty); } catch (error) {}
+      refreshSelectors();
+      refreshAll();
+      requestAnimationFrame(fitLevel);
+      return true;
+    } finally {
       if (requestId === state.loadRequestId) {
         state.loadingSlot = false;
         setEditorReady(!!state.level);
       }
-      throw error;
     }
-    if (requestId !== state.loadRequestId) return false;
-    if (!slot) {
-      state.loadingSlot = false;
-      setEditorReady(true);
-      throw new Error('Уровень не найден в локальной библиотеке.');
-    }
-    state.slot = slot;
-    state.slotKey = key;
-    state.difficulty = DIFFICULTIES.includes(difficulty) ? difficulty : 'easy';
-    if (!slot.difficulties[state.difficulty]) slot.difficulties[state.difficulty] = cloneForDifficulty(slot.difficulties.easy, state.difficulty);
-    state.level = normalizeLevel(slot.difficulties[state.difficulty], { episode: slot.episode || 1, sequence: slot.sequence || 1, difficulty: state.difficulty });
-    state.slot.difficulties[state.difficulty] = state.level;
-    state.selectedId = null;
-    state.testSpawn = null;
-    state.issues = [];
-    state.dirty = false;
-    state.activePaletteId = null;
-    state.tool = 'select';
-    resetHistory();
-    try { localStorage.setItem(LAST_SLOT_KEY, key); } catch (error) {}
-    try { localStorage.setItem(LAST_DIFFICULTY_KEY, state.difficulty); } catch (error) {}
-    refreshSelectors();
-    refreshAll();
-    state.loadingSlot = false;
-    setEditorReady(true);
-    requestAnimationFrame(fitLevel);
-    return true;
   }
 
   async function switchDifficulty(difficulty) {
@@ -677,19 +698,25 @@
     const requestId = ++state.loadRequestId;
     state.loadingSlot = true;
     setEditorReady(false);
-    await saveNow();
-    if (requestId !== state.loadRequestId) return;
-    state.difficulty = difficulty;
-    if (!state.slot.difficulties[difficulty]) state.slot.difficulties[difficulty] = cloneForDifficulty(state.slot.difficulties.easy, difficulty);
-    state.level = normalizeLevel(state.slot.difficulties[difficulty], { difficulty });
-    state.slot.difficulties[difficulty] = state.level;
-    state.selectedId = null; state.testSpawn = null; state.issues = []; state.dirty = false;
-    try { localStorage.setItem(LAST_DIFFICULTY_KEY, state.difficulty); } catch (error) {}
-    resetHistory(`Открыта ${difficultyTitle(difficulty)} сложность`);
-    refreshAll();
-    state.loadingSlot = false;
-    setEditorReady(true);
-    requestAnimationFrame(fitLevel);
+    try {
+      await saveNow();
+      if (requestId !== state.loadRequestId) return false;
+      state.difficulty = difficulty;
+      if (!state.slot.difficulties[difficulty]) state.slot.difficulties[difficulty] = cloneForDifficulty(state.slot.difficulties.easy, difficulty);
+      state.level = normalizeLevel(state.slot.difficulties[difficulty], { difficulty });
+      state.slot.difficulties[difficulty] = state.level;
+      state.selectedId = null; state.testSpawn = null; state.issues = []; state.dirty = false;
+      try { localStorage.setItem(LAST_DIFFICULTY_KEY, state.difficulty); } catch (error) {}
+      resetHistory(`Открыта ${difficultyTitle(difficulty)} сложность`);
+      refreshAll();
+      requestAnimationFrame(fitLevel);
+      return true;
+    } finally {
+      if (requestId === state.loadRequestId) {
+        state.loadingSlot = false;
+        setEditorReady(!!state.level);
+      }
+    }
   }
 
   function cellPixels() { return BASE_CELL * state.zoom; }
@@ -1323,12 +1350,15 @@
   }
 
   function gamePlaytestUrl(){const decoded=decodeURIComponent(window.location.pathname);return decoded.includes('/tools/level-editor/')?new URL('../../02 Разработка/game/index.html?editorPlay=1',window.location.href):new URL('../index.html?editorPlay=1',window.location.href);}
+  function playtestReturnUrl(attemptId){const url=new URL(window.location.href);url.hash='';url.searchParams.set(PLAYTEST_RETURN_PARAM,attemptId);return url.href;}
+  function readPlaytestReturnContext(){const attemptId=new URLSearchParams(window.location.search).get(PLAYTEST_RETURN_PARAM);if(!attemptId)return null;const candidates=[];for(const key of [RESULT_KEY,PLAYTEST_KEY])try{const value=JSON.parse(localStorage.getItem(key)||'null');if(value&&typeof value==='object')candidates.push(value);}catch(error){}const match=candidates.find(value=>value.attemptId===attemptId&&typeof value.slotKey==='string'&&DIFFICULTIES.includes(value.difficulty));if(!match)throw new Error('Не найден контекст проверенного уровня. Вернитесь в игру и откройте редактор ещё раз.');return{attemptId,slotKey:match.slotKey,difficulty:match.difficulty};}
+  function clearPlaytestReturnContext(context){if(!context)return;try{const payload=JSON.parse(localStorage.getItem(PLAYTEST_KEY)||'null');if(payload?.attemptId===context.attemptId)localStorage.removeItem(PLAYTEST_KEY);}catch(error){}const url=new URL(window.location.href);url.searchParams.delete(PLAYTEST_RETURN_PARAM);history.replaceState(history.state,'',url.href);}
   function captureEditorView(){return{slotKey:state.slotKey,difficulty:state.difficulty,zoom:state.zoom,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop,selectedId:state.selectedId,savedAt:Date.now()};}
   function persistEditorView(){if(!state.slotKey)return;try{localStorage.setItem(VIEW_STATE_KEY,JSON.stringify(captureEditorView()));}catch(error){}}
   function readEditorView(){try{const view=JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'null');return view&&typeof view==='object'?view:null;}catch(error){return null;}}
   function restoreEditorView(view){if(!view||view.slotKey!==state.slotKey||view.difficulty!==state.difficulty)return false;state.zoom=clamp(Number(view.zoom)||1,.25,2);if(view.selectedId&&state.level.objects.some(object=>object.id===view.selectedId))state.selectedId=view.selectedId;renderCanvas();requestAnimationFrame(()=>{viewport.scrollLeft=Math.max(0,Number(view.scrollLeft)||0);viewport.scrollTop=Math.max(0,Number(view.scrollTop)||0);refreshInspector();});return true;}
 
-  async function playLevel(){const issues=validateLevel(true);const errors=issues.filter(issue=>issue.severity==='error');if(errors.length){toast(`Play заблокирован: ${errors.length} критических ошибок.`,'error');return;}await saveNow({revision:true});persistEditorView();const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId:`attempt-${Date.now()}`,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:window.location.href.split('#')[0]};try{localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));localStorage.removeItem(RESULT_KEY);}catch(error){toast('Браузер не дал сохранить запрос Play.','error');return;}window.location.href=gamePlaytestUrl().href;}
+  async function playLevel(){const issues=validateLevel(true);const errors=issues.filter(issue=>issue.severity==='error');if(errors.length){toast(`Play заблокирован: ${errors.length} критических ошибок.`,'error');return;}const attemptId=`attempt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setEditorReady(false);const veil=$('editorLoadingVeil');if(veil?.querySelector('b'))veil.querySelector('b').textContent='Готовлю проверку…';try{await saveNow({revision:true});if(state.dirty)throw new Error('Последняя версия карты ещё не сохранена.');persistEditorView();const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:playtestReturnUrl(attemptId)};try{localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));localStorage.removeItem(RESULT_KEY);}catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}window.location.href=gamePlaytestUrl().href;}catch(error){setEditorReady(true);toast(`Не удалось начать проверку: ${error.message}`,'error');}}
 
   async function consumePlaytestResult(){let result=null;try{result=JSON.parse(localStorage.getItem(RESULT_KEY)||'null');localStorage.removeItem(RESULT_KEY);}catch(error){}if(!result)return;if(!result.ok){toast(`Игра не открыла уровень: ${result.error||'неизвестная ошибка'}`,'error');return;}const slot=await dbGet(result.slotKey);if(!slot)return;if(result.clearEarned){slot.clearProofs=slot.clearProofs||{};slot.clearProofs[result.difficulty]={levelHash:result.levelHash,finishedAt:result.finishedAt,durationMs:result.durationMs};await dbPut(slot);if(state.slotKey===slot.key){state.slot=slot;refreshStatus();}toast('Прохождение без смерти засчитано.','ok');}else toast(result.died?'Уровень завершён, но в попытке была смерть — зачёт не выдан.':'Тест завершён. Зачёт не выдаётся для старта «отсюда».');}
 
@@ -1376,6 +1406,7 @@
       await importLegacyDraftOnce();
       const recovery = await recoverEmergencyDraft();
       await refreshUserSlots();
+      const returnContext = readPlaytestReturnContext();
       let key = 'campaign-ep1-01';
       let difficulty = 'easy';
       const view = readEditorView();
@@ -1393,16 +1424,22 @@
         key = recovery.slotKey;
         difficulty = recovery.difficulty;
       }
+      if (returnContext) {
+        if (!await dbGet(returnContext.slotKey)) throw new Error('Проверенный уровень больше не найден в локальной библиотеке.');
+        key = returnContext.slotKey;
+        difficulty = returnContext.difficulty;
+      }
       await loadSlot(key, difficulty);
       await requestStoragePersistence();
       scheduleLibraryMirror();
       await consumePlaytestResult();
+      clearPlaytestReturnContext(returnContext);
       validateLevel(false);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (!restoreEditorView(view)) fitLevel(); }));
       toast(recovery ? 'Аварийная копия черновика восстановлена.' : mirrorRecoveryCount ? `Из зеркальной копии восстановлено наборов: ${mirrorRecoveryCount}.` : 'Библиотека готова: 24 карты × 3 сложности.', 'ok');
     } catch (error) {
       console.error(error);
-      updateSaveState(error.message);
+      showEditorLoadError(error);
       toast(`Редактор не запустился: ${error.message}`, 'error');
     }
   }

@@ -121,6 +121,8 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .editor-loading-veil { position: absolute; z-index: 30; inset: 0; display: none; align-items: center; justify-content: center; gap: 10px; color: var(--text); background: rgba(4,9,7,.72); backdrop-filter: blur(3px); pointer-events: auto; }
 .editor-loading-veil.visible { display: flex; }
 .editor-loading-veil span { width: 18px; height: 18px; border: 2px solid var(--line-bright); border-top-color: var(--accent); border-radius: 50%; animation: editor-spin .7s linear infinite; }
+.editor-loading-veil.error { color: #ffd6df; background: rgba(30,5,13,.88); }
+.editor-loading-veil.error span { animation: none; border-color: #ff6685; }
 @keyframes editor-spin { to { transform: rotate(360deg); } }
 .canvas-stage { position: relative; width: max-content; min-width: 100%; min-height: 100%; padding: 72px; }
 #levelCanvas { display: block; border: 1px solid #5d766b; background: #0b1512; box-shadow: var(--shadow),0 0 0 7px rgba(19,31,27,.8); image-rendering: pixelated; touch-action: none; }

@@ -2602,9 +2602,12 @@ function editorUrlFromRuntime(payload=null) {
     } catch (error) {}
   }
   const decodedPath = decodeURIComponent(window.location.pathname);
-  return decodedPath.includes('/02 Разработка/game/')
+  const target = decodedPath.includes('/02 Разработка/game/')
     ? new URL('../../tools/level-editor/', window.location.href).href
     : new URL('editor/', window.location.href).href;
+  const editorUrl = new URL(target);
+  editorUrl.searchParams.set('editorOpen', Date.now().toString(36));
+  return editorUrl.href;
 }
 function openLevelEditor() {
   window.location.href = editorUrlFromRuntime(state.editorPlaytest);
