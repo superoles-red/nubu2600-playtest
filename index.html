@@ -721,7 +721,7 @@ function normalizeRoomGeometryToHalfGrid(room) {
   for (const o of (room.fragile || [])) fixes += normalizeObjectHalfCellProps(o, ['x','y','w','h']);
   for (const o of (room.blink || [])) fixes += normalizeObjectHalfCellProps(o, ['x','y','w','h']);
   for (const o of (room.conveyors || [])) fixes += normalizeObjectHalfCellProps(o, ['x','y','w','h']);
-  for (const o of (room.movers || [])) fixes += normalizeObjectHalfCellProps(o, ['x','y','startX','startY','w','h','dist']);
+  for (const o of (room.movers || [])) fixes += normalizeObjectHalfCellProps(o, ['x','y','startX','startY','w','h']);
   for (const o of (room.crusherWalls || [])) {
     fixes += normalizeObjectHalfCellProps(o, ['x','y','startX','startY','w','h']);
     for (const p of (o.points || [])) fixes += normalizeObjectHalfCellProps(p, ['x','y']);
@@ -775,7 +775,7 @@ function auditRoomGeometryToHalfGrid(room) {
   checkCell('spawn', room.spawn || {}, ['x','y']);
   checkCell('exit', room.exit || {}, ['x','y','w','h']);
   (room.conveyors || []).forEach((o, i) => checkCell(`conveyor[${i}]`, o, ['x','y','w','h']));
-  (room.movers || []).forEach((o, i) => checkCell(`mover[${i}]`, o, ['x','y','w','h','dist']));
+  (room.movers || []).forEach((o, i) => checkCell(`mover[${i}]`, o, ['x','y','w','h']));
   (room.crusherWalls || []).forEach((o, i) => { checkCell(`crusherWall[${i}]`, o, ['x','y','w','h']); (o.points || []).forEach((p,j) => checkCell(`crusherWall[${i}].point[${j}]`, p, ['x','y'])); });
   (room.dropPlatforms || []).forEach((o, i) => checkCell(`drop[${i}]`, o, ['x','y','w','h']));
   (room.spawners || []).forEach((o, i) => checkCell(`spawner[${i}]`, o, ['x','y','w','h']));
@@ -906,7 +906,12 @@ function addBlink(room, x, y, w=1, opts={}) {
 }
 function addMover(room, id, x, y, w, h, axis, dir, dist, opts={}) {
   const sx = x, sy = y;
-  room.movers.push({ id, x, y, startX:sx, startY:sy, prevX:sx, prevY:sy, w, h, axis, dir, dist, speed:opts.speed||MOVE_PLATFORM_SPEED, progress:0, forward:true, wait:0, enabled:opts.enabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
+  const fallbackX = axis === 'h' ? ((dir === 'l') ? -1 : 1) : 0;
+  const fallbackY = axis === 'v' ? ((dir === 'u') ? -1 : 1) : 0;
+  const rawX = Number.isFinite(opts.vectorX) ? opts.vectorX : fallbackX;
+  const rawY = Number.isFinite(opts.vectorY) ? opts.vectorY : fallbackY;
+  const vectorLength = Math.hypot(rawX, rawY) || 1;
+  room.movers.push({ id, x, y, startX:sx, startY:sy, prevX:sx, prevY:sy, w, h, axis, dir, dist, vectorX:rawX/vectorLength, vectorY:rawY/vectorLength, speed:opts.speed||MOVE_PLATFORM_SPEED, progress:0, forward:true, wait:0, enabled:opts.enabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
 }
 
 function addCrusherWall(room, id, x, y, w, h, opts={}) {
@@ -2487,15 +2492,20 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   room.editorWarnings = [];
   let spawnFound = false;
   let exitFound = false;
+  const editorObjects = Array.isArray(level.objects) ? level.objects : [];
+  const linkedTargetIds = new Set(editorObjects.filter(object => object && object.type === 'button').flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets : []));
 
-  for (const object of (Array.isArray(level.objects) ? level.objects : [])) {
+  for (const object of editorObjects) {
     if (!object || !Number.isFinite(object.x) || !Number.isFinite(object.y)) continue;
     const x = snapHalfCell(object.x);
     const y = snapHalfCell(object.y);
     const w = Math.max(0.5, snapHalfCell(Number(object.w) || 1));
     const h = Math.max(0.5, snapHalfCell(Number(object.h) || 1));
-    const props = editorLevelObjectOptions(object);
     const id = String(object.id || `${object.type}_${room.editorWarnings.length + 1}`);
+    const props = { ...editorLevelObjectOptions(object) };
+    const linked = linkedTargetIds.has(id);
+    if (object.type === 'blinkPlatform' || object.type === 'spike') props.mode = linked ? 'toggle' : (props.mode === 'cycle' ? 'cycle' : 'always');
+    if (object.type === 'conveyor') props.mode = linked ? 'toggle' : 'always';
     switch (object.type) {
       case 'solid':
         setSolid(room, Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
@@ -2503,7 +2513,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'oneWay':
         for (let row = 0; row < Math.max(1, Math.round(h)); row++) addOneWay(room, x, y + row, w);
         break;
-      case 'fragilePlatform': addFragile(room, x, y, w, Number(props.respawnDelay) || 2); break;
+      case 'fragilePlatform': addFragile(room, x, y, w, 4); break;
       case 'blinkPlatform': addBlink(room, x, y, w, { ...props, id }); break;
       case 'movingPlatform': {
         const path = Array.isArray(props.path) ? props.path : [];
@@ -2512,10 +2522,11 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const endY = Number.isFinite(Number(end && end.y)) ? Number(end.y) : y;
         const dx = endX - x;
         const dy = endY - y;
-        const axis = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+        const diagonal = Math.abs(dx) > 0.001 && Math.abs(dy) > 0.001;
+        const axis = diagonal ? 'xy' : (Math.abs(dy) > Math.abs(dx) ? 'v' : 'h');
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
-        const dist = Math.max(0.5, Math.abs(axis === 'v' ? dy : dx));
-        addMover(room, id, x, y, w, h, axis, dir, dist, { enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
+        const dist = Math.max(0.5, Math.hypot(dx, dy));
+        addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
         break;
       }
       case 'smartPlatform': {
@@ -2523,7 +2534,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         addSmart(room, id, path, { ...props, w, h, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
         break;
       }
-      case 'fallingPlatform': addDropPlatform(room, id, x, y, w, props); break;
+      case 'fallingPlatform': addDropPlatform(room, id, x, y, w, { ...props, respawnDelay:2 }); break;
       case 'conveyor': addConveyor(room, id, x, y, w, editorDirection(props.direction, 'r'), props.speed || 'slow', props); break;
       case 'bouncePad': (room.bouncePads ||= []).push({ x, y, w, h }); break;
       case 'spike': addSpike(room, x, y, editorSpikeDirection(props.direction), w, h, { ...props, id }); break;
@@ -2533,6 +2544,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
           : undefined;
         addCrusherWall(room, id, x, y, w, h, {
           ...props,
+          loop:true,
+          sides:props.spikes ? 'udlr' : '',
           points,
           dir:editorDirection(props.direction || props.dir, 'r'),
           speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond) * CELL : undefined,
@@ -2552,12 +2565,12 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
       case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, editorDirection(props.direction, 'r'), Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
       case 'enemySpikeCube': addSpikeCube(room, x, y, w, h, props.sides || 'udlr', props.move || null); break;
-      case 'pushBlock': addPushCube(room, x, y, w, h, props); break;
+      case 'pushBlock': addPushCube(room, x, y, w, h, { ...props, fallTrigger:'proximity', fallDelay:.5 }); break;
       case 'coin': addCoin(room, x, y); break;
       case 'collectible': addCollection(room, props.collectionId || id, x, y, { ...props, w, h }); break;
       case 'pickup': addPickup(room, props.pickupType || 'PDJ', x, y, { ...props, w, h }); break;
       case 'unlockSwitch': addUnlockSwitch(room, props.key || 'jp', x, y, props.label || null); break;
-      case 'heartVendor': addHeartVendor(room, x, y, { ...props, id }); break;
+      case 'heartVendor': addHeartVendor(room, x, y, { ...props, id, price:30 }); break;
       case 'spawn':
         if (!spawnFound) {
           room.spawn = { x, y };
@@ -6943,6 +6956,8 @@ function updatePlatforms(dt) {
   for (const m of room.movers) {
     m.prevX = m.x; m.prevY = m.y; m.dx = 0; m.dy = 0;
     const axisSign = (m.dir === 'l' || m.dir === 'u') ? -1 : 1;
+    const vectorX = Number.isFinite(m.vectorX) ? m.vectorX : (m.axis === 'h' ? axisSign : 0);
+    const vectorY = Number.isFinite(m.vectorY) ? m.vectorY : (m.axis === 'v' ? axisSign : 0);
     if (m.wait > 0) {
       m.wait = Math.max(0, m.wait - dt);
     } else {
@@ -6951,9 +6966,8 @@ function updatePlatforms(dt) {
       if (m.progress >= m.dist) { m.progress = m.dist; m.forward = false; m.wait = 0.5; }
       if (m.progress <= 0) { m.progress = 0; m.forward = true; m.wait = 0.5; }
     }
-    const off = axisSign * m.progress;
-    m.x = m.startX + (m.axis === 'h' ? off : 0);
-    m.y = m.startY + (m.axis === 'v' ? off : 0);
+    m.x = m.startX + vectorX * m.progress;
+    m.y = m.startY + vectorY * m.progress;
     m.dx = (m.x - m.prevX) * CELL; m.dy = (m.y - m.prevY) * CELL;
   }
   for (const wall of (room.crusherWalls || [])) {
