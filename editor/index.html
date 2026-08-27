@@ -2,11 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <title>NuBu2600 · Конструктор уровней</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=67257bd615c7">
+  <link rel="stylesheet" href="styles.css?v=3d4e8f1825b3">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -34,6 +34,7 @@
       </section>
 
       <button class="player-level-button" id="mobileLevelButton" type="button" aria-label="Открыть список уровней" aria-haspopup="dialog">
+        <span class="player-level-gear" aria-hidden="true">⚙</span>
         <span><strong id="playerLevelTitle">Мои уровни</strong><small id="playerLevelStatus" data-status="draft">В работе</small></span>
       </button>
 
@@ -193,7 +194,7 @@
     <button class="library-floating-close" id="closeLibraryButton" type="button" aria-label="Закрыть библиотеку">×</button>
     <div class="modal-panel library-panel">
       <header class="library-static-head">
-        <label class="library-source-title"><span class="sr-only">Раздел библиотеки</span><select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label>
+        <div class="library-source-line"><label class="library-source-title"><span class="sr-only">Раздел библиотеки</span><select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label><button id="libraryLobbyButton" type="button">В лобби</button></div>
         <h1 class="sr-only" id="libraryHeading">Мои уровни</h1><p class="sr-only" id="libraryDescription">Уровни игрока и кампании.</p>
         <div class="library-campaign-head" id="campaignLibrarySection" hidden>
           <label>Сложность <select id="libraryDifficultySelect"><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="hard">Сложная</option></select></label>
@@ -204,7 +205,6 @@
           <button id="newUserLevelButton" type="button" class="primary">＋ Новый уровень</button>
           <label class="check-option"><input id="randomStarterCheckbox" type="checkbox"> Случайная заготовка</label>
           <button id="randomStarterButton" class="hidden" type="button">Случайная заготовка</button>
-          <button id="libraryLobbyButton" type="button">В лобби</button>
         </div>
         <div class="library-filter-row" id="userLibraryFilters">
           <button id="libraryDraftFilterButton" type="button" data-library-filter="draft" class="active">В работе <b id="draftSlotCount">0 / 20</b></button>
@@ -219,16 +219,16 @@
       </div>
       <section class="library-selected" id="librarySelected" hidden>
         <canvas id="librarySelectedPreview" width="240" height="150"></canvas>
-        <div class="library-selected-copy"><small id="librarySelectedKind">Выбранный уровень</small><h2 id="librarySelectedTitle">Уровень</h2><p id="librarySelectedMeta"></p><label class="library-title-edit" id="librarySelectedTitleField"><span class="sr-only">Название</span><input id="libraryLevelTitleInput" maxlength="48" placeholder="Название уровня"></label></div>
+        <div class="library-selected-copy"><label class="library-title-edit" id="librarySelectedTitleField"><span class="sr-only">Название</span><input id="libraryLevelTitleInput" maxlength="48" placeholder="Название уровня"></label><small id="librarySelectedKind">Выбранный уровень</small><h2 id="librarySelectedTitle">Уровень</h2><p id="librarySelectedMeta"></p></div>
         <div class="library-selected-actions">
           <button id="libraryOpenButton" class="primary" type="button">Открыть уровень</button>
-          <button id="examLevelButton" class="exam-button" type="button">▶ Экзамен</button>
-          <button id="withdrawLevelButton" type="button">Отозвать</button>
+          <button id="examLevelButton" class="exam-button" type="button">☢ Экзамен</button>
+          <button id="withdrawLevelButton" class="compact-library-action" type="button">Отозвать</button>
           <button id="libraryCopyMapButton" type="button">Копировать карту</button>
           <button id="libraryPasteMapButton" type="button">Заменить копией</button>
           <button id="libraryExportLevelButton" type="button">Экспорт в iCloud</button>
           <label class="file-button" id="libraryImportLevelLabel">Заменить из файла<input id="libraryImportLevelInput" type="file" accept="application/json,.json,.level.json"></label>
-          <button id="libraryDeleteButton" class="danger library-delete" type="button" aria-label="Удалить уровень">Удалить</button>
+          <button id="libraryDeleteButton" class="danger library-delete compact-library-action" type="button" aria-label="Удалить уровень">Удалить</button>
         </div>
       </section>
       <button id="manualSaveButton" class="hidden" type="button">Сохранить уровень</button>
@@ -258,6 +258,6 @@
     <button id="mobilePlayButton" type="button"></button><button id="deleteObjectButton" type="button"></button>
     <div id="favoriteTools"></div>
   </div>
-  <script src="editor.js?v=bf0563e8c8fd"></script>
+  <script src="editor.js?v=a96c15b543e9"></script>
 </body>
 </html>

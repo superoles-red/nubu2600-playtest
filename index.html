@@ -2755,6 +2755,7 @@ function editorUrlFromRuntime(payload=null) {
 }
 let embeddedEditorReady = false;
 let embeddedEditorPendingOpen = false;
+let embeddedEditorPlaytestLoadToken = 0;
 function preloadEmbeddedEditor() {
   if (window.parent !== window || state.editorPlaytest) return;
   const frame = document.getElementById('editorFrame');
@@ -2763,8 +2764,11 @@ function preloadEmbeddedEditor() {
 function revealEmbeddedEditor() {
   const shell = document.getElementById('editorShell');
   if (!shell) return;
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  if (!playFrame || playFrame.src === 'about:blank') shell.classList.remove('playtesting');
   shell.classList.remove('hidden');
   shell.setAttribute('aria-hidden', 'false');
+  embeddedEditorPendingOpen = false;
   clearActiveInput();
 }
 function openLevelEditor() {
@@ -2784,7 +2788,17 @@ function openLevelEditor() {
   embeddedEditorPendingOpen = true;
   if (embeddedEditorReady) revealEmbeddedEditor();
 }
-function closeEmbeddedEditor(){const shell=document.getElementById('editorShell'),playFrame=document.getElementById('editorPlaytestFrame');if(!shell)return;embeddedEditorPendingOpen=false;shell.classList.remove('playtesting');shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');if(playFrame){playFrame.style.visibility='hidden';playFrame.src='about:blank';}returnToStartMenu();}
+function clearEmbeddedEditorPlaytest() {
+  const shell = document.getElementById('editorShell');
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  embeddedEditorPlaytestLoadToken += 1;
+  shell?.classList.remove('playtesting');
+  if (!playFrame) return;
+  playFrame.onload = null;
+  playFrame.style.visibility = 'hidden';
+  if (playFrame.src !== 'about:blank') playFrame.src = 'about:blank';
+}
+function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;embeddedEditorPendingOpen=false;clearEmbeddedEditorPlaytest();shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');returnToStartMenu();}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -14156,8 +14170,16 @@ window.addEventListener('message', event => {
     let target;
     try { target = new URL(event.data.url, window.location.href); } catch (error) { return; }
     if (target.origin !== window.location.origin || !playFrame || !shell) return;
+    const loadToken = ++embeddedEditorPlaytestLoadToken;
+    shell.classList.remove('playtesting');
+    playFrame.onload = null;
     playFrame.style.visibility = 'hidden';
     playFrame.onload = () => {
+      if (loadToken !== embeddedEditorPlaytestLoadToken) return;
+      let loadedHref = '';
+      try { loadedHref = playFrame.contentWindow?.location?.href || ''; } catch (error) { return; }
+      if (loadedHref !== target.href) return;
+      playFrame.onload = null;
       playFrame.style.visibility = '';
       shell.classList.add('playtesting');
     };
@@ -14165,12 +14187,7 @@ window.addEventListener('message', event => {
     return;
   }
   if (event.data.type === 'nubu:return-editor-playtest' && event.source === playFrame?.contentWindow) {
-    shell?.classList.remove('playtesting');
-    if (playFrame) {
-      playFrame.style.visibility = 'hidden';
-      playFrame.onload = null;
-      playFrame.src = 'about:blank';
-    }
+    clearEmbeddedEditorPlaytest();
     editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
     return;
   }
@@ -14179,7 +14196,9 @@ window.addEventListener('message', event => {
 document.addEventListener('contextmenu',event=>event.preventDefault());
 document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
 for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
+document.addEventListener('touchstart', event => {const touch=event.touches?.[0];if(touch&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();}, { passive:false, capture:true });
 document.addEventListener('touchmove', event => event.preventDefault(), { passive:false, capture:true });
+document.addEventListener('wheel', event => {if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();}, { passive:false, capture:true });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearActiveInput();
 });
