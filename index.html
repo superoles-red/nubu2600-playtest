@@ -109,9 +109,13 @@
   .editor-playtest-bar{position:fixed;z-index:70;top:max(8px, env(safe-area-inset-top));right:max(72px, calc(env(safe-area-inset-right) + 72px));display:flex;align-items:center;gap:8px;max-width:calc(100vw - 150px);padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
   .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
   .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
-  body.editor-playtest .hearts{display:none}
-  body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto}
-  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;max-width:calc(100vw - 132px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
+  body.editor-playtest .hud-card{display:none}
+  html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+  img,canvas{-webkit-user-drag:none}
+  .editor-shell{position:fixed;z-index:200;inset:0;background:#07100d}
+  .editor-shell iframe{display:block;width:100%;height:100%;border:0;background:#07100d}
+  body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto;left:max(8px,env(safe-area-inset-left));max-width:none;justify-content:flex-end}
+  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;left:max(6px,env(safe-area-inset-left));max-width:none}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px;padding-inline:9px}}
 </style>
 </head>
 <body>
@@ -144,7 +148,12 @@
     <span id="editorPlaytestLabel">Тест уровня</span>
     <button id="editorRestartBtn" type="button">↻ Заново</button>
     <button id="editorReturnBtn" type="button">← В редактор</button>
+    <button id="editorLobbyBtn" type="button">В лобби</button>
   </div>
+</div>
+
+<div class="editor-shell hidden" id="editorShell" aria-hidden="true">
+  <iframe id="editorFrame" title="Редактор уровней NuBu2600" allow="fullscreen; clipboard-read; clipboard-write"></iframe>
 </div>
 
 <div class="overlay show" id="startOverlay">
@@ -972,7 +981,8 @@ function addMover(room, id, x, y, w, h, axis, dir, dist, opts={}) {
   const vectorLength = Math.hypot(rawX, rawY) || 1;
   const vectorX=rawX/vectorLength,vectorY=rawY/vectorLength,progress=clamp(Number(opts.initialProgress)||0,0,dist);
   const initialX=sx+vectorX*progress,initialY=sy+vectorY*progress;
-  room.movers.push({ id, x:initialX, y:initialY, startX:sx, startY:sy, prevX:initialX, prevY:initialY, w, h, axis, dir, dist, vectorX, vectorY, speed:opts.speed||MOVE_PLATFORM_SPEED, progress, spawnProgress:progress, forward:true, wait:0, loop:opts.loop!==false, fallWait:0, falling:false, fallAge:0, verticalSpeed:0, respawnDelay:Number(opts.respawnDelay)||2, respawnTimer:0, enabled:opts.enabled!==false, motionEnabled:opts.motionEnabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
+  const visibilityEnabled=opts.enabled!==false;
+  room.movers.push({ id, x:initialX, y:initialY, startX:sx, startY:sy, prevX:initialX, prevY:initialY, w, h, axis, dir, dist, vectorX, vectorY, speed:opts.speed||MOVE_PLATFORM_SPEED, progress, spawnProgress:progress, forward:true, wait:0, loop:opts.loop!==false, fallWait:0, falling:false, fallAge:0, verticalSpeed:0, respawnDelay:Number(opts.respawnDelay)||2, respawnTimer:0, visibilityEnabled, enabled:visibilityEnabled, motionEnabled:opts.motionEnabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
 }
 
 function addCrusherWall(room, id, x, y, w, h, opts={}) {
@@ -2634,7 +2644,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         break;
       }
       case 'smartPlatform': {
-        const path = Array.isArray(props.path) && props.path.length > 1 ? props.path.map(point => [Number(point.x), Number(point.y)]) : [[x, y], [x + 5, y]];
+        let path = Array.isArray(props.path) && props.path.length > 1 ? props.path.map(point => [Number(point.x), Number(point.y)]) : [[x, y], [x + 5, y]];
+        if(props.clockwise===false&&path.length>2)path=[path[0],...path.slice(1).reverse()];
         addSmart(room, id, path, { ...props, w, h, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined });
         break;
       }
@@ -2734,8 +2745,12 @@ function editorUrlFromRuntime(payload=null) {
   return editorUrl.href;
 }
 function openLevelEditor() {
-  window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
+  const target=editorUrlFromRuntime(state.editorPlaytest);
+  if(window.parent!==window||state.editorPlaytest){window.location.replace(target);return;}
+  const shell=document.getElementById('editorShell'),frame=document.getElementById('editorFrame');
+  frame.src=target;shell.classList.remove('hidden');shell.setAttribute('aria-hidden','false');clearActiveInput();
 }
+function closeEmbeddedEditor(){const shell=document.getElementById('editorShell'),frame=document.getElementById('editorFrame');if(!shell||shell.classList.contains('hidden'))return;shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');frame.src='about:blank';returnToStartMenu();}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -7079,7 +7094,7 @@ function updatePlatforms(dt) {
     } else if (m.respawnTimer > 0) {
       m.enabled=false;
       m.respawnTimer=Math.max(0,m.respawnTimer-dt);
-      if(m.respawnTimer===0){m.progress=clamp(Number(m.spawnProgress)||0,0,m.dist);m.x=m.startX+vectorX*m.progress;m.y=m.startY+vectorY*m.progress;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=true;m.wait=.35;}
+      if(m.respawnTimer===0){m.progress=clamp(Number(m.spawnProgress)||0,0,m.dist);m.x=m.startX+vectorX*m.progress;m.y=m.startY+vectorY*m.progress;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=m.visibilityEnabled!==false;m.wait=.35;}
     } else if (m.fallWait > 0) {
       m.fallWait=Math.max(0,m.fallWait-dt);
       if(m.fallWait===0){m.falling=true;m.verticalSpeed=0;m.fallAge=0;}
@@ -7088,7 +7103,7 @@ function updatePlatforms(dt) {
       m.verticalSpeed+=GRAVITY*.35*dt;
       m.y+=(m.verticalSpeed*dt)/CELL;
       if(m.y>room.innerH+6||m.fallAge>=2){m.respawnTimer=m.respawnDelay;m.enabled=false;}
-    } else if (m.enabled) {
+    } else {
       if (m.wait > 0) m.wait=Math.max(0,m.wait-dt);
       else {
         m.progress=Math.min(m.dist,m.progress+(m.speed*dt)/CELL);
@@ -7353,7 +7368,7 @@ function applyTargetRoomState(room, rawTarget, isOn) {
     return;
   }
   if (action === 'visibility') {
-    for (const mover of (room.movers || [])) if (mover.id === id) mover.enabled=!!isOn;
+    for (const mover of (room.movers || [])) if (mover.id === id) {mover.visibilityEnabled=!!isOn;if(!(mover.respawnTimer>0))mover.enabled=!!isOn;}
     return;
   }
   if (action === 'spikes') {
@@ -12670,7 +12685,7 @@ function drawPlatforms() {
   }
   // movers
   for (const m of state.room.movers) {
-    const sx = worldToScreen(m.startX*CELL, m.startY*CELL), ex = worldToScreen((m.axis==='h' ? m.startX + (m.dir==='l'?-m.dist:m.dist) : m.startX)*CELL, (m.axis==='v' ? m.startY + (m.dir==='u'?-m.dist:m.dist) : m.startY)*CELL);
+    const axisSign=(m.dir==='l'||m.dir==='u')?-1:1,vectorX=Number.isFinite(m.vectorX)?m.vectorX:(m.axis==='h'?axisSign:0),vectorY=Number.isFinite(m.vectorY)?m.vectorY:(m.axis==='v'?axisSign:0),sx=worldToScreen(m.startX*CELL,m.startY*CELL),ex=worldToScreen((m.startX+vectorX*m.dist)*CELL,(m.startY+vectorY*m.dist)*CELL);
     const renderW = m.w*CELL*state.cam.scale, renderH = CELL*0.5*state.cam.scale;
     const c1x = sx.x + renderW*.5, c1y = sx.y + renderH*.5;
     const c2x = ex.x + renderW*.5, c2y = ex.y + renderH*.5;
@@ -14089,6 +14104,10 @@ function clearActiveInput() {
   updateMoveButtons();
 }
 window.addEventListener('blur', clearActiveInput);
+window.addEventListener('message',event=>{if(event.origin===window.location.origin&&event.data?.type==='nubu:close-editor')closeEmbeddedEditor();});
+document.addEventListener('contextmenu',event=>event.preventDefault());
+document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
+for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearActiveInput();
 });
@@ -14111,6 +14130,7 @@ const pauseEditorBtn = document.getElementById('pauseEditorBtn');
 const pauseLobbyBtn = document.getElementById('pauseLobbyBtn');
 const editorRestartBtn = document.getElementById('editorRestartBtn');
 const editorReturnBtn = document.getElementById('editorReturnBtn');
+const editorLobbyBtn = document.getElementById('editorLobbyBtn');
 const worldPrevBtn = document.getElementById('worldPrevBtn');
 const worldNextBtn = document.getElementById('worldNextBtn');
 const worldCycleText = document.getElementById('worldCycleText');
@@ -14160,6 +14180,7 @@ openEditorBtn.addEventListener('click', openLevelEditor);
 pauseEditorBtn.addEventListener('click', openLevelEditor);
 pauseLobbyBtn.addEventListener('click', () => {
   if (state.editorPlaytest) {
+    if(window.parent!==window){window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);return;}
     const lobbyUrl = new URL(window.location.href);
     lobbyUrl.search = '';
     lobbyUrl.hash = '';
@@ -14170,6 +14191,7 @@ pauseLobbyBtn.addEventListener('click', () => {
 });
 editorRestartBtn.addEventListener('click', restartEditorPlaytest);
 editorReturnBtn.addEventListener('click', openLevelEditor);
+editorLobbyBtn.addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else returnToStartMenu();});
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
 worldPrevBtn.addEventListener('click', () => setSelectedWorld(0));
 worldNextBtn.addEventListener('click', () => setSelectedWorld(0));
