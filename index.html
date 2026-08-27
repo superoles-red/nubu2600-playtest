@@ -81,7 +81,7 @@
 
 
   #pauseOverlay{padding:max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))}
-  #pauseOverlay .panel{width:min(88vw,420px);max-width:420px;max-height:min(78vh,360px);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:flex-start;padding:16px 16px 14px;border-radius:20px}
+  #pauseOverlay .panel{width:min(88vw,420px);max-width:420px;max-height:min(82vh,620px);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:flex-start;padding:16px 16px 14px;border-radius:20px}
   #pauseOverlay .title{font-size:clamp(24px,4.6vw,34px);text-align:center}
   #pauseOverlay .btns{margin-top:12px;gap:8px}
   #pauseOverlay button.action{min-height:50px;font-size:17px;padding:10px 14px;border-radius:16px}
@@ -109,7 +109,10 @@
   .editor-playtest-bar{position:fixed;z-index:70;top:max(8px, env(safe-area-inset-top));right:max(72px, calc(env(safe-area-inset-right) + 72px));display:flex;align-items:center;gap:8px;max-width:calc(100vw - 150px);padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
   .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
   .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
-  @media (pointer:coarse){.editor-playtest-bar{right:max(64px, calc(env(safe-area-inset-right) + 64px));max-width:calc(100vw - 132px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
+  body.editor-playtest .hearts{display:none}
+  body.editor-playtest .editor-playtest-bar{top:auto;right:max(10px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 6px)}
+  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{right:max(10px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + min(34vh,240px) + 8px);max-width:calc(100vw - 20px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
+  @media (orientation:landscape) and (pointer:coarse){body.editor-playtest .editor-playtest-bar{bottom:calc(max(10px,env(safe-area-inset-bottom)) + min(22vh,124px) + 8px)}}
 </style>
 </head>
 <body>
@@ -210,7 +213,8 @@
       <button class="action secondary hidden" id="restartRunBtn">Заново связку</button>
       <button class="action secondary hidden" id="restartEpisodeBtn">Заново эпизод</button>
       <button class="action secondary hidden" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
-      <button class="action secondary hidden" id="pauseEditorBtn">Редактор</button>
+      <button class="action secondary" id="pauseEditorBtn">В редактор</button>
+      <button class="action secondary" id="pauseLobbyBtn">В лобби</button>
     </div>
   </div>
 </div>
@@ -2626,7 +2630,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
         const dist = Math.max(0.5, Math.hypot(dx, dy));
         const repeatSpacing=Math.max(1,Number(props.repeatSpacing)||20),platformCount=Math.max(1,Math.ceil(dist/repeatSpacing));
-        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:false, initialProgress:Math.min(dist,index*repeatSpacing), respawnDelay:2 });
+        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:Math.min(dist,index*repeatSpacing), respawnDelay:2 });
         break;
       }
       case 'smartPlatform': {
@@ -2644,9 +2648,10 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         break;
       }
       case 'crusherWall': {
-        const points = Array.isArray(props.path) && props.path.length > 1
+        let points = Array.isArray(props.path) && props.path.length > 1
           ? props.path.map(point => [Number(point.x), Number(point.y)])
           : undefined;
+        if(points?.length===2)points=[points[0],points[1],points[0]];
         addCrusherWall(room, id, x, y, w, h, {
           ...props,
           loop:true,
@@ -2758,6 +2763,7 @@ function startEditorPlaytest(payload) {
   state.messages = [];
   showOverlay(null);
   const editorBar = document.getElementById('editorPlaytestBar');
+  document.body.classList.add('editor-playtest');
   editorBar.dataset.labelCount = String(room.labels.length);
   editorBar.dataset.decorativeLabelsValid = room.labels.every(label => label.decorative && label.marquee && label.h === 2 && (label.w === 4 || label.w === 8)) ? 'true' : 'false';
   editorBar.classList.remove('hidden');
@@ -11270,18 +11276,18 @@ function splitDeadLargeGoombas(room) {
   const parents = (room.enemies || []).filter(enemy => enemy && enemy.type === 'E1' && enemy.dead && enemy.splitOnDeath && !enemy.splitHandled);
   for (const parent of parents) {
     parent.splitHandled = true;
-    const floorY = (parent.y + Math.max(0, parent.h - 2) * CELL) / CELL;
+    const childY = parent.y / CELL + 0.25;
     const left = parent.left / CELL;
     const right = parent.right / CELL;
     const firstIndex = room.enemies.length;
-    addGoomba(room, parent.x / CELL, floorY, left, right, { dir:-1, size:2 });
-    addGoomba(room, parent.x / CELL + 2, floorY, left, right, { dir:1, size:2 });
+    addGoomba(room, parent.x / CELL + 0.45, childY, left, right, { dir:-1, size:2 });
+    addGoomba(room, parent.x / CELL + 1.55, childY, left, right, { dir:1, size:2 });
     for (const [index, child] of room.enemies.slice(firstIndex).entries()) {
       child.state = 'cool';
       child.timer = 0.25;
-      child.vy = -CELL * 2.2;
-      child.vx = (index ? 1 : -1) * CELL * (1.35 + Math.random() * .9);
-      child.x += (index ? 1 : -1) * CELL * Math.random() * .35;
+      child.vy = -CELL * (2.8 + Math.random() * .8);
+      child.vx = (index ? 1 : -1) * CELL * (1.6 + Math.random() * .9);
+      child.x += (index ? 1 : -1) * CELL * (.2 + Math.random() * .35);
       child.onGround = false;
     }
   }
@@ -14102,6 +14108,7 @@ const startBtn = document.getElementById('startBtn');
 const startTestBtn = document.getElementById('startTestBtn');
 const openEditorBtn = document.getElementById('openEditorBtn');
 const pauseEditorBtn = document.getElementById('pauseEditorBtn');
+const pauseLobbyBtn = document.getElementById('pauseLobbyBtn');
 const editorRestartBtn = document.getElementById('editorRestartBtn');
 const editorReturnBtn = document.getElementById('editorReturnBtn');
 const worldPrevBtn = document.getElementById('worldPrevBtn');
@@ -14151,6 +14158,16 @@ startBtn.addEventListener('click', () => startRun(0));
 startTestBtn.addEventListener('click', () => startTestLevel());
 openEditorBtn.addEventListener('click', openLevelEditor);
 pauseEditorBtn.addEventListener('click', openLevelEditor);
+pauseLobbyBtn.addEventListener('click', () => {
+  if (state.editorPlaytest) {
+    const lobbyUrl = new URL(window.location.href);
+    lobbyUrl.search = '';
+    lobbyUrl.hash = '';
+    window.location.replace(lobbyUrl.href);
+    return;
+  }
+  returnToStartMenu();
+});
 editorRestartBtn.addEventListener('click', restartEditorPlaytest);
 editorReturnBtn.addEventListener('click', openLevelEditor);
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
