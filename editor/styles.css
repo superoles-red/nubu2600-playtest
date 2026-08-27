@@ -698,3 +698,52 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
   .mobile-category-items { grid-template-rows: repeat(4,minmax(58px,1fr)); grid-auto-flow: column; grid-auto-columns: minmax(92px,1fr); grid-template-columns: none; overflow-x: auto; overflow-y: hidden; }
   .canvas-stage { padding-top: 30px; padding-bottom: 50px; }
 }
+
+/* Окончательный каскад: ровно портрет и ландшафт на любом устройстве. */
+html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:none; }
+.app-shell, .workspace, .canvas-stage, #levelCanvas { touch-action:none; overscroll-behavior:none; }
+.library-scroll, .mobile-carousel-rail, .mobile-category-items, .drawer, .modal-panel { touch-action:pan-y; overscroll-behavior:contain; }
+#exportLibraryButton[hidden], .level-card[hidden], #librarySelectedTitle[hidden] { display:none !important; }
+.level-card-wrap.selected > .library-selected { margin:0; }
+.mobile-category-items { grid-auto-flow:row !important; grid-template-rows:none !important; grid-auto-columns:auto !important; grid-auto-rows:max-content !important; align-content:start !important; justify-content:start; overflow-x:hidden !important; overflow-y:auto !important; }
+.mobile-category-items .mobile-variant-button { width:100% !important; min-width:0 !important; aspect-ratio:1 !important; min-height:0 !important; max-height:none !important; padding:2px !important; }
+.mobile-variant-button canvas { width:82% !important; height:72% !important; }
+
+@media (orientation:portrait) {
+  .app-shell { grid-template-columns:minmax(0,1fr) !important; grid-template-rows:72px minmax(0,1fr) 86px !important; }
+  .command-bar { grid-column:1 !important; grid-row:1 !important; grid-template-columns:minmax(92px,1fr) 146px 70px !important; grid-template-rows:54px !important; min-height:72px !important; gap:5px !important; padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left)) !important; }
+  .player-level-button { display:flex !important; grid-column:1 !important; height:50px !important; padding:5px 8px !important; }
+  .zoom-controls { position:static !important; grid-column:2 !important; grid-row:1 !important; width:auto !important; grid-template-columns:30px minmax(40px,1fr) 30px !important; grid-template-rows:27px 9px !important; gap:0 3px !important; padding:3px !important; box-shadow:none !important; }
+  .zoom-controls output { grid-column:2 !important; grid-row:2 !important; text-align:center !important; }
+  .interaction-hint { position:fixed !important; z-index:94 !important; top:calc(78px + env(safe-area-inset-top)) !important; right:120px !important; left:62px !important; width:auto !important; min-height:44px !important; transform:none !important; }
+  .command-actions { display:grid !important; grid-column:3 !important; grid-row:1 !important; }
+  .command-actions #undoButton, .command-actions #redoButton { display:none !important; }
+  .workspace { grid-column:1 !important; grid-row:2 !important; }
+  .mobile-edit-controls { display:flex !important; }
+  .mobile-edit-controls > div { display:flex !important; gap:4px !important; }
+  .mobile-palette-shell { display:block !important; grid-column:1 !important; grid-row:3 !important; min-width:0 !important; padding:4px max(5px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left)) !important; border-top:1px solid var(--line) !important; border-right:0 !important; }
+  .mobile-carousel-rail { width:100% !important; height:100% !important; flex-direction:row !important; justify-content:space-evenly !important; gap:4px !important; overflow-x:auto !important; overflow-y:hidden !important; touch-action:pan-x !important; }
+  .mobile-category-button { width:auto !important; min-width:0 !important; min-height:0 !important; flex:1 1 0 !important; flex-direction:column !important; justify-content:center !important; text-align:center !important; }
+  .mobile-category-sheet { top:calc(126px + env(safe-area-inset-top)) !important; right:0 !important; bottom:calc(86px + env(safe-area-inset-bottom)) !important; left:0 !important; width:auto !important; max-width:none !important; max-height:none !important; border-radius:18px 18px 0 0 !important; }
+  .mobile-category-items { grid-template-columns:repeat(auto-fill,minmax(72px,88px)) !important; gap:7px !important; padding:9px !important; }
+  .canvas-stage { padding:90px 72px 92px !important; }
+}
+
+@media (orientation:landscape) {
+  .app-shell { grid-template-columns:136px minmax(0,1fr) !important; grid-template-rows:54px minmax(0,1fr) !important; }
+  .command-bar { grid-column:1/3 !important; grid-row:1 !important; grid-template-columns:136px 166px minmax(150px,1fr) auto !important; grid-template-rows:46px !important; min-height:54px !important; gap:5px !important; padding:max(4px,env(safe-area-inset-top)) max(5px,env(safe-area-inset-right)) 4px max(5px,env(safe-area-inset-left)) !important; }
+  .player-level-button { display:flex !important; grid-column:1 !important; height:42px !important; padding:4px 7px !important; }
+  .zoom-controls { position:static !important; grid-column:2 !important; grid-row:1 !important; width:auto !important; grid-template-columns:31px minmax(52px,1fr) 31px !important; grid-template-rows:25px 8px !important; gap:0 3px !important; padding:3px !important; box-shadow:none !important; }
+  .zoom-controls output { grid-column:2 !important; grid-row:2 !important; text-align:center !important; }
+  .interaction-hint { position:static !important; z-index:94 !important; grid-column:3 !important; width:100% !important; min-width:0 !important; min-height:42px !important; transform:none !important; }
+  .command-actions { display:flex !important; grid-column:4 !important; grid-row:1 !important; }
+  .command-actions #undoButton, .command-actions #redoButton { display:inline-flex !important; width:42px !important; min-width:42px !important; align-items:center !important; justify-content:center !important; }
+  .workspace { grid-column:2 !important; grid-row:2 !important; }
+  .mobile-edit-controls > div { display:none !important; }
+  .mobile-palette-shell { display:block !important; grid-column:1 !important; grid-row:2 !important; min-height:0 !important; padding:4px 4px max(4px,env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left)) !important; border-top:0 !important; border-right:1px solid var(--line) !important; }
+  .mobile-carousel-rail { width:100% !important; height:100% !important; flex-direction:column !important; gap:5px !important; overflow-x:hidden !important; overflow-y:auto !important; touch-action:pan-y !important; }
+  .mobile-category-button { width:100% !important; min-width:0 !important; min-height:48px !important; flex:0 0 auto !important; flex-direction:column !important; justify-content:center !important; text-align:center !important; }
+  .mobile-category-sheet { top:54px !important; right:auto !important; bottom:0 !important; left:136px !important; width:min(430px,calc(100vw - 136px)) !important; max-width:none !important; max-height:none !important; border-radius:0 18px 18px 0 !important; }
+  .mobile-category-items { grid-template-columns:repeat(auto-fill,minmax(72px,88px)) !important; gap:7px !important; padding:9px !important; }
+  .canvas-stage { padding:78px !important; }
+}

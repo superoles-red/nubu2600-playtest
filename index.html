@@ -113,7 +113,10 @@
   html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
   img,canvas{-webkit-user-drag:none}
   .editor-shell{position:fixed;z-index:200;inset:0;background:#07100d}
-  .editor-shell iframe{display:block;width:100%;height:100%;border:0;background:#07100d}
+  .editor-shell iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0;background:#07100d}
+  .editor-shell #editorFrame{z-index:1}
+  .editor-shell #editorPlaytestFrame{z-index:2;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .1s ease}
+  .editor-shell.playtesting #editorPlaytestFrame{visibility:visible;opacity:1;pointer-events:auto}
   body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto;left:max(8px,env(safe-area-inset-left));max-width:none;justify-content:flex-end}
   @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;left:max(6px,env(safe-area-inset-left));max-width:none}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px;padding-inline:9px}}
 </style>
@@ -154,6 +157,7 @@
 
 <div class="editor-shell hidden" id="editorShell" aria-hidden="true">
   <iframe id="editorFrame" title="Редактор уровней NuBu2600" allow="fullscreen; clipboard-read; clipboard-write"></iframe>
+  <iframe id="editorPlaytestFrame" title="Проверка уровня NuBu2600" allow="fullscreen"></iframe>
 </div>
 
 <div class="overlay show" id="startOverlay">
@@ -2127,6 +2131,9 @@ function getExitDoorWorldRect(exit) {
   };
 }
 function getSpawnDoorWorldRect(spawn) {
+  if (spawn && spawn.editorPlayerBody) {
+    return { x:spawn.x * CELL, y:spawn.y * CELL, w:(spawn.w || 1) * CELL, h:(spawn.h || 2) * CELL };
+  }
   return { x:(spawn.x || 0) * CELL, y:(spawn.y || 0) * CELL - CELL * 1.5, w:EXIT_W, h:EXIT_H };
 }
 function roomTileAt(room, tx, ty) {
@@ -2695,7 +2702,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'heartVendor': addHeartVendor(room, x, y, { ...props, id, price:30 }); break;
       case 'spawn':
         if (!spawnFound) {
-          room.spawn = { x, y };
+          room.spawn = { x, y, w, h, editorPlayerBody:true };
           spawnFound = true;
         }
         break;
@@ -2713,7 +2720,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   if (!spawnFound) throw new Error('В уровне нет единственного входа.');
   if (!exitFound) throw new Error('В уровне нет единственного выхода.');
   if (testSpawn && Number.isFinite(testSpawn.x) && Number.isFinite(testSpawn.y)) {
-    room.spawn = { x:snapHalfCell(testSpawn.x), y:snapHalfCell(testSpawn.y) };
+    room.spawn = { x:snapHalfCell(testSpawn.x), y:snapHalfCell(testSpawn.y), w:1, h:2, editorPlayerBody:true };
   }
   normalizeRoomGeometryToHalfGrid(room);
   normalizeRoomPortals(room);
@@ -2741,16 +2748,43 @@ function editorUrlFromRuntime(payload=null) {
     ? new URL('../../tools/level-editor/', window.location.href).href
     : new URL('editor/', window.location.href).href;
   const editorUrl = new URL(target);
-  editorUrl.searchParams.set('editorOpen', Date.now().toString(36));
+  editorUrl.searchParams.set('embedded', '1');
+  const buildId = new URLSearchParams(window.location.search).get('build');
+  if (buildId) editorUrl.searchParams.set('build', buildId);
   return editorUrl.href;
 }
-function openLevelEditor() {
-  const target=editorUrlFromRuntime(state.editorPlaytest);
-  if(window.parent!==window||state.editorPlaytest){window.location.replace(target);return;}
-  const shell=document.getElementById('editorShell'),frame=document.getElementById('editorFrame');
-  frame.src=target;shell.classList.remove('hidden');shell.setAttribute('aria-hidden','false');clearActiveInput();
+let embeddedEditorReady = false;
+let embeddedEditorPendingOpen = false;
+function preloadEmbeddedEditor() {
+  if (window.parent !== window || state.editorPlaytest) return;
+  const frame = document.getElementById('editorFrame');
+  if (frame && !frame.src) frame.src = editorUrlFromRuntime();
 }
-function closeEmbeddedEditor(){const shell=document.getElementById('editorShell'),frame=document.getElementById('editorFrame');if(!shell||shell.classList.contains('hidden'))return;shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');frame.src='about:blank';returnToStartMenu();}
+function revealEmbeddedEditor() {
+  const shell = document.getElementById('editorShell');
+  if (!shell) return;
+  shell.classList.remove('hidden');
+  shell.setAttribute('aria-hidden', 'false');
+  clearActiveInput();
+}
+function openLevelEditor() {
+  if (window.parent !== window && state.editorPlaytest) {
+    window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
+    return;
+  }
+  if (window.parent === window && state.editorPlaytest) {
+    window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
+    return;
+  }
+  if (window.parent !== window) {
+    window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
+    return;
+  }
+  preloadEmbeddedEditor();
+  embeddedEditorPendingOpen = true;
+  if (embeddedEditorReady) revealEmbeddedEditor();
+}
+function closeEmbeddedEditor(){const shell=document.getElementById('editorShell'),playFrame=document.getElementById('editorPlaytestFrame');if(!shell)return;embeddedEditorPendingOpen=false;shell.classList.remove('playtesting');shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');if(playFrame){playFrame.style.visibility='hidden';playFrame.src='about:blank';}returnToStartMenu();}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -2817,6 +2851,10 @@ function finishEditorPlaytest() {
     finishedAt:Date.now(),
   };
   try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify(result)); } catch (error) {}
+  if (window.parent !== window) {
+    window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
+    return true;
+  }
   window.location.replace(editorUrlFromRuntime(payload));
   return true;
 }
@@ -5263,13 +5301,13 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   const targetSpawnY = state.room.spawn.y * CELL;
   p.x = targetSpawnX;
   p.y = targetSpawnY;
-  settleFreeBodyDown(state.room, p);
+  if (!state.room.spawn.editorPlayerBody) settleFreeBodyDown(state.room, p);
   const settledSpawnX = snapHalfPx(p.x);
   const settledSpawnY = snapHalfPx(p.y);
   if (withSpawnTransition) {
     const spawnDoor = getSpawnDoorWorldRect(state.room.spawn);
-    p.x = snapHalfPx(spawnDoor.x + (spawnDoor.w - p.w) * 0.5);
-    p.y = snapHalfPx(spawnDoor.y + (spawnDoor.h - p.h) * 0.5);
+    p.x = state.room.spawn.editorPlayerBody ? settledSpawnX : snapHalfPx(spawnDoor.x + (spawnDoor.w - p.w) * 0.5);
+    p.y = state.room.spawn.editorPlayerBody ? settledSpawnY : snapHalfPx(spawnDoor.y + (spawnDoor.h - p.h) * 0.5);
     p.spawnTargetX = settledSpawnX;
     p.spawnTargetY = settledSpawnY;
   } else {
@@ -14104,10 +14142,44 @@ function clearActiveInput() {
   updateMoveButtons();
 }
 window.addEventListener('blur', clearActiveInput);
-window.addEventListener('message',event=>{if(event.origin===window.location.origin&&event.data?.type==='nubu:close-editor')closeEmbeddedEditor();});
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || !event.data?.type) return;
+  const shell = document.getElementById('editorShell');
+  const editorFrame = document.getElementById('editorFrame');
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  if (event.data.type === 'nubu:editor-ready' && event.source === editorFrame?.contentWindow) {
+    embeddedEditorReady = true;
+    if (embeddedEditorPendingOpen) revealEmbeddedEditor();
+    return;
+  }
+  if (event.data.type === 'nubu:start-editor-playtest' && event.source === editorFrame?.contentWindow) {
+    let target;
+    try { target = new URL(event.data.url, window.location.href); } catch (error) { return; }
+    if (target.origin !== window.location.origin || !playFrame || !shell) return;
+    playFrame.style.visibility = 'hidden';
+    playFrame.onload = () => {
+      playFrame.style.visibility = '';
+      shell.classList.add('playtesting');
+    };
+    playFrame.src = target.href;
+    return;
+  }
+  if (event.data.type === 'nubu:return-editor-playtest' && event.source === playFrame?.contentWindow) {
+    shell?.classList.remove('playtesting');
+    if (playFrame) {
+      playFrame.style.visibility = 'hidden';
+      playFrame.onload = null;
+      playFrame.src = 'about:blank';
+    }
+    editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
+    return;
+  }
+  if (event.data.type === 'nubu:close-editor') closeEmbeddedEditor();
+});
 document.addEventListener('contextmenu',event=>event.preventDefault());
 document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
 for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
+document.addEventListener('touchmove', event => event.preventDefault(), { passive:false, capture:true });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearActiveInput();
 });
@@ -14274,6 +14346,7 @@ if (pendingEditorPlaytest) {
   updateTestLevelButtons();
   updatePauseAbilityButtons();
   showOverlay('start');
+  preloadEmbeddedEditor();
 }
 requestAnimationFrame(step);
 })();
