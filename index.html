@@ -110,9 +110,8 @@
   .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
   .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
   body.editor-playtest .hearts{display:none}
-  body.editor-playtest .editor-playtest-bar{top:auto;right:max(10px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 6px)}
-  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{right:max(10px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + min(34vh,240px) + 8px);max-width:calc(100vw - 20px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
-  @media (orientation:landscape) and (pointer:coarse){body.editor-playtest .editor-playtest-bar{bottom:calc(max(10px,env(safe-area-inset-bottom)) + min(22vh,124px) + 8px)}}
+  body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto}
+  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;max-width:calc(100vw - 132px)}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px}}
 </style>
 </head>
 <body>
@@ -973,7 +972,7 @@ function addMover(room, id, x, y, w, h, axis, dir, dist, opts={}) {
   const vectorLength = Math.hypot(rawX, rawY) || 1;
   const vectorX=rawX/vectorLength,vectorY=rawY/vectorLength,progress=clamp(Number(opts.initialProgress)||0,0,dist);
   const initialX=sx+vectorX*progress,initialY=sy+vectorY*progress;
-  room.movers.push({ id, x:initialX, y:initialY, startX:sx, startY:sy, prevX:initialX, prevY:initialY, w, h, axis, dir, dist, vectorX, vectorY, speed:opts.speed||MOVE_PLATFORM_SPEED, progress, forward:true, wait:0, loop:opts.loop!==false, fallWait:0, falling:false, fallAge:0, verticalSpeed:0, respawnDelay:Number(opts.respawnDelay)||2, respawnTimer:0, enabled:opts.enabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
+  room.movers.push({ id, x:initialX, y:initialY, startX:sx, startY:sy, prevX:initialX, prevY:initialY, w, h, axis, dir, dist, vectorX, vectorY, speed:opts.speed||MOVE_PLATFORM_SPEED, progress, spawnProgress:progress, forward:true, wait:0, loop:opts.loop!==false, fallWait:0, falling:false, fallAge:0, verticalSpeed:0, respawnDelay:Number(opts.respawnDelay)||2, respawnTimer:0, enabled:opts.enabled!==false, motionEnabled:opts.motionEnabled!==false, controlledBy:opts.controlledBy||null, dx:0, dy:0 });
 }
 
 function addCrusherWall(room, id, x, y, w, h, opts={}) {
@@ -2607,6 +2606,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
     const id = String(object.id || `${object.type}_${room.editorWarnings.length + 1}`);
     const props = { ...editorLevelObjectOptions(object) };
     const linked = linkedTargetIds.has(id);
+    if(linked)props.controlledBy='button';
     if (object.type === 'blinkPlatform' || object.type === 'spike') props.mode = linked ? 'toggle' : (props.mode === 'cycle' ? 'cycle' : 'always');
     if (object.type === 'conveyor') props.mode = linked ? 'toggle' : 'always';
     switch (object.type) {
@@ -2630,7 +2630,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
         const dist = Math.max(0.5, Math.hypot(dx, dy));
         const repeatSpacing=Math.max(1,Number(props.repeatSpacing)||20),platformCount=Math.max(1,Math.ceil(dist/repeatSpacing));
-        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:Math.min(dist,index*repeatSpacing), respawnDelay:2 });
+        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, motionEnabled:true, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:dist*index/platformCount, respawnDelay:2 });
         break;
       }
       case 'smartPlatform': {
@@ -6206,16 +6206,9 @@ function resolveKinematicPlatformContacts(p) {
     const hadStrongCubeTopPrev = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerPrev, prevSupportRect);
     const hasStrongCubeTopNow = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerNow, nowSupportRect);
     const wasOnTop = prevXOverlap > KINEMATIC_TOP_MIN_OVERLAP && prevBottom <= prev.y + 1.25 && prevBottom >= prev.y - 1.25 && hadStrongCubeTopPrev;
-    const pickupFromBelow = !sameGround
-      && !p.hanging
-      && supportedBySolid
-      && (p.jumpAttachBlockTimer || 0) <= 0
-      && p.vy >= -0.01
-      && plat.dy < -0.01
-      && maxOverlap > KINEMATIC_TOP_MIN_OVERLAP
-      && prev.y > prevBottom + 0.25
-      && plat.y <= nowBottom + 1.5
-      && hasStrongCubeTopNow;
+    // Лифты, трамваи и падающие платформы односторонние: снизу они никогда
+    // не подхватывают игрока и не телепортируют его на верхнюю грань.
+    const pickupFromBelow = false;
 
     if (!sameGround && !wasOnTop && !pickupFromBelow) continue;
     if (!sameGround && !pickupFromBelow && supportedBySolid) continue;
@@ -6265,10 +6258,11 @@ function resolveKinematicPlatformContacts(p) {
     return;
   }
   if (best.sameGround) {
-    crushPlayerByKinematic(p, best.ref);
+    if (best.kind === 'mover' || best.kind === 'smart' || best.kind === 'drop') forceDropFromKinematic(p, best.ref);
+    else crushPlayerByKinematic(p, best.ref);
     return;
   }
-  if (best.dy < -0.01) crushPlayerByKinematic(p, best.ref);
+  if (best.dy < -0.01 && !(best.kind === 'mover' || best.kind === 'smart' || best.kind === 'drop')) crushPlayerByKinematic(p, best.ref);
   else if (!hasSolidSupportAtFeet(p, 2.25)) forceDropFromKinematic(p, best.ref);
 }
 
@@ -7071,6 +7065,7 @@ function updatePlatforms(dt) {
     const axisSign = (m.dir === 'l' || m.dir === 'u') ? -1 : 1;
     const vectorX = Number.isFinite(m.vectorX) ? m.vectorX : (m.axis === 'h' ? axisSign : 0);
     const vectorY = Number.isFinite(m.vectorY) ? m.vectorY : (m.axis === 'v' ? axisSign : 0);
+    if (m.motionEnabled === false) continue;
     if (m.loop !== false) {
       if (m.wait > 0) m.wait = Math.max(0, m.wait - dt);
       else {
@@ -7084,7 +7079,7 @@ function updatePlatforms(dt) {
     } else if (m.respawnTimer > 0) {
       m.enabled=false;
       m.respawnTimer=Math.max(0,m.respawnTimer-dt);
-      if(m.respawnTimer===0){m.x=m.startX;m.y=m.startY;m.progress=0;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=true;m.wait=.35;}
+      if(m.respawnTimer===0){m.progress=clamp(Number(m.spawnProgress)||0,0,m.dist);m.x=m.startX+vectorX*m.progress;m.y=m.startY+vectorY*m.progress;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=true;m.wait=.35;}
     } else if (m.fallWait > 0) {
       m.fallWait=Math.max(0,m.fallWait-dt);
       if(m.fallWait===0){m.falling=true;m.verticalSpeed=0;m.fallAge=0;}
@@ -7357,6 +7352,14 @@ function applyTargetRoomState(room, rawTarget, isOn) {
     }
     return;
   }
+  if (action === 'visibility') {
+    for (const mover of (room.movers || [])) if (mover.id === id) mover.enabled=!!isOn;
+    return;
+  }
+  if (action === 'spikes') {
+    for (const wall of (room.crusherWalls || [])) if (wall.id === id) wall.sides=isOn?'udlr':'';
+    return;
+  }
   const wantsToggle = action === 'toggle' && !!isOn;
   const explicit = action === 'on'
     ? (isOn ? true : null)
@@ -7373,7 +7376,7 @@ function applyTargetRoomState(room, rawTarget, isOn) {
   for (const d of room.doors) if (d.id === id) apply(d, 'open');
   for (const b of room.blink) if (b.id === id) apply(b, 'active');
   for (const c of (room.conveyors || [])) if (c.id === id) apply(c, 'active');
-  for (const m of room.movers) if (m.id === id) apply(m, 'enabled');
+  for (const m of room.movers) if (m.id === id) apply(m, 'motionEnabled');
   for (const w of (room.crusherWalls || [])) if (w.id === id) {
     if (explicit === 'toggle') {
       if (!w.loop && w.finished) continue;
@@ -7391,7 +7394,7 @@ function applyTargetRoomState(room, rawTarget, isOn) {
     w.enabled = true;
   }
   for (const s of room.smarts) if (s.id === id) apply(s, 'enabled');
-  for (const sp of room.spawners) if (sp.id === id) apply(sp, 'enabled');
+  for (const sp of room.spawners) if (sp.id === id) { apply(sp, 'enabled'); if(!sp.enabled)sp.timer=0; }
   for (const spike of room.spikes) if (spike.id === id) apply(spike, 'active');
   for (const enemy of room.enemies) if (enemy.type === 'E3' && enemy.id === id) apply(enemy, 'enabled');
 }
@@ -7567,10 +7570,10 @@ function updatePlayerInCannon(p, cannon, inputX, jumpPressedNow) {
   if (!cannon) { p.inCannon = false; p.cannonRef = null; return false; }
   if (cannon.manual) {
     if (inputX <= -0.5) {
-      if (!p.cannonLeftLatch) { stepCannonDirection(cannon, 1); p.cannonLeftLatch = true; }
+      if (!p.cannonLeftLatch) { stepCannonDirection(cannon, -1); p.cannonLeftLatch = true; }
     } else p.cannonLeftLatch = false;
     if (inputX >= 0.5) {
-      if (!p.cannonRightLatch) { stepCannonDirection(cannon, -1); p.cannonRightLatch = true; }
+      if (!p.cannonRightLatch) { stepCannonDirection(cannon, 1); p.cannonRightLatch = true; }
     } else p.cannonRightLatch = false;
   } else {
     p.cannonLeftLatch = false;
@@ -7606,6 +7609,7 @@ function tryEnterCannon(p) {
 function updateSpawnerSwitches() {
   const p = state.player;
   for (const sp of state.room.spawners) {
+    if (sp.controlledBy) { sp.toggleLatch=false; continue; }
     const top = sp.y * CELL;
     const boxX = sp.x * CELL, boxW = sp.w * CELL;
     const xOverlap = Math.min(p.x + p.w, boxX + boxW) - Math.max(p.x, boxX);
@@ -12715,10 +12719,6 @@ function drawPlatforms() {
     const spawnPos = worldToScreen(d.startX*CELL, d.startY*CELL);
     const pos = worldToScreen(d.x*CELL, d.y*CELL);
     const w = d.w*CELL*state.cam.scale, h = CELL*0.5*state.cam.scale;
-    if (d.state === 'falling') {
-      ctx.strokeStyle = 'rgba(198,168,255,.28)';
-      ctx.strokeRect(Math.round(spawnPos.x)+.5, Math.round(spawnPos.y)+.5, Math.round(w), Math.round(h));
-    }
     if (d.state !== 'respawn') {
       const armed = d.state === 'armed';
       ctx.fillStyle = armed ? '#d8a2ff' : '#b88dff';

@@ -441,8 +441,13 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 #libraryModal .modal-panel > header { position: sticky; z-index: 4; top: -13px; padding-top: 13px; background: rgba(10,18,15,.985); }
 .campaign-library-list { grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); max-height: none; }
 .library-author-controls[hidden] { display: none !important; }
-.context-toolbar [data-context-action="socket"], .context-toolbar [data-context-action="reverse-socket"] { position: absolute; left: var(--socket-left); top: var(--socket-top); order: initial; margin: 0; }
-.context-toolbar [data-context-action="reverse-socket"] { margin-left: 52px; }
+.context-toolbar [data-context-action="socket"], .context-toolbar [data-context-action^="aux-socket-"] { --context-control-size: 26px; position: absolute; left: var(--socket-left); top: var(--socket-top); order: initial; margin: 0; }
+.context-toolbar [data-context-action="aux-socket-1"] { left: calc(var(--socket-left) + var(--socket-gap,31px)); }
+.context-toolbar [data-context-action="link"] { --context-control-size: 26px; position: absolute; left: var(--plug-left); top: var(--plug-top); order: initial; margin: 0; }
+.context-toolbar [data-context-action="socket"] .context-glyph.context-socket, .context-toolbar [data-context-action^="aux-socket-"] .context-glyph.context-socket { width: 12px; height: 12px; border-width: 2px; }
+.context-toolbar [data-context-action="socket"] .context-glyph.context-socket::before, .context-toolbar [data-context-action="socket"] .context-glyph.context-socket::after, .context-toolbar [data-context-action^="aux-socket-"] .context-glyph.context-socket::before, .context-toolbar [data-context-action^="aux-socket-"] .context-glyph.context-socket::after { top: 3px; width: 3px; height: 3px; }
+.context-toolbar [data-context-action="socket"] .context-glyph.context-socket::before, .context-toolbar [data-context-action^="aux-socket-"] .context-glyph.context-socket::before { left: 2px; }
+.context-toolbar [data-context-action="socket"] .context-glyph.context-socket::after, .context-toolbar [data-context-action^="aux-socket-"] .context-glyph.context-socket::after { right: 2px; }
 .context-toolbar .context-nested { --context-control-size: 34px; order: -10; margin-top: -18px; outline: 2px solid rgba(143,223,255,.5); outline-offset: 2px; font-size: 17px; }
 .context-toolbar .context-parent { outline: 2px solid rgba(143,223,255,.28); outline-offset: 3px; }
 .toast-region { top: 86px; bottom: auto; }
@@ -493,4 +498,45 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
   .mobile-category-button, .mobile-variant-button { flex-direction: column; justify-content: center; text-align: center; }
   .mobile-variant-button canvas { width: 58px; min-width: 58px; height: 50px; }
   .toast-region { top: 62px; right: 8px; bottom: auto; left: 144px; }
+}
+
+/* 2026-08-27: библиотека с явным выбором карты и единое поле подсказок. */
+.interaction-hint { z-index: 92; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+.interaction-hint.attention, .library-hint.attention { animation: hint-attention .42s ease-out; }
+@keyframes hint-attention { 0% { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(215,239,102,.55); } 100% { border-color: var(--line); box-shadow: 0 0 0 12px rgba(215,239,102,0); } }
+.toast-region { position: fixed !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; }
+.library-source-title { display: block; width: min(420px,72vw); }
+.library-source-title select { min-height: 52px; color: var(--text); border-color: var(--line-bright); background: #101c18; font-size: clamp(18px,3vw,28px); font-weight: 950; }
+.library-hint { position: sticky; z-index: 8; top: 70px; display: flex; min-height: 42px; align-items: center; gap: 9px; margin: 10px 0; padding: 7px 11px; border: 1px solid var(--line-bright); border-radius: 12px; background: rgba(10,18,15,.97); box-shadow: 0 7px 20px rgba(0,0,0,.3); }
+.library-hint strong { flex: 0 0 auto; font-size: 10px; }
+.library-hint span { color: var(--muted); font-size: 9px; line-height: 1.3; }
+.library-selected { display: grid; grid-template-columns: minmax(180px,240px) minmax(180px,1fr); gap: 14px; margin: 12px 0 16px; padding: 12px; border: 2px solid var(--accent); border-radius: 16px; background: linear-gradient(145deg,rgba(215,239,102,.1),rgba(113,152,225,.07)); }
+.library-selected[hidden], .library-selected [hidden], #libraryModal [hidden] { display: none !important; }
+.library-selected canvas { width: 100%; min-height: 150px; border: 1px solid var(--line-bright); border-radius: 12px; background: #08100d; image-rendering: pixelated; }
+.library-selected-copy { min-width: 0; }
+.library-selected-copy > small { color: var(--accent); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.library-selected-copy h2 { margin: 4px 0; font-size: clamp(17px,2.5vw,24px); }
+.library-selected-copy p { margin: 0 0 8px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.library-selected-actions { grid-column: 1/-1; display: flex; flex-wrap: wrap; gap: 7px; }
+.library-selected-actions > button, .library-selected-actions > label { min-height: 40px; }
+.library-selected-actions .danger { margin-left: auto; color: #ff9ca4; border-color: rgba(255,105,116,.55); }
+.level-card-wrap { grid-template-columns: minmax(0,1fr); }
+.level-card-wrap.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(215,239,102,.2); }
+.level-card-wrap.current::after { position: absolute; top: -7px; right: 7px; content: 'Открыт'; padding: 2px 6px; border-radius: 999px; color: #112016; background: var(--accent); font: 900 7px var(--mono); text-transform: uppercase; }
+.library-footer { position: sticky; z-index: 7; bottom: -13px; display: flex; justify-content: flex-end; gap: 8px; margin: 16px -13px -13px; padding: 10px max(13px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(13px,env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(10,18,15,.985); }
+.library-footer #libraryLobbyButton { margin-right: auto; }
+
+@media (max-width: 640px) and (orientation: portrait) {
+  .library-selected { grid-template-columns: 96px minmax(0,1fr); gap: 9px; padding: 9px; }
+  .library-selected canvas { min-height: 96px; }
+  .library-selected-actions { gap: 5px; }
+  .library-selected-actions > button, .library-selected-actions > label { flex: 1 1 125px; min-width: 0; padding-inline: 7px; font-size: 9px; }
+  .library-hint { top: 64px; }
+}
+
+@media (max-width: 1024px) and (orientation: landscape) {
+  #libraryModal { padding-top: max(54px,env(safe-area-inset-top)); padding-right: env(safe-area-inset-right); padding-bottom: env(safe-area-inset-bottom); padding-left: max(136px,env(safe-area-inset-left)); }
+  #libraryModal .modal-panel { width: 100%; max-height: calc(100dvh - max(54px,env(safe-area-inset-top))); padding-bottom: max(13px,env(safe-area-inset-bottom)); }
+  .mobile-category-items { grid-template-rows: repeat(4,minmax(58px,1fr)); grid-auto-flow: column; grid-auto-columns: minmax(92px,1fr); grid-template-columns: none; overflow-x: auto; overflow-y: hidden; }
+  .canvas-stage { padding-top: 30px; padding-bottom: 50px; }
 }

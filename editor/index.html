@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>NuBu2600 · Конструктор уровней</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=c79e124e46e3">
+  <link rel="stylesheet" href="styles.css?v=056d7cb52c98">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -188,24 +188,28 @@
 
   <div class="modal" id="libraryModal" aria-hidden="true">
     <div class="modal-panel">
-      <header><div><small>Библиотека уровней</small><h1 id="libraryHeading">Мои уровни</h1><p id="libraryDescription">До 100 пользовательских уровней на этом устройстве.</p></div><button id="closeLibraryButton" type="button" aria-label="Закрыть">×</button></header>
-      <div class="library-source-row">
-        <label>Показывать<select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label>
-        <button id="libraryLobbyButton" type="button">В лобби</button>
-      </div>
+      <header><div><small>Библиотека уровней</small><label class="library-source-title"><span class="sr-only">Раздел библиотеки</span><select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label><h1 class="sr-only" id="libraryHeading">Мои уровни</h1><p id="libraryDescription">До 100 пользовательских уровней на этом устройстве.</p></div><button id="closeLibraryButton" type="button" aria-label="Закрыть">×</button></header>
+      <div class="library-hint" id="libraryHint" role="status"><strong>Библиотека</strong><span>Нажмите карточку, чтобы увидеть уровень крупнее и выбрать действие.</span></div>
       <div class="library-actions">
         <button id="newUserLevelButton" type="button" class="primary">＋ Новый уровень</button>
         <label class="check-option"><input id="randomStarterCheckbox" type="checkbox"> Случайная заготовка</label>
-        <button id="manualSaveButton" type="button">Сохранить уровень</button>
-        <label class="library-title-edit">Название<input id="libraryLevelTitleInput" maxlength="48" placeholder="Название уровня"></label>
-        <button id="libraryCopyMapButton" type="button">Копировать карту</button>
-        <button id="libraryPasteMapButton" type="button">Вставить карту</button>
-        <button id="examLevelButton" class="exam-button" type="button">▶ Экзамен</button>
         <button id="randomStarterButton" class="hidden" type="button">Случайная заготовка</button>
-        <button id="exportLibraryButton" type="button">Скачать всю библиотеку</button>
-        <label class="file-button library-import developer-only hidden">Восстановить библиотеку<input id="importLibraryInput" type="file" accept="application/json,.json"></label>
         <span id="userSlotCount">0 / 100</span>
       </div>
+      <section class="library-selected" id="librarySelected" hidden>
+        <canvas id="librarySelectedPreview" width="240" height="150"></canvas>
+        <div class="library-selected-copy"><small id="librarySelectedKind">Выбранный уровень</small><h2 id="librarySelectedTitle">Уровень</h2><p id="librarySelectedMeta"></p><label class="library-title-edit" id="librarySelectedTitleField">Название<input id="libraryLevelTitleInput" maxlength="48" placeholder="Название уровня"></label></div>
+        <div class="library-selected-actions">
+          <button id="libraryOpenButton" class="primary" type="button">Открыть уровень</button>
+          <button id="examLevelButton" class="exam-button" type="button">▶ Экзамен</button>
+          <button id="libraryCopyMapButton" type="button">Копировать карту</button>
+          <button id="libraryPasteMapButton" type="button">Заменить копией</button>
+          <button id="libraryExportLevelButton" type="button">Экспорт в iCloud</button>
+          <label class="file-button" id="libraryImportLevelLabel">Заменить из файла<input id="libraryImportLevelInput" type="file" accept="application/json,.json,.level.json"></label>
+          <button id="libraryDeleteButton" class="danger" type="button">Удалить</button>
+        </div>
+      </section>
+      <button id="manualSaveButton" class="hidden" type="button">Сохранить уровень</button>
       <div class="template-size-row hidden" id="templateSizeRow" aria-hidden="true">
         <span>Новый уровень всегда 20×20:</span>
         <label>Ширина<select id="newLevelWidth"><option>20</option><option>40</option><option>60</option><option>80</option></select></label>
@@ -220,7 +224,7 @@
       </section>
       <div class="player-status-legend"><span data-status="draft">В работе</span><span data-status="submitted">Опубликован</span></div>
       <div class="library-list" id="libraryList"></div>
-      <p class="local-warning">Сейчас библиотека хранится локально в браузере. Share-коды, жалобы, цензура публикации и облако требуют backend и будут отдельным этапом.</p>
+      <footer class="library-footer"><button id="libraryLobbyButton" type="button">В лобби</button><button id="exportLibraryButton" type="button">Скачать всю библиотеку</button><label class="file-button library-import developer-only hidden">Восстановить библиотеку<input id="importLibraryInput" type="file" accept="application/json,.json"></label></footer>
     </div>
   </div>
 
@@ -238,6 +242,6 @@
     <button id="mobilePlayButton" type="button"></button><button id="mobileCopyMapButton" type="button"></button><button id="mobilePasteMapButton" type="button"></button><button id="deleteObjectButton" type="button"></button>
     <div id="favoriteTools"></div>
   </div>
-  <script src="editor.js?v=b306aa3d81dd"></script>
+  <script src="editor.js?v=3301beb304ec"></script>
 </body>
 </html>
