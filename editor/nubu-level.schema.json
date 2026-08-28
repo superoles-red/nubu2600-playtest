@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:nubu2600:schema:level:1",
+  "$id": "urn:nubu2600:schema:level:2",
   "title": "NuBu2600 level",
-  "description": "Candidate schema v1 для одной полной карты одной сложности. Easy, medium и hard хранятся отдельными level payload, а не patches.",
+  "description": "Формат одной полной карты одной сложности. Версия 1 сохраняет прямоугольные legacy-карты; версия 2 описывает поле как связное объединение панелей 20×20. Easy, medium и hard хранятся отдельными level payload, а не patches.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
   ],
   "properties": {
     "kind": { "const": "nubu.level" },
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "id": {
       "type": "string",
       "minLength": 1,
@@ -49,6 +49,21 @@
         "height": { "type": "integer", "minimum": 10, "maximum": 100 }
       }
     },
+    "panels": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["x", "y"],
+        "properties": {
+          "x": { "type": "integer", "minimum": 0, "maximum": 3 },
+          "y": { "type": "integer", "minimum": 0, "maximum": 3 }
+        }
+      }
+    },
     "theme": { "type": "string" },
     "learningGoal": { "type": "string" },
     "designerNotes": { "type": "string" },
@@ -69,6 +84,37 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "schemaVersion": { "const": 1 } },
+        "required": ["schemaVersion"]
+      },
+      "then": {
+        "not": { "required": ["panels"] }
+      }
+    },
+    {
+      "if": {
+        "properties": { "schemaVersion": { "const": 2 } },
+        "required": ["schemaVersion"]
+      },
+      "then": {
+        "required": ["panels"],
+        "properties": {
+          "size": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["width", "height"],
+            "properties": {
+              "width": { "type": "integer", "minimum": 20, "maximum": 80, "multipleOf": 20 },
+              "height": { "type": "integer", "minimum": 20, "maximum": 80, "multipleOf": 20 }
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "halfCell": {
       "type": "number",

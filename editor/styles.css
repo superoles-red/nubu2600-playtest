@@ -118,6 +118,13 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .size-rail button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border: 2px solid #94b0a4; border-radius: 50%; background: rgba(9,18,15,.96); box-shadow: 0 5px 16px rgba(0,0,0,.46); font-size: 28px; font-weight: 900; line-height: 1; pointer-events: auto; }
 .size-top, .size-bottom { transform: translate(-50%,-50%); }
 .size-left, .size-right { flex-direction: column; transform: translate(-50%,-50%); }
+.size-rail[hidden] { display: none !important; }
+.panel-topology-controls { position: absolute; z-index: 23; inset: 0; pointer-events: none; }
+.panel-topology-controls[hidden] { display: none; }
+.panel-control { position: absolute; display: grid; width: 36px; min-width: 36px; height: 36px; min-height: 36px; place-items: center; padding: 0; transform: translate(-50%,-50%); border: 2px solid var(--panel-control-color,#7dffad); border-radius: 50%; color: #f5fff9; background: rgba(7,16,12,.94); box-shadow: 0 5px 16px rgba(0,0,0,.48); font: 900 23px/1 var(--font); pointer-events: auto; }
+.panel-control[data-panel-remove] { --panel-control-color: #ff8c9b; width: 32px; min-width: 32px; height: 32px; min-height: 32px; font-size: 20px; }
+.panel-control:disabled { opacity: .3; filter: grayscale(.8); cursor: not-allowed; }
+.panel-shape-summary { margin: 7px 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
 .editor-loading-veil { position: absolute; z-index: 30; inset: 0; display: none; align-items: center; justify-content: center; gap: 10px; color: var(--text); background: rgba(4,9,7,.72); backdrop-filter: blur(3px); pointer-events: auto; }
 .editor-loading-veil.visible { display: flex; }
 .editor-loading-veil span { width: 18px; height: 18px; border: 2px solid var(--line-bright); border-top-color: var(--accent); border-radius: 50%; animation: editor-spin .7s linear infinite; }
@@ -134,9 +141,9 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .context-toolbar[data-side="below"]::after { left: var(--context-anchor-x); bottom: 100%; width: 2px; height: 14px; transform: translateX(-50%); }
 .context-toolbar[data-side="left"]::after { left: 100%; top: var(--context-anchor-y); width: 14px; height: 2px; transform: translateY(-50%); }
 .context-toolbar[data-side="right"]::after { right: 100%; top: var(--context-anchor-y); width: 14px; height: 2px; transform: translateY(-50%); }
-.context-toolbar .context-icon-button { display: grid; width: var(--context-control-size); min-width: var(--context-control-size); height: var(--context-control-size); min-height: var(--context-control-size); place-items: center; padding: 0; border: 2px solid var(--context-color,var(--line-bright)); border-radius: 50%; color: var(--context-ink,var(--text)); background: color-mix(in srgb,var(--context-color,var(--panel-3)) 24%,rgba(8,15,12,.97)); box-shadow: 0 5px 14px rgba(0,0,0,.46); font: 900 22px/1 var(--font); }
-.context-toolbar .context-icon-button.is-active { color: var(--context-active-ink,#11180f); background: var(--context-color,var(--accent)); }
-.context-toolbar .context-rotate { --context-color: var(--accent); --context-ink: #11180f; background: var(--accent); font-size: 28px; }
+.context-toolbar .context-icon-button { display: grid; width: var(--context-control-size); min-width: var(--context-control-size); height: var(--context-control-size); min-height: var(--context-control-size); place-items: center; padding: 0; border: 2px solid var(--context-color,var(--line-bright)); border-radius: 50%; color: var(--context-ink,var(--text)); background: color-mix(in srgb,var(--context-color,var(--panel-3)) 50%,transparent); box-shadow: 0 5px 14px rgba(0,0,0,.46); font: 900 22px/1 var(--font); }
+.context-toolbar .context-icon-button.is-active { color: var(--context-active-ink,#11180f); background: color-mix(in srgb,var(--context-color,var(--accent)) 50%,transparent); }
+.context-toolbar .context-rotate { --context-color: var(--accent); --context-ink: #11180f; background: color-mix(in srgb,var(--accent) 50%,transparent); font-size: 28px; }
 .context-toolbar .context-link { --context-color: #65ff9a; --context-active-ink: #07110c; }
 .context-toolbar .context-state { --context-color: #ffd868; }
 .context-toolbar .context-danger { --context-color: #ff7b84; }
@@ -742,6 +749,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 .mobile-category-sheet > header small { color:var(--muted); font-size:8px; }
 .mobile-category-sheet > header strong { font-size:13px; }
 .mobile-category-sheet > header button { width:38px; min-width:38px; min-height:38px; padding:0; font-size:22px; }
+.mobile-category-sheet > header #closeMobileCategorySheet { touch-action:manipulation; }
 .mobile-category-items { display:grid !important; min-height:0 !important; flex:0 1 auto; grid-auto-flow:row !important; grid-template-rows:none !important; grid-auto-columns:auto !important; grid-auto-rows:max-content !important; align-content:start !important; justify-content:center !important; overflow-x:hidden !important; overflow-y:auto !important; touch-action:pan-y !important; }
 .mobile-category-items .mobile-variant-button { position:relative; display:flex; width:100% !important; min-width:0 !important; aspect-ratio:1 !important; min-height:0 !important; max-height:none !important; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; padding:2px !important; background:linear-gradient(150deg,color-mix(in srgb,var(--tool-color) 20%,#14201b),#0b1210); touch-action:none; }
 .mobile-variant-button canvas { width:82% !important; height:72% !important; pointer-events:none; }
@@ -1136,6 +1144,25 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     min-width:0 !important;
     z-index:75 !important;
   }
+
+  /* The portrait item sheet is one horizontal ribbon with exactly two rows.
+     Pointer gestures are resolved in editor.js so swiping directly on a card
+     can scroll the ribbon while a deliberate long press still starts a drag. */
+  .mobile-category-items {
+    grid-template-columns:none !important;
+    grid-template-rows:repeat(2,96px) !important;
+    grid-auto-flow:column !important;
+    grid-auto-columns:96px !important;
+    grid-auto-rows:auto !important;
+    align-content:start !important;
+    justify-content:start !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    overscroll-behavior-x:contain !important;
+    touch-action:pan-x !important;
+    scrollbar-width:none;
+  }
+  .mobile-category-items::-webkit-scrollbar { display:none; }
 
   .library-selected { grid-template-columns:minmax(112px,38%) minmax(0,1fr) !important; gap:9px !important; padding:9px !important; }
   .library-selected > .library-preview-open { min-height:132px; }

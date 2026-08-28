@@ -117,6 +117,15 @@
   .editor-shell #editorFrame{z-index:1}
   .editor-shell #editorPlaytestFrame{z-index:2;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .1s ease}
   .editor-shell.playtesting #editorPlaytestFrame{visibility:visible;opacity:1;pointer-events:auto}
+  .editor-bridge-transition{position:fixed;z-index:260;inset:0;display:grid;place-items:center;overflow:hidden;visibility:hidden;opacity:0;pointer-events:none;background:#050b09;color:#f3ffe1;transition:opacity .14s ease,visibility 0s linear .14s}
+  .editor-bridge-transition::before,.editor-bridge-transition::after{content:"";position:absolute;top:0;bottom:0;width:52%;background:linear-gradient(135deg,#10241d,#07100d 62%);transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+  .editor-bridge-transition::before{left:0;transform:translateX(-102%);border-right:1px solid rgba(231,255,114,.28)}
+  .editor-bridge-transition::after{right:0;transform:translateX(102%);border-left:1px solid rgba(231,255,114,.28)}
+  .editor-bridge-transition.show{visibility:visible;opacity:1;pointer-events:auto;transition-delay:0s}
+  .editor-bridge-transition.show::before,.editor-bridge-transition.show::after{transform:translateX(0)}
+  .editor-bridge-card{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;min-width:min(74vw,300px);padding:22px 26px;border:1px solid rgba(231,255,114,.3);border-radius:20px;background:rgba(5,12,9,.9);box-shadow:0 24px 70px rgba(0,0,0,.48);text-align:center}
+  .editor-bridge-card span{font-size:30px;color:#e7ff72}.editor-bridge-card b{font:900 clamp(18px,4vw,25px)/1.1 system-ui}.editor-bridge-card small{font:700 12px/1.2 system-ui;color:#9fb6aa}
+  @media (prefers-reduced-motion:reduce){.editor-bridge-transition,.editor-bridge-transition::before,.editor-bridge-transition::after{transition:none!important}}
   body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto;left:max(8px,env(safe-area-inset-left));max-width:none;justify-content:flex-end}
   @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;left:max(6px,env(safe-area-inset-left));max-width:none}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px;padding-inline:9px}}
 </style>
@@ -158,6 +167,10 @@
 <div class="editor-shell hidden" id="editorShell" aria-hidden="true">
   <iframe id="editorFrame" title="Редактор уровней NuBu2600" allow="fullscreen; clipboard-read; clipboard-write"></iframe>
   <iframe id="editorPlaytestFrame" title="Проверка уровня NuBu2600" allow="fullscreen"></iframe>
+</div>
+
+<div class="editor-bridge-transition" id="editorBridgeTransition" aria-hidden="true">
+  <div class="editor-bridge-card"><span aria-hidden="true">▦</span><b id="editorBridgeTitle">Открываю редактор</b><small>NuBu2600 · конструктор уровней</small></div>
 </div>
 
 <div class="overlay show" id="startOverlay">
@@ -461,7 +474,6 @@ function sanitizeProgress(raw) {
       grab: !!abilities.grab,
       wall: !!abilities.wall,
       dj: !!abilities.dj,
-      gravity: !!abilities.gravity,
     },
     roomItemsUnlocked: {
       jp: !!roomItemsUnlocked.jp,
@@ -495,7 +507,16 @@ function readProgressEnvelope(storageKey) {
     const envelope = JSON.parse(localStorage.getItem(storageKey) || 'null');
     if (!envelope || envelope.kind !== 'nubu.progress' || envelope.version !== 2 || !envelope.data) return null;
     const data = sanitizeProgress(envelope.data);
-    if (progressChecksum(data) !== envelope.checksum) return null;
+    const currentChecksum = progressChecksum(data);
+    let legacyChecksum = null;
+    const hasLegacyGravity = !!(envelope.data.abilities && Object.prototype.hasOwnProperty.call(envelope.data.abilities, 'gravity'));
+    if (hasLegacyGravity) {
+      const legacyData = { ...data, abilities:{ ...data.abilities, gravity:!!envelope.data.abilities.gravity } };
+      legacyChecksum = progressChecksum(legacyData);
+    }
+    const matchesLegacyChecksum = legacyChecksum !== null && envelope.checksum === legacyChecksum;
+    if (envelope.checksum !== currentChecksum && !matchesLegacyChecksum) return null;
+    if (matchesLegacyChecksum && envelope.data.abilities.gravity) data.roomItemsUnlocked = { jp:true, fl:true, vv:true };
     return { ...envelope, revision:Number(envelope.revision) || 0, data };
   } catch (error) {
     return null;
@@ -532,7 +553,11 @@ function loadPersistentProgress() {
   } else {
     try {
       const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-      if (raw) state.progress = sanitizeProgress(JSON.parse(raw));
+      if (raw) {
+        const legacyProgress = JSON.parse(raw);
+        state.progress = sanitizeProgress(legacyProgress);
+        if (legacyProgress?.abilities?.gravity) state.progress.roomItemsUnlocked = { jp:true, fl:true, vv:true };
+      }
     } catch (error) {}
   }
   state.progress = sanitizeProgress(state.progress);
@@ -565,7 +590,7 @@ resize();
 function hasLedgeGrab() { return !!state.progress.abilities.grab; }
 function hasWallJumpAbility() { return !!state.progress.abilities.wall; }
 function hasDoubleJumpAbility() { return !!state.progress.abilities.dj; }
-function hasGravityAbility() { return !!state.progress.abilities.gravity; }
+function hasAllGravityItemsUnlocked() { return ['jp','fl','vv'].every(key => !!state.progress.roomItemsUnlocked[key]); }
 function hasInfiniteHeartsEnabled() { return !!(state.progress.preferences && state.progress.preferences.infiniteHearts); }
 function hasGridEnabled() { return !!(state.progress.preferences && state.progress.preferences.showGrid); }
 function isRoomItemUnlocked(key) { return !!state.progress.roomItemsUnlocked[key]; }
@@ -2136,8 +2161,15 @@ function getSpawnDoorWorldRect(spawn) {
   }
   return { x:(spawn.x || 0) * CELL, y:(spawn.y || 0) * CELL - CELL * 1.5, w:EXIT_W, h:EXIT_H };
 }
+function roomCellInShape(room, tx, ty) {
+  if (!room || tx < 0 || ty < 0 || tx >= room.innerW || ty >= room.innerH) return false;
+  if (room.schemaVersion !== 2 || !room.panelShape) return true;
+  const panelSize = room.panelSize || EDITOR_PANEL_SIZE;
+  return !!room.panelShape[`${Math.floor(tx / panelSize)},${Math.floor(ty / panelSize)}`];
+}
 function roomTileAt(room, tx, ty) {
   if (tx < -1 || tx > room.innerW || ty < -1 || ty > room.innerH) return 1;
+  if (tx >= 0 && ty >= 0 && tx < room.innerW && ty < room.innerH && !roomCellInShape(room, tx, ty)) return 1;
   return room.tiles[ty + 1][tx + 1];
 }
 function roomSolidAt(room, tx, ty) { return roomTileAt(room, tx, ty) === 1; }
@@ -2597,11 +2629,114 @@ function editorSpikeDirection(value) {
 function editorLevelObjectOptions(object) {
   return object && object.props && typeof object.props === 'object' ? object.props : {};
 }
+const EDITOR_PANEL_SIZE = 20;
+function validateEditorPanelLayout(level) {
+  const panels = level && level.panels;
+  if (!Array.isArray(panels) || panels.length < 1 || panels.length > 8) throw new Error('Формат v2 требует от 1 до 8 панелей.');
+  const normalized = [];
+  const keys = new Set();
+  for (const panel of panels) {
+    if (!panel || typeof panel.x !== 'number' || typeof panel.y !== 'number' || !Number.isInteger(panel.x) || !Number.isInteger(panel.y)) throw new Error('Координаты панелей v2 должны быть целыми числами.');
+    if (panel.x < 0 || panel.y < 0 || panel.x > 3 || panel.y > 3) throw new Error('Панели v2 должны находиться в сетке не больше 4×4.');
+    const key = `${panel.x},${panel.y}`;
+    if (keys.has(key)) throw new Error('Панели v2 не должны повторяться.');
+    keys.add(key);
+    normalized.push({ x:panel.x, y:panel.y });
+  }
+  const canonical = normalized.slice().sort((left, right) => left.y - right.y || left.x - right.x);
+  if (canonical.some((panel, index) => panel.x !== normalized[index].x || panel.y !== normalized[index].y)) throw new Error('Панели v2 должны быть отсортированы по y, затем по x.');
+  const minX = Math.min(...canonical.map(panel => panel.x));
+  const minY = Math.min(...canonical.map(panel => panel.y));
+  const maxX = Math.max(...canonical.map(panel => panel.x));
+  const maxY = Math.max(...canonical.map(panel => panel.y));
+  if (minX !== 0 || minY !== 0) throw new Error('Фигура панелей v2 должна быть нормализована к координате 0,0.');
+  const width = level && level.size && level.size.width;
+  const height = level && level.size && level.size.height;
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width !== (maxX + 1) * EDITOR_PANEL_SIZE || height !== (maxY + 1) * EDITOR_PANEL_SIZE) throw new Error('Размер уровня v2 не совпадает с ограничивающей рамкой панелей.');
+  const visited = new Set([`${canonical[0].x},${canonical[0].y}`]);
+  const queue = [canonical[0]];
+  for (let index = 0; index < queue.length; index++) {
+    const panel = queue[index];
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const key = `${panel.x + dx},${panel.y + dy}`;
+      if (keys.has(key) && !visited.has(key)) {
+        visited.add(key);
+        queue.push({ x:panel.x + dx, y:panel.y + dy });
+      }
+    }
+  }
+  if (visited.size !== canonical.length) throw new Error('Панели v2 должны образовывать одну связную фигуру.');
+  return { panels:canonical, shape:Object.fromEntries(canonical.map(panel => [`${panel.x},${panel.y}`, true])), width, height };
+}
+const EDITOR_PANEL_EPSILON = 1e-7;
+const EDITOR_PANEL_PATH_TYPES = new Set(['movingPlatform','smartPlatform','crusherWall']);
+function editorRectInsidePanelLayout(layout, rect) {
+  if (!layout || ![rect?.x, rect?.y, rect?.w, rect?.h].every(Number.isFinite) || rect.w <= 0 || rect.h <= 0) return false;
+  if (rect.x < -EDITOR_PANEL_EPSILON || rect.y < -EDITOR_PANEL_EPSILON || rect.x + rect.w > layout.width + EDITOR_PANEL_EPSILON || rect.y + rect.h > layout.height + EDITOR_PANEL_EPSILON) return false;
+  const firstX = Math.floor(rect.x / EDITOR_PANEL_SIZE);
+  const lastX = Math.floor((rect.x + rect.w - EDITOR_PANEL_EPSILON) / EDITOR_PANEL_SIZE);
+  const firstY = Math.floor(rect.y / EDITOR_PANEL_SIZE);
+  const lastY = Math.floor((rect.y + rect.h - EDITOR_PANEL_EPSILON) / EDITOR_PANEL_SIZE);
+  for (let panelY = firstY; panelY <= lastY; panelY++) {
+    for (let panelX = firstX; panelX <= lastX; panelX++) {
+      if (!layout.shape[`${panelX},${panelY}`]) return false;
+    }
+  }
+  return true;
+}
+function editorSegmentInsidePanelLayout(layout, from, to, width, height) {
+  if (![from?.x, from?.y, to?.x, to?.y, width, height].every(Number.isFinite)) return false;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const times = [0, 1];
+  const collectCrossings = (start, delta, extent, maximum) => {
+    if (Math.abs(delta) <= EDITOR_PANEL_EPSILON) return;
+    for (let boundary = 0; boundary <= maximum; boundary += EDITOR_PANEL_SIZE) {
+      for (const offset of [0, extent]) {
+        const time = (boundary - start - offset) / delta;
+        if (time > EDITOR_PANEL_EPSILON && time < 1 - EDITOR_PANEL_EPSILON) times.push(time);
+      }
+    }
+  };
+  collectCrossings(from.x, dx, width, layout.width);
+  collectCrossings(from.y, dy, height, layout.height);
+  times.sort((left, right) => left - right);
+  const unique = times.filter((time, index) => !index || Math.abs(time - times[index - 1]) > EDITOR_PANEL_EPSILON);
+  const samples = unique.slice();
+  for (let index = 1; index < unique.length; index++) samples.push((unique[index - 1] + unique[index]) * 0.5);
+  return samples.every(time => editorRectInsidePanelLayout(layout, { x:from.x + dx * time, y:from.y + dy * time, w:width, h:height }));
+}
+function validateEditorObjectsInPanelLayout(level, layout, testSpawn=null) {
+  const objects = Array.isArray(level.objects) ? level.objects : [];
+  for (let index = 0; index < objects.length; index++) {
+    const object = objects[index];
+    const objectName = String(object?.id || object?.type || `#${index + 1}`);
+    if (!object || !editorRectInsidePanelLayout(layout, object)) throw new Error(`Предмет ${objectName} выходит за форму панелей v2.`);
+    if (!EDITOR_PANEL_PATH_TYPES.has(object.type)) continue;
+    const path = object.props?.path;
+    if (!Array.isArray(path) || path.length < 2) throw new Error(`У движущегося предмета ${objectName} нет полного маршрута v2.`);
+    if (Math.abs(path[0]?.x - object.x) > EDITOR_PANEL_EPSILON || Math.abs(path[0]?.y - object.y) > EDITOR_PANEL_EPSILON) throw new Error(`Маршрут предмета ${objectName} должен начинаться в позиции предмета.`);
+    for (const point of path) {
+      if (!editorRectInsidePanelLayout(layout, { x:point?.x, y:point?.y, w:object.w, h:object.h })) throw new Error(`Точка маршрута предмета ${objectName} выходит за форму панелей v2.`);
+    }
+    const segments = [];
+    for (let pointIndex = 1; pointIndex < path.length; pointIndex++) segments.push([path[pointIndex - 1], path[pointIndex]]);
+    if ((object.type === 'crusherWall' || (object.type === 'smartPlatform' && object.props?.loop === true)) && path.length > 2) segments.push([path[path.length - 1], path[0]]);
+    if (!segments.every(([from, to]) => editorSegmentInsidePanelLayout(layout, from, to, object.w, object.h))) throw new Error(`Маршрут предмета ${objectName} пересекает отсутствующую панель v2.`);
+  }
+  if (testSpawn && !editorRectInsidePanelLayout(layout, { x:testSpawn.x, y:testSpawn.y, w:1, h:2 })) throw new Error('Точка «Тест отсюда» выходит за форму панелей v2.');
+}
 function makeRoomFromEditorLevel(level, testSpawn=null) {
-  if (!level || level.kind !== 'nubu.level' || level.schemaVersion !== 1) throw new Error('Редактор передал неподдерживаемый формат уровня.');
-  const width = clamp(Math.round(Number(level.size && level.size.width) || 20), 10, 100);
-  const height = clamp(Math.round(Number(level.size && level.size.height) || 20), 10, 100);
+  if (!level || level.kind !== 'nubu.level' || (level.schemaVersion !== 1 && level.schemaVersion !== 2)) throw new Error('Редактор передал неподдерживаемый формат уровня.');
+  const panelLayout = level.schemaVersion === 2 ? validateEditorPanelLayout(level) : null;
+  if (panelLayout) validateEditorObjectsInPanelLayout(level, panelLayout, testSpawn);
+  const width = panelLayout ? panelLayout.width : clamp(Math.round(Number(level.size && level.size.width) || 20), 10, 100);
+  const height = panelLayout ? panelLayout.height : clamp(Math.round(Number(level.size && level.size.height) || 20), 10, 100);
   const room = createRoom(width, height, 'внлп', String(level.title || 'Пользовательский уровень'));
+  room.schemaVersion = level.schemaVersion;
+  room.panels = panelLayout ? panelLayout.panels : null;
+  room.panelShape = panelLayout ? panelLayout.shape : null;
+  room.panelSize = panelLayout ? EDITOR_PANEL_SIZE : null;
   room.worldId = 'editor';
   room.roomType = 'editor_playtest';
   room.levelCode = `${Number(level.episode) || 1}-${Number(level.sequence) || 1}`;
@@ -2755,12 +2890,51 @@ function editorUrlFromRuntime(payload=null) {
 let embeddedEditorReady = false;
 let embeddedEditorPendingOpen = false;
 let embeddedEditorPlaytestLoadToken = 0;
+let embeddedEditorDirectPlaytest = false;
+let embeddedEditorResumeToken = 0;
+let embeddedEditorResumeTimer = 0;
+let embeddedEditorResumeClearNested = false;
+let editorBridgeTransitionToken = 0;
+let editorBridgeTransitionStartedAt = 0;
+function beginEditorBridgeTransition(title) {
+  const transition = document.getElementById('editorBridgeTransition');
+  const label = document.getElementById('editorBridgeTitle');
+  const token = ++editorBridgeTransitionToken;
+  editorBridgeTransitionStartedAt = performance.now();
+  if (label) label.textContent = title || 'Открываю редактор';
+  if (transition) {
+    transition.classList.add('show');
+    transition.setAttribute('aria-hidden', 'false');
+  }
+  return token;
+}
+function finishEditorBridgeTransition(token=editorBridgeTransitionToken) {
+  const transition = document.getElementById('editorBridgeTransition');
+  if (!transition || token !== editorBridgeTransitionToken) return;
+  const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const remaining = Math.max(0, (reduced ? 0 : 140) - (performance.now() - editorBridgeTransitionStartedAt));
+  setTimeout(() => {
+    if (token !== editorBridgeTransitionToken) return;
+    transition.classList.remove('show');
+    transition.setAttribute('aria-hidden', 'true');
+  }, remaining);
+}
+function afterEditorBridgePaint(callback) { requestAnimationFrame(() => requestAnimationFrame(callback)); }
+function focusEmbeddedEditor() {
+  const frame = document.getElementById('editorFrame');
+  afterEditorBridgePaint(() => {
+    frame?.focus({ preventScroll:true });
+    frame?.contentWindow?.focus();
+    const viewport = frame?.contentDocument?.getElementById('canvasViewport');
+    viewport?.focus({ preventScroll:true });
+  });
+}
 function preloadEmbeddedEditor() {
   if (window.parent !== window || state.editorPlaytest) return;
   const frame = document.getElementById('editorFrame');
   if (frame && !frame.src) frame.src = editorUrlFromRuntime();
 }
-function revealEmbeddedEditor() {
+function revealEmbeddedEditor({ finishTransition=true }={}) {
   const shell = document.getElementById('editorShell');
   if (!shell) return;
   const playFrame = document.getElementById('editorPlaytestFrame');
@@ -2769,10 +2943,16 @@ function revealEmbeddedEditor() {
   shell.setAttribute('aria-hidden', 'false');
   embeddedEditorPendingOpen = false;
   clearActiveInput();
+  focusEmbeddedEditor();
+  if (finishTransition) afterEditorBridgePaint(() => finishEditorBridgeTransition());
 }
 function openLevelEditor() {
   if (window.parent !== window && state.editorPlaytest) {
     window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
+    return;
+  }
+  if (window.parent === window && embeddedEditorDirectPlaytest && state.editorPlaytest) {
+    resumeEmbeddedEditorAfterPlaytest({ direct:true });
     return;
   }
   if (window.parent === window && state.editorPlaytest) {
@@ -2783,6 +2963,7 @@ function openLevelEditor() {
     window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
     return;
   }
+  beginEditorBridgeTransition('Открываю редактор');
   preloadEmbeddedEditor();
   embeddedEditorPendingOpen = true;
   if (embeddedEditorReady) revealEmbeddedEditor();
@@ -2797,7 +2978,36 @@ function clearEmbeddedEditorPlaytest() {
   playFrame.style.visibility = 'hidden';
   if (playFrame.src !== 'about:blank') playFrame.src = 'about:blank';
 }
-function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;embeddedEditorPendingOpen=false;clearEmbeddedEditorPlaytest();shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');returnToStartMenu();}
+function resetDirectEditorPlaytestState() {
+  embeddedEditorDirectPlaytest = false;
+  state.editorPlaytest = null;
+  state.mode = 'editor';
+  clearActiveInput();
+  document.body.classList.remove('editor-playtest');
+  document.getElementById('editorPlaytestBar')?.classList.add('hidden');
+}
+function completeEmbeddedEditorResume(token=embeddedEditorResumeToken) {
+  if (token !== embeddedEditorResumeToken) return;
+  clearTimeout(embeddedEditorResumeTimer);
+  embeddedEditorResumeTimer = 0;
+  if (embeddedEditorResumeClearNested) clearEmbeddedEditorPlaytest();
+  embeddedEditorResumeClearNested = false;
+  focusEmbeddedEditor();
+  afterEditorBridgePaint(() => finishEditorBridgeTransition());
+}
+function resumeEmbeddedEditorAfterPlaytest({ direct=false, clearNested=false }={}) {
+  const editorFrame = document.getElementById('editorFrame');
+  if (!editorFrame) return;
+  beginEditorBridgeTransition('Возвращаюсь в редактор');
+  if (direct) resetDirectEditorPlaytestState();
+  embeddedEditorResumeClearNested = !!clearNested;
+  revealEmbeddedEditor({ finishTransition:false });
+  const token = ++embeddedEditorResumeToken;
+  clearTimeout(embeddedEditorResumeTimer);
+  editorFrame.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
+  embeddedEditorResumeTimer = setTimeout(() => completeEmbeddedEditorResume(token), 1600);
+}
+function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;embeddedEditorPendingOpen=false;clearTimeout(embeddedEditorResumeTimer);embeddedEditorResumeTimer=0;if(embeddedEditorDirectPlaytest)resetDirectEditorPlaytestState();clearEmbeddedEditorPlaytest();shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');returnToStartMenu();finishEditorBridgeTransition();}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -2811,7 +3021,23 @@ function readEditorPlaytestRequest() {
     return null;
   }
 }
+function isEditorPlaytestPayload(payload) {
+  return !!(payload && payload.kind === 'nubu.editor.playtest' && payload.version === 1 && payload.level && typeof payload.level === 'object');
+}
+function storeEditorPlaytestError(payload, error) {
+  const result = {
+    kind:'nubu.editor.result', version:1, ok:false,
+    slotKey:payload && payload.slotKey || null,
+    difficulty:payload && payload.difficulty || 'easy',
+    attemptId:payload && payload.attemptId || null,
+    levelHash:payload && payload.levelHash || null,
+    error:String(error && error.message || error || 'Не удалось открыть уровень.'),
+    finishedAt:Date.now(),
+  };
+  try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify(result)); } catch (storageError) {}
+}
 function startEditorPlaytest(payload) {
+  if (!isEditorPlaytestPayload(payload)) throw new Error('Редактор передал повреждённый запрос Play.');
   const room = makeRoomFromEditorLevel(payload.level, payload.testSpawn || null);
   state.editorPlaytest = { ...payload, died:false, startedAt:Date.now(), levelHash:stableEditorLevelHash(payload.level) };
   state.currentWorldId = 'editor';
@@ -2834,6 +3060,38 @@ function startEditorPlaytest(payload) {
   pushMsg(payload.testSpawn ? 'ТЕСТ ОТСЮДА' : 'ПРОХОЖДЕНИЕ ОТ ВХОДА', '#e7ff72', 1.2);
   canvas.tabIndex = -1;
   requestAnimationFrame(() => { window.focus();canvas.focus({ preventScroll:true }); });
+}
+function startEmbeddedEditorPlaytest(payload) {
+  const shell = document.getElementById('editorShell');
+  if (!shell || embeddedEditorDirectPlaytest) return;
+  const transitionToken = beginEditorBridgeTransition('Запускаю уровень');
+  embeddedEditorDirectPlaytest = true;
+  try {
+    clearEmbeddedEditorPlaytest();
+    startEditorPlaytest(payload);
+  } catch (error) {
+    console.error('NuBu direct editor loader:', error);
+    storeEditorPlaytestError(payload, error);
+    resumeEmbeddedEditorAfterPlaytest({ direct:true });
+    return;
+  }
+  afterEditorBridgePaint(() => {
+    shell.classList.add('hidden');
+    shell.setAttribute('aria-hidden', 'true');
+    finishEditorBridgeTransition(transitionToken);
+    window.focus();
+    canvas.focus({ preventScroll:true });
+  });
+}
+function leaveDirectEditorPlaytestToLobby() {
+  const transitionToken = beginEditorBridgeTransition('Возвращаюсь в лобби');
+  resetDirectEditorPlaytestState();
+  const shell = document.getElementById('editorShell');
+  clearEmbeddedEditorPlaytest();
+  shell?.classList.add('hidden');
+  shell?.setAttribute('aria-hidden', 'true');
+  returnToStartMenu();
+  afterEditorBridgePaint(() => finishEditorBridgeTransition(transitionToken));
 }
 function restartEditorPlaytest() {
   if (!state.editorPlaytest) return;
@@ -2867,6 +3125,10 @@ function finishEditorPlaytest() {
     finishedAt:Date.now(),
   };
   try { localStorage.setItem(EDITOR_RESULT_STORAGE_KEY, JSON.stringify(result)); } catch (error) {}
+  if (window.parent === window && embeddedEditorDirectPlaytest) {
+    resumeEmbeddedEditorAfterPlaytest({ direct:true });
+    return true;
+  }
   if (window.parent !== window) {
     window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
     return true;
@@ -5347,7 +5609,6 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   p.crusherHeadBumpRef = null; p.crusherHeadBumpTimer = 0;
   p.portalCooldown = 0; p.portalIgnoreId = null; p.portalPreview = null; p.portalBumpTimer = 0; p.portalBlockedId = null; p.portalBlockedTimer = 0;
   p.buffs = { jp:false, fl:false, vv:false };
-  if (hasGravityAbility()) p.buffs.vv = true;
   p.extraJumpReady = false;
   p.gravityDir = 1;
   p.driftFieldActive = false;
@@ -5709,11 +5970,7 @@ function updateHUD() {
 
 function getTile(tx, ty) {
   if (!state.room) return 1;
-  const room = state.room;
-  if (tx < -1 || tx > room.innerW || ty < -1 || ty > room.innerH) return 1;
-  const sx = tx + 1;
-  const sy = ty + 1;
-  return room.tiles[sy][sx];
+  return roomTileAt(state.room, tx, ty);
 }
 function solidAtTile(tx, ty) {
   return getTile(tx, ty) === 1 || portalShellTileAt(tx, ty);
@@ -12640,13 +12897,14 @@ function drawTiles() {
 
   for (let ty = viewMinTileY; ty <= viewMaxTileY; ty++) {
     for (let tx = viewMinTileX; tx <= viewMaxTileX; tx++) {
-      if (tx >= 0 && tx < room.innerW && ty >= 0 && ty < room.innerH) continue;
+      if (room.schemaVersion !== 2 || tx < 0 || ty < 0 || tx >= room.innerW || ty >= room.innerH || roomCellInShape(room, tx, ty)) continue;
       drawMonolithCell(tx, ty, true);
     }
   }
 
   for (let y = 0; y < room.h; y++) for (let x = 0; x < room.w; x++) {
     if (room.tiles[y][x] !== 1) continue;
+    if (x > 0 && x < room.w - 1 && y > 0 && y < room.h - 1 && !roomCellInShape(room, x - 1, y - 1)) continue;
     if (x === 0 && !room.show.l) continue; if (x === room.w - 1 && !room.show.r) continue; if (y === 0 && !room.show.t) continue; if (y === room.h - 1 && !room.show.b) continue;
     drawMonolithCell(x - 1, y - 1, false);
   }
@@ -14187,9 +14445,14 @@ window.addEventListener('message', event => {
     return;
   }
   if (event.data.type === 'nubu:start-editor-playtest' && event.source === editorFrame?.contentWindow) {
+    if (isEditorPlaytestPayload(event.data.payload)) {
+      startEmbeddedEditorPlaytest(event.data.payload);
+      return;
+    }
     let target;
     try { target = new URL(event.data.url, window.location.href); } catch (error) { return; }
     if (target.origin !== window.location.origin || !playFrame || !shell) return;
+    const transitionToken = beginEditorBridgeTransition('Запускаю уровень');
     const loadToken = ++embeddedEditorPlaytestLoadToken;
     shell.classList.remove('playtesting');
     playFrame.onload = null;
@@ -14207,14 +14470,18 @@ window.addEventListener('message', event => {
         playFrame.contentWindow?.focus();
         const gameCanvas=playFrame.contentDocument?.getElementById('game');
         if(gameCanvas){gameCanvas.tabIndex=-1;gameCanvas.focus({ preventScroll:true });}
+        finishEditorBridgeTransition(transitionToken);
       });
     };
     playFrame.src = target.href;
     return;
   }
   if (event.data.type === 'nubu:return-editor-playtest' && event.source === playFrame?.contentWindow) {
-    clearEmbeddedEditorPlaytest();
-    editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
+    resumeEmbeddedEditorAfterPlaytest({ clearNested:true });
+    return;
+  }
+  if (event.data.type === 'nubu:editor-resumed' && event.source === editorFrame?.contentWindow) {
+    if (embeddedEditorResumeTimer) completeEmbeddedEditorResume();
     return;
   }
   if (event.data.type === 'nubu:close-editor') closeEmbeddedEditor();
@@ -14285,7 +14552,7 @@ function updatePauseAbilityButtons() {
   apply(toggleGrabBtn, hasLedgeGrab(), 'Зацеп');
   apply(toggleWallBtn, hasWallJumpAbility(), 'Отскок');
   apply(toggleDjBtn, hasDoubleJumpAbility(), 'Дабл-джамп');
-  apply(toggleGravityBtn, hasGravityAbility(), 'Гравитация');
+  apply(toggleGravityBtn, hasAllGravityItemsUnlocked(), 'Гравитация');
   apply(toggleInfLivesBtn, hasInfiniteHeartsEnabled(), 'Беск. сердца');
   apply(toggleCollisionsBtn, state.debug.showCollisions, 'Коллизии');
   apply(toggleGridBtn, hasGridEnabled(), 'Сетка');
@@ -14297,6 +14564,7 @@ openEditorBtn.addEventListener('click', openLevelEditor);
 pauseEditorBtn.addEventListener('click', openLevelEditor);
 pauseLobbyBtn.addEventListener('click', () => {
   if (state.editorPlaytest) {
+    if(window.parent===window&&embeddedEditorDirectPlaytest){leaveDirectEditorPlaytestToLobby();return;}
     if(window.parent!==window){window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);return;}
     const lobbyUrl = new URL(window.location.href);
     lobbyUrl.search = '';
@@ -14308,7 +14576,7 @@ pauseLobbyBtn.addEventListener('click', () => {
 });
 editorRestartBtn.addEventListener('click', restartEditorPlaytest);
 editorReturnBtn.addEventListener('click', openLevelEditor);
-editorLobbyBtn.addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else returnToStartMenu();});
+editorLobbyBtn.addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else if(embeddedEditorDirectPlaytest)leaveDirectEditorPlaytestToLobby();else returnToStartMenu();});
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
 worldPrevBtn.addEventListener('click', () => setSelectedWorld(0));
 worldNextBtn.addEventListener('click', () => setSelectedWorld(0));
@@ -14340,8 +14608,8 @@ toggleGrabBtn.addEventListener('click', () => { state.progress.abilities.grab = 
 toggleWallBtn.addEventListener('click', () => { state.progress.abilities.wall = !state.progress.abilities.wall; savePersistentProgress(); applyAbilityToggleSideEffects(); updatePauseAbilityButtons(); });
 toggleDjBtn.addEventListener('click', () => { state.progress.abilities.dj = !state.progress.abilities.dj; savePersistentProgress(); applyAbilityToggleSideEffects(); updatePauseAbilityButtons(); });
 toggleGravityBtn.addEventListener('click', () => {
-  state.progress.abilities.gravity = !state.progress.abilities.gravity;
-  if (state.player) { state.player.buffs.vv = state.progress.abilities.gravity; state.player.gravityDir = 1; }
+  const unlocked = !hasAllGravityItemsUnlocked();
+  state.progress.roomItemsUnlocked = { jp:unlocked, fl:unlocked, vv:unlocked };
   savePersistentProgress(); updatePauseAbilityButtons(); updateHUD();
 });
 toggleInfLivesBtn.addEventListener('click', () => {

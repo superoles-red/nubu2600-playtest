@@ -10,6 +10,10 @@
   const AUTOSAVE_DELAY = 850;
   const HISTORY_LIMIT = 80;
   const BASE_CELL = 18;
+  const LEVEL_PANEL_SIZE = 20;
+  const LEVEL_PANEL_LIMIT = 8;
+  const LEVEL_PANEL_EXTENT_LIMIT = 4;
+  const GEOMETRY_EPSILON = 1e-8;
   const MOBILE_PLAYER_BREAKPOINT = 1024;
   const GRID_STEP = 1;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
@@ -41,8 +45,9 @@
   const TRAM_MIN_NODE_DISTANCE = 3;
   const TRAM_BEND_COLOR = '#67d7ff';
   const TRAM_INSERTION_COLOR = '#ffd56b';
-  const TRAM_GHOST_OUTLINE_COLOR = '#f1ff9a';
   const INVALID_PREVIEW_COLOR = '#ff3348';
+  const MOBILE_PALETTE_LONG_PRESS_MS = 180;
+  const MOBILE_PALETTE_GESTURE_SLOP = 8;
   const DIRECTION_CYCLE = ['up', 'right', 'down', 'left'];
   const CANNON_DIRECTION_CYCLE = ['right', 'downRight', 'down', 'downLeft', 'left', 'upLeft', 'up', 'upRight'];
   const PORTAL_COLORS = ['purple', 'blue', 'green', 'yellow', 'orange', 'red'];
@@ -251,7 +256,10 @@
     layoutMode: window.innerWidth>window.innerHeight?'landscape':'portrait',
     mobileCategory: 'platforms',
     mobilePaletteExpanded: false,
+    mobilePaletteGesture: null,
     mobilePaletteDrag: null,
+    mobileIgnoreClickUntil: 0,
+    mobileCategoryCloseClickUntil: 0,
     desktopPaletteDrag: null,
     wireDrag: null,
     selectedWire: null,
@@ -358,12 +366,66 @@
     return object;
   }
 
+  function panelKey(x,y){return `${x},${y}`;}
+  function isPanelLevel(level=state.level){return level?.schemaVersion===2;}
+  function canonicalPanelSort(first,second){return first.y-second.y||first.x-second.x;}
+  function inspectPanelContract(level){
+    if(level?.schemaVersion!==2)return{ok:level?.schemaVersion===1,panels:[],panelSet:null,width:Number(level?.size?.width),height:Number(level?.size?.height),message:level?.schemaVersion===1?'':'Неизвестная версия формата уровня.'};
+    const width=Number(level?.size?.width),height=Number(level?.size?.height),panels=Array.isArray(level?.panels)?level.panels.map(panel=>({x:panel?.x,y:panel?.y})):[];
+    if(!Number.isInteger(width)||!Number.isInteger(height)||width<LEVEL_PANEL_SIZE||height<LEVEL_PANEL_SIZE||width>LEVEL_PANEL_SIZE*LEVEL_PANEL_EXTENT_LIMIT||height>LEVEL_PANEL_SIZE*LEVEL_PANEL_EXTENT_LIMIT||width%LEVEL_PANEL_SIZE||height%LEVEL_PANEL_SIZE)return{ok:false,message:'Размер панельного уровня должен быть кратен 20 и находиться в диапазоне 20–80 клеток.'};
+    if(!Array.isArray(level?.panels)||panels.length<1||panels.length>LEVEL_PANEL_LIMIT)return{ok:false,message:`Панельный уровень должен содержать от 1 до ${LEVEL_PANEL_LIMIT} панелей.`};
+    if(panels.some(panel=>!Number.isInteger(panel.x)||!Number.isInteger(panel.y)||panel.x<0||panel.y<0))return{ok:false,message:'Координаты панелей должны быть неотрицательными целыми числами.'};
+    const panelSet=new Set(panels.map(panel=>panelKey(panel.x,panel.y)));
+    if(panelSet.size!==panels.length)return{ok:false,message:'Панели не должны повторяться.'};
+    if(panels.some((panel,index)=>index&&canonicalPanelSort(panels[index-1],panel)>=0))return{ok:false,message:'Панели должны быть отсортированы по строкам.'};
+    const minX=Math.min(...panels.map(panel=>panel.x)),minY=Math.min(...panels.map(panel=>panel.y)),maxX=Math.max(...panels.map(panel=>panel.x)),maxY=Math.max(...panels.map(panel=>panel.y));
+    if(minX!==0||minY!==0)return{ok:false,message:'Форма уровня должна быть нормализована к левому верхнему углу.'};
+    if(maxX-minX+1>LEVEL_PANEL_EXTENT_LIMIT||maxY-minY+1>LEVEL_PANEL_EXTENT_LIMIT)return{ok:false,message:`Габарит формы не может превышать ${LEVEL_PANEL_EXTENT_LIMIT}×${LEVEL_PANEL_EXTENT_LIMIT} панели.`};
+    if(width!==(maxX+1)*LEVEL_PANEL_SIZE||height!==(maxY+1)*LEVEL_PANEL_SIZE)return{ok:false,message:'Размер уровня не совпадает с габаритом панелей.'};
+    const visited=new Set([panelKey(panels[0].x,panels[0].y)]),queue=[panels[0]];
+    for(let index=0;index<queue.length;index++)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const next={x:queue[index].x+dx,y:queue[index].y+dy},key=panelKey(next.x,next.y);if(panelSet.has(key)&&!visited.has(key)){visited.add(key);queue.push(next);}}
+    if(visited.size!==panels.length)return{ok:false,message:'Панели должны образовывать одну связную область.'};
+    return{ok:true,panels, panelSet,width,height,minX,minY,maxX,maxY};
+  }
+  function requirePanelContract(level){const contract=inspectPanelContract(level);if(!contract.ok)throw new Error(contract.message);return contract;}
+  function normalizedPanelTopology(panels){
+    if(!Array.isArray(panels)||!panels.length)throw new Error('Форма должна содержать хотя бы одну панель.');
+    const minX=Math.min(...panels.map(panel=>panel.x)),minY=Math.min(...panels.map(panel=>panel.y));
+    const normalized=panels.map(panel=>({x:panel.x-minX,y:panel.y-minY})).sort(canonicalPanelSort),maxX=Math.max(...normalized.map(panel=>panel.x)),maxY=Math.max(...normalized.map(panel=>panel.y));
+    const level={schemaVersion:2,size:{width:(maxX+1)*LEVEL_PANEL_SIZE,height:(maxY+1)*LEVEL_PANEL_SIZE},panels:normalized};
+    requirePanelContract(level);
+    return{panels:normalized,size:level.size,shiftX:-minX*LEVEL_PANEL_SIZE,shiftY:-minY*LEVEL_PANEL_SIZE};
+  }
+  function panelShape(level){return isPanelLevel(level)?requirePanelContract(level):null;}
+  function rectInsideLevelShape(level,rect){
+    if(![rect?.x,rect?.y,rect?.w,rect?.h].every(Number.isFinite)||rect.w<=0||rect.h<=0)return false;
+    if(rect.x<-GEOMETRY_EPSILON||rect.y<-GEOMETRY_EPSILON||rect.x+rect.w>level.size.width+GEOMETRY_EPSILON||rect.y+rect.h>level.size.height+GEOMETRY_EPSILON)return false;
+    const shape=panelShape(level);if(!shape)return true;
+    const firstX=Math.floor(rect.x/LEVEL_PANEL_SIZE),lastX=Math.floor((rect.x+rect.w-GEOMETRY_EPSILON)/LEVEL_PANEL_SIZE),firstY=Math.floor(rect.y/LEVEL_PANEL_SIZE),lastY=Math.floor((rect.y+rect.h-GEOMETRY_EPSILON)/LEVEL_PANEL_SIZE);
+    for(let y=firstY;y<=lastY;y++)for(let x=firstX;x<=lastX;x++)if(!shape.panelSet.has(panelKey(x,y)))return false;
+    return true;
+  }
+  function segmentInsideLevelShape(level,from,to,width,height){
+    if(!isPanelLevel(level))return true;
+    if(![from?.x,from?.y,to?.x,to?.y,width,height].every(Number.isFinite))return false;
+    const dx=to.x-from.x,dy=to.y-from.y,times=[0,1],collect=(start,delta,extent,maximum)=>{if(Math.abs(delta)<=GEOMETRY_EPSILON)return;for(let boundary=0;boundary<=maximum;boundary+=LEVEL_PANEL_SIZE)for(const offset of [0,extent]){const time=(boundary-start-offset)/delta;if(time>GEOMETRY_EPSILON&&time<1-GEOMETRY_EPSILON)times.push(time);}};
+    collect(from.x,dx,width,level.size.width);collect(from.y,dy,height,level.size.height);times.sort((a,b)=>a-b);const unique=times.filter((time,index)=>!index||Math.abs(time-times[index-1])>GEOMETRY_EPSILON),samples=[...unique];for(let index=1;index<unique.length;index++)samples.push((unique[index-1]+unique[index])/2);
+    return samples.every(time=>rectInsideLevelShape(level,{x:from.x+dx*time,y:from.y+dy*time,w:width,h:height}));
+  }
+  function pathInsideLevelShape(level,object,path=object?.props?.path){
+    if(!isPanelLevel(level)||!Array.isArray(path)||path.length<2)return true;
+    const segments=[];for(let index=1;index<path.length;index++)segments.push([path[index-1],path[index]]);if((object.type==='crusherWall'||(object.type==='smartPlatform'&&object.props?.loop===true))&&path.length>2)segments.push([path[path.length-1],path[0]]);
+    return segments.every(([from,to])=>segmentInsideLevelShape(level,from,to,object.w,object.h));
+  }
+
   function normalizeLevel(raw, fallback = {}) {
     if (!raw || typeof raw !== 'object') throw new Error('Файл не содержит уровень.');
-    const width = clampInt(raw.size?.width ?? 20, 10, 100);
-    const height = clampInt(raw.size?.height ?? 20, 10, 100);
-    return {
-      kind: 'nubu.level', schemaVersion: 1,
+    if(raw.schemaVersion!==undefined&&![1,2].includes(raw.schemaVersion))throw new Error('Неподдерживаемая версия формата уровня.');
+    const schemaVersion=raw.schemaVersion===2?2:1;
+    const width = schemaVersion===2?Number(raw.size?.width):clampInt(raw.size?.width ?? 20,10,100);
+    const height = schemaVersion===2?Number(raw.size?.height):clampInt(raw.size?.height ?? 20,10,100);
+    const level={
+      kind: 'nubu.level', schemaVersion,
       id: String(raw.id || fallback.id || 'user-level'),
       title: String(raw.title || fallback.title || 'Без названия').slice(0, 48),
       episode: clampInt(raw.episode ?? fallback.episode ?? 1, 1, 99),
@@ -376,21 +438,42 @@
       objects: Array.isArray(raw.objects) ? raw.objects.map(normalizeObject) : [],
       metadata: { status: 'idea', revision: 1, source: 'level-editor', ...(raw.metadata || {}), difficulty: fallback.difficulty || raw.metadata?.difficulty || 'easy' },
     };
+    if(schemaVersion===2){level.panels=Array.isArray(raw.panels)?raw.panels.map(panel=>({x:panel?.x,y:panel?.y})):raw.panels;requirePanelContract(level);}
+    return level;
   }
 
-  function makeBlankLevel(width, height, title, difficulty = 'easy', withFloor = true) {
+  function makePanelFloors(panels){
+    const set=new Set(panels.map(panel=>panelKey(panel.x,panel.y))),segments=[];
+    for(const panel of panels)if(!set.has(panelKey(panel.x,panel.y+1)))segments.push({x:panel.x*LEVEL_PANEL_SIZE,y:(panel.y+1)*LEVEL_PANEL_SIZE-2,w:LEVEL_PANEL_SIZE,h:2});
+    segments.sort((a,b)=>a.y-b.y||a.x-b.x);const merged=[];for(const segment of segments){const previous=merged[merged.length-1];if(previous&&previous.y===segment.y&&previous.x+previous.w===segment.x)previous.w+=segment.w;else merged.push({...segment});}
+    return merged.map((rect,index)=>({id:`solid-${String(index+1).padStart(2,'0')}`,type:'solid',...rect,layer:'terrain',props:{}}));
+  }
+  function firstShapePosition(level,w,h,preferred={x:0,y:0},occupied=[]){
+    const candidates=[];for(let y=0;y<=level.size.height-h;y++)for(let x=0;x<=level.size.width-w;x++){const rect={x,y,w,h};if(rectInsideLevelShape(level,rect)&&!occupied.some(owner=>placementFootprints(owner).some(footprint=>rectsOverlap(footprint,rect)&&!overlapAllowed(footprint,rect))))candidates.push({x,y,distance:Math.abs(x-preferred.x)+Math.abs(y-preferred.y)});}
+    candidates.sort((a,b)=>a.distance-b.distance||a.y-b.y||a.x-b.x);const match=candidates[0];return match?{x:match.x,y:match.y}:null;
+  }
+  function makeBlankLevel(width=20, height=20, title, difficulty = 'easy', withFloor = true, options={}) {
+    const schemaVersion=options.schemaVersion===1?1:2;let panels=schemaVersion===2?deepClone(options.panels||[{x:0,y:0}]):undefined;
+    if(schemaVersion===2){const topology=normalizedPanelTopology(panels);panels=topology.panels;width=topology.size.width;height=topology.size.height;}
+    const shapeSeed={schemaVersion,size:{width,height},...(schemaVersion===2?{panels}:{})};
+    const floors=withFloor?(schemaVersion===2?makePanelFloors(panels):[{id:'solid-01',type:'solid',x:0,y:height-2,w:width,h:2,layer:'terrain',props:{}}]):[];
+    const spawnPosition=firstShapePosition(shapeSeed,1,2,{x:1,y:Math.max(0,height-4)},floors)||{x:0,y:0};
+    const spawn={id:'spawn-01',type:'spawn',...spawnPosition,w:1,h:2,layer:'meta',props:{semantics:'playerBody',anchor:'topLeft'}};
+    const exitPosition=firstShapePosition(shapeSeed,2,3,{x:Math.max(0,width-3),y:Math.max(0,height-5)},[...floors,spawn])||{x:Math.max(0,width-2),y:0};
     const level = normalizeLevel({
+      schemaVersion,
       id: `user-${Date.now()}-${difficulty}`,
       title,
       episode: 1,
       sequence: 1,
       role: 'develop',
       size: { width, height },
+      ...(schemaVersion===2?{panels}:{}),
       designerNotes: '',
       objects: [
-        { id: 'spawn-01', type: 'spawn', x: 1, y: Math.max(0, height - 4), w: 1, h: 2, layer: 'meta', props: { semantics: 'playerBody', anchor: 'topLeft' } },
-        { id: 'exit-main', type: 'exit', x: Math.max(0, width - 3), y: Math.max(0, height - 5), w: 2, h: 3, layer: 'meta', props: { route: 'main' } },
-        ...(withFloor ? [{ id: 'solid-01', type: 'solid', x: 0, y: height - 2, w: width, h: 2, layer: 'terrain', props: {} }] : []),
+        spawn,
+        { id: 'exit-main', type:'exit', ...exitPosition, w:2, h:3, layer:'meta', props:{route:'main'} },
+        ...floors,
       ],
       metadata: { status: 'idea', revision: 1, source: 'level-editor', difficulty },
     }, { difficulty });
@@ -473,18 +556,12 @@
   }
 
   async function seedCampaign() {
-    for (let sequence = 1; sequence <= 24; sequence++) {
-      const key = `campaign-ep1-${String(sequence).padStart(2, '0')}`;
-      if (await dbGet(key)) continue;
-      try {
-        const loaded = await Promise.all(DIFFICULTIES.map(difficulty => fetchCampaignLevel(sequence, difficulty)));
-        await dbPut(makeSlot(key, 'campaign', 1, sequence, Object.fromEntries(DIFFICULTIES.map((difficulty, index) => [difficulty, loaded[index]]))));
-      } catch (error) {
-        const easy = makeBlankLevel(20, 20, `Эпизод 1 · Лёгкая · Уровень 1-${sequence}`, 'easy');
-        await dbPut(makeSlot(key, 'campaign', 1, sequence, { easy, medium: cloneForDifficulty(easy, 'medium'), hard: cloneForDifficulty(easy, 'hard') }));
-        console.warn(error);
-      }
-    }
+    const existingKeys=new Set((await dbGetAll()).map(slot=>slot?.key).filter(Boolean));
+    const missing=Array.from({length:24},(_,index)=>index+1).filter(sequence=>!existingKeys.has(`campaign-ep1-${String(sequence).padStart(2,'0')}`));
+    if(!missing.length)return;
+    const prepared=[],workerCount=Math.min(4,missing.length);let cursor=0;
+    const worker=async()=>{while(cursor<missing.length){const sequence=missing[cursor++],key=`campaign-ep1-${String(sequence).padStart(2,'0')}`;try{const loaded=await Promise.all(DIFFICULTIES.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));prepared.push(makeSlot(key,'campaign',1,sequence,Object.fromEntries(DIFFICULTIES.map((difficulty,index)=>[difficulty,loaded[index]]))));}catch(error){const easy=makeBlankLevel(20,20,`Эпизод 1 · Лёгкая · Уровень 1-${sequence}`,'easy',true,{schemaVersion:1});prepared.push(makeSlot(key,'campaign',1,sequence,{easy,medium:cloneForDifficulty(easy,'medium'),hard:cloneForDifficulty(easy,'hard')}));console.warn(error);}}};
+    await Promise.all(Array.from({length:workerCount},worker));prepared.sort((left,right)=>left.sequence-right.sequence);await dbPutAll(prepared);
   }
 
   async function importLegacyDraftOnce() {
@@ -506,7 +583,7 @@
   async function recoverEmergencyDraft() {
     let payload = null;
     try { payload = JSON.parse(localStorage.getItem(EMERGENCY_DRAFT_KEY) || 'null'); } catch (error) {}
-    if (!payload?.slotKey || !DIFFICULTIES.includes(payload.difficulty) || payload.level?.kind !== 'nubu.level' || payload.level?.schemaVersion !== 1) return null;
+    if (!payload?.slotKey || !DIFFICULTIES.includes(payload.difficulty) || payload.level?.kind !== 'nubu.level' || ![1,2].includes(payload.level?.schemaVersion)) return null;
     const slot = await dbGet(payload.slotKey);
     if (!slot) return null;
     const savedAt = Number(payload.savedAt) || 0;
@@ -552,31 +629,33 @@
   }
 
   function resetHistory(label = 'Уровень открыт') {
-    state.history = [{ snapshot: JSON.stringify(state.level), label }];
+    state.history = [{ snapshot: JSON.stringify(state.level), testSpawn:state.testSpawn?deepClone(state.testSpawn):null, label }];
     state.historyIndex = 0;
     updateHistoryButtons();
   }
 
-  function pushHistory(label) {
+  function pushHistory(label, previousTestSpawn=null) {
     const snapshot = JSON.stringify(state.level);
+    if(state.history[state.historyIndex])state.history[state.historyIndex].testSpawn=previousTestSpawn?deepClone(previousTestSpawn):null;
     if (state.history[state.historyIndex]?.snapshot === snapshot) return;
     state.history.splice(state.historyIndex + 1);
-    state.history.push({ snapshot, label });
+    state.history.push({ snapshot, testSpawn:state.testSpawn?deepClone(state.testSpawn):null, label });
     if (state.history.length > HISTORY_LIMIT) state.history.shift();
     state.historyIndex = state.history.length - 1;
     updateHistoryButtons();
   }
 
-  function mutate(label, callback) {
+  function mutate(label, callback, options={}) {
     if (!state.level) return false;
     const before = deepClone(state.level);
+    const beforeTestSpawn=state.testSpawn?deepClone(state.testSpawn):null;
     try { callback(); }
-    catch (error) { state.level = before; state.slot.difficulties[state.difficulty] = state.level; toast(error.message || String(error), 'error'); refreshAll(); return false; }
+    catch (error) { state.level = before;state.testSpawn=beforeTestSpawn; state.slot.difficulties[state.difficulty] = state.level; toast(error.message || String(error), 'error'); refreshAll(); return false; }
     state.slot.difficulties[state.difficulty] = state.level;
     invalidateSlotVerification(state.slot,state.difficulty);
-    state.testSpawn = null;
+    if(!options.preserveTestSpawn)state.testSpawn = null;
     state.dirty = true;
-    pushHistory(label);
+    pushHistory(label,beforeTestSpawn);
     scheduleSave();
     refreshAll();
     return true;
@@ -586,6 +665,7 @@
     if (index < 0 || index >= state.history.length) return;
     state.historyIndex = index;
     state.level = normalizeLevel(JSON.parse(state.history[index].snapshot), { difficulty: state.difficulty });
+    state.testSpawn=state.history[index].testSpawn?deepClone(state.history[index].testSpawn):null;
     state.slot.difficulties[state.difficulty] = state.level;
     if (!state.level.objects.some(object => object.id === state.selectedId)) state.selectedId = null;
     if (state.slot.clearProofs) delete state.slot.clearProofs[state.difficulty];
@@ -705,7 +785,7 @@
       ...document.querySelectorAll('[data-difficulty], [data-palette-id], [data-tool]'),
     ].filter(Boolean);
     for (const control of controls) control.disabled = !ready;
-    if (ready && state.level) refreshLevelForm();
+    if (ready && state.level) {refreshLevelForm();renderPanelTopologyControls(cellPixels());}
     updateSaveState();
     if (ready && window.parent !== window) window.parent.postMessage({ type:'nubu:editor-ready' }, window.location.origin);
   }
@@ -826,8 +906,17 @@
 
   function drawGrid(cell, width, height) {
     ctx.save();
+    if(isPanelLevel()){ctx.beginPath();for(const panel of state.level.panels)ctx.rect(panel.x*LEVEL_PANEL_SIZE*cell,panel.y*LEVEL_PANEL_SIZE*cell,LEVEL_PANEL_SIZE*cell,LEVEL_PANEL_SIZE*cell);ctx.clip();}
     for (let x = 0; x <= state.level.size.width; x++) { ctx.beginPath(); ctx.strokeStyle = x % 4 === 0 ? '#344a42' : '#20322c'; ctx.lineWidth = x % 4 === 0 ? 1.1 : .65; ctx.moveTo(Math.round(x * cell) + .5, 0); ctx.lineTo(Math.round(x * cell) + .5, height); ctx.stroke(); }
     for (let y = 0; y <= state.level.size.height; y++) { ctx.beginPath(); ctx.strokeStyle = y % 4 === 0 ? '#344a42' : '#20322c'; ctx.lineWidth = y % 4 === 0 ? 1.1 : .65; ctx.moveTo(0, Math.round(y * cell) + .5); ctx.lineTo(width, Math.round(y * cell) + .5); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawPanelBackdrop(cell,width,height){
+    ctx.fillStyle=isPanelLevel()?'#030706':'#0a1411';ctx.fillRect(0,0,width,height);
+    if(!isPanelLevel())return;
+    ctx.save();ctx.fillStyle='#0a1411';ctx.strokeStyle='#719081';ctx.lineWidth=1.5;
+    for(const panel of state.level.panels){const x=panel.x*LEVEL_PANEL_SIZE*cell,y=panel.y*LEVEL_PANEL_SIZE*cell,size=LEVEL_PANEL_SIZE*cell;ctx.fillRect(x,y,size,size);ctx.strokeRect(x+.75,y+.75,Math.max(0,size-1.5),Math.max(0,size-1.5));}
     ctx.restore();
   }
 
@@ -872,7 +961,7 @@
       const platformHeight=object.type==='conveyor'?h:thin;
       context.fillRect(x, y, w, platformHeight); context.strokeRect(x + .5, y + .5, Math.max(0, w - 1), Math.max(1, platformHeight - 1));
       if (object.type === 'fallingPlatform') { context.fillStyle = '#25150a'; context.font = `900 ${Math.max(8, thin * .9)}px sans-serif`; context.textAlign = 'center'; context.fillText('↓', x + w / 2, y + thin); }
-      if (object.type === 'movingPlatform' || object.type === 'smartPlatform') { context.fillStyle = '#160f24'; context.font = `900 ${Math.max(8, thin * .8)}px sans-serif`; context.textAlign = 'center'; context.fillText('↔', x + w / 2, y + thin); }
+      if (!options.plainPlatform && (object.type === 'movingPlatform' || object.type === 'smartPlatform')) { context.fillStyle = '#160f24'; context.font = `900 ${Math.max(8, thin * .8)}px sans-serif`; context.textAlign = 'center'; context.fillText('↔', x + w / 2, y + thin); }
       if (object.type === 'conveyor') { context.fillStyle = '#082033'; context.font = `900 ${Math.max(7, platformHeight * .5)}px sans-serif`; context.textAlign = 'center'; context.textBaseline='middle';context.fillText(object.props?.direction === 'left' ? '≪' : '≫', x + w / 2, y + platformHeight / 2); }
       if (object.type === 'bouncePad') { context.strokeStyle = '#153014'; context.beginPath(); for (let px = x + 2; px < x + w - 2; px += 5) { context.moveTo(px, y + thin); context.lineTo(px + 2, y); context.lineTo(px + 4, y + thin); } context.stroke(); }
     } else if (object.type === 'spike') {
@@ -981,7 +1070,10 @@
     const endpoint = { ...object, x:end.x, y:end.y };
     if (rectsOverlap(object, endpoint)) return { ok:false, message:'Начальная и конечная позиции парного предмета не должны накладываться.' };
     if (object.type === 'movingPlatform' && Math.max(Math.abs(end.x-object.x), Math.abs(end.y-object.y)) < 4) return { ok:false, message:'Лифт должен проходить минимум 4 клетки хотя бы по одной оси.' };
-    return canPlace(endpoint, [object.id], { checkOwnPair:false });
+    const endpointPlacement = canPlace(endpoint, [object.id], { checkOwnPair:false });
+    if (!endpointPlacement.ok) return endpointPlacement;
+    if(!pathInsideLevelShape(state.level,object,[{x:object.x,y:object.y},end]))return{ok:false,message:'Маршрут проходит через отсутствующую панель.'};
+    return endpointPlacement;
   }
 
   function pathEndpointHit(object, point, pointerType = 'mouse') {
@@ -1015,7 +1107,8 @@
 
   function tramPathIssue(object,path,level=state.level) {
     if(!Array.isArray(path)||path.length<2)return'У трамвая должно быть хотя бы два узла.';
-    for(const point of path)if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||point.x<0||point.y<0||point.x+object.w>level.size.width||point.y+object.h>level.size.height)return'Узел трамвая выходит за границы уровня.';
+    for(const point of path)if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';
+    if(!pathInsideLevelShape(level,object,path))return'Маршрут трамвая проходит через отсутствующую панель.';
     for(let first=0;first<path.length;first++)for(let second=first+1;second<path.length;second++)if(Math.hypot(path[first].x-path[second].x,path[first].y-path[second].y)<TRAM_MIN_NODE_DISTANCE-.001)return`Между любыми узлами трамвая должно оставаться минимум ${TRAM_MIN_NODE_DISTANCE} клетки.`;
     const closed=[...path,path[0]],segments=[];for(let index=1;index<closed.length;index++)segments.push([closed[index-1],closed[index]]);
     for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++)if(tramSegmentsOverlap(...segments[first],...segments[second]))return'Маршрут трамвая не может накладываться сам на себя; пересечение поперёк разрешено.';
@@ -1097,10 +1190,10 @@
       ctx.strokeStyle=color;ctx.setLineDash([5,4]);ctx.beginPath();points.forEach((point,index)=>{const x=(point.x+object.w/2)*cell,y=(point.y+object.h/2)*cell;if(index)ctx.lineTo(x,y);else ctx.moveTo(x,y);});if(object.type==='smartPlatform'&&points.length>2)ctx.closePath();ctx.stroke();
       if(object.type==='smartPlatform'){
         ctx.setLineDash([]);
-        for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index,cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();if(active&&!invalid){ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);ctx.lineWidth=3;ctx.strokeStyle=TRAM_INSERTION_COLOR;ctx.stroke();}}
+        for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index,cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.save();if(active){ctx.shadowColor=TRAM_BEND_COLOR;ctx.shadowBlur=10;}ctx.beginPath();ctx.arc(cx,cy,active?6.5:6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();ctx.restore();}
         const centers=points.map(point=>({cx:(point.x+object.w/2)*cell,cy:(point.y+object.h/2)*cell})),ordered=object.props?.clockwise===false?[centers[0],...centers.slice(1).reverse()]:centers;
         for(let index=0;index<ordered.length;index++)drawWireArrowlets(ordered[index],ordered[(index+1)%ordered.length],color,{size:4,outline:false});
-        for(const instance of tramRuntimeInstances(object,points).slice(1)){const gx=instance.x,gy=instance.y,x=gx*cell,y=gy*cell,w=object.w*cell,h=object.h*cell;drawObjectShape(ctx,{...object,x:gx,y:gy},x,y,w,h,{preview:true,color});ctx.save();ctx.strokeStyle=TRAM_GHOST_OUTLINE_COLOR;ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.strokeRect(x+2,y+2,Math.max(1,w-4),Math.max(1,h-4));ctx.restore();}
+        for(const instance of tramRuntimeInstances(object,points).slice(1)){const gx=instance.x,gy=instance.y,x=gx*cell,y=gy*cell,w=object.w*cell,h=object.h*cell;drawObjectShape(ctx,{...object,x:gx,y:gy},x,y,w,h,{preview:true,color,plainPlatform:true});}
       }else{ctx.globalAlpha=.34;drawObjectShape(ctx,{...object,x:end.x,y:end.y},end.x*cell,end.y*cell,object.w*cell,object.h*cell,{preview:true,color});ctx.globalAlpha=1;}
     }
     for(const entry of connectionEntries(cell)){const selected=state.selectedWire?.sourceId===entry.source.id&&state.selectedWire?.descriptor===entry.descriptor;drawLinkEndpointStem(entry.sourcePoint,entry.color,selected?5:3);drawLinkEndpointStem(entry.targetPoint,entry.color,selected?5:3);ctx.strokeStyle=entry.color;ctx.lineWidth=selected?5:3;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(entry.sourcePoint.cx,entry.sourcePoint.cy);ctx.lineTo(entry.targetPoint.cx,entry.targetPoint.cy);ctx.stroke();ctx.setLineDash([]);drawWireArrowlets(entry.sourcePoint,entry.targetPoint,entry.color);for(const [point,kind] of [[entry.sourcePoint,'plug'],[entry.targetPoint,'socket']]){ctx.beginPath();ctx.arc(point.cx,point.cy,selected?8:6,0,Math.PI*2);ctx.fillStyle='#07100e';ctx.fill();ctx.lineWidth=selected?3:2;ctx.strokeStyle=entry.color;ctx.stroke();if(kind==='plug'){ctx.beginPath();ctx.moveTo(point.cx-2,point.cy-4);ctx.lineTo(point.cx-2,point.cy-8);ctx.moveTo(point.cx+2,point.cy-4);ctx.lineTo(point.cx+2,point.cy-8);ctx.stroke();}else{ctx.beginPath();ctx.arc(point.cx,point.cy,2,0,Math.PI*2);ctx.fillStyle=entry.color;ctx.fill();}}}
@@ -1133,7 +1226,7 @@
     if (!state.level) return;
     resizeCanvas();
     const cell = cellPixels(), width = state.level.size.width * cell, height = state.level.size.height * cell;
-    ctx.clearRect(0,0,width,height);ctx.fillStyle='#0a1411';ctx.fillRect(0,0,width,height);drawGrid(cell,width,height);drawConnections(cell);drawWireDrag();
+    ctx.clearRect(0,0,width,height);drawPanelBackdrop(cell,width,height);drawGrid(cell,width,height);drawConnections(cell);drawWireDrag();
     const objects = [...state.level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99));
     for (const object of objects) drawObjectShape(ctx,object,object.x*cell,object.y*cell,object.w*cell,object.h*cell,{selected:object.id===state.selectedId||state.selectedWire?.sourceId===object.id||state.selectedWire?.targetId===object.id});
     drawSelectedLinkEndpointStems(cell);
@@ -1149,8 +1242,18 @@
     const selected=selectedObject();if(selected)positionSelectionUi(selected,TYPE_DEFS[selected.type]);
   }
 
+  function renderPanelTopologyControls(cell){
+    const root=$('panelTopologyControls');if(!root)return;root.replaceChildren();root.hidden=!isPanelLevel();if(root.hidden)return;
+    const canvasLeft=canvas.offsetLeft,canvasTop=canvas.offsetTop,panelPixels=LEVEL_PANEL_SIZE*cell,set=new Set(state.level.panels.map(panel=>panelKey(panel.x,panel.y))),directions=[{name:'top',dx:0,dy:-1,px:.5,py:0,ox:0,oy:-18},{name:'right',dx:1,dy:0,px:1,py:.5,ox:18,oy:0},{name:'bottom',dx:0,dy:1,px:.5,py:1,ox:0,oy:18},{name:'left',dx:-1,dy:0,px:0,py:.5,ox:-18,oy:0}];
+    const makeButton=(label,title,left,top)=>{const button=document.createElement('button');button.type='button';button.className='panel-control';button.textContent=label;button.title=title;button.style.left=`${left}px`;button.style.top=`${top}px`;button.addEventListener('pointerdown',event=>event.stopPropagation());return button;};
+    for(const panel of state.level.panels){const left=canvasLeft+panel.x*panelPixels,top=canvasTop+panel.y*panelPixels,removal=panelRemovalContract(panel),remove=makeButton('−',removal.ok?'Удалить эту панель 20×20':removal.message,left+panelPixels-17,top+17);remove.dataset.panelRemove=`${panel.x},${panel.y}`;remove.disabled=!state.ready||!removal.ok;remove.setAttribute('aria-label',`Удалить панель ${panel.x+1}, ${panel.y+1}`);remove.addEventListener('click',()=>removeLevelPanel(panel.x,panel.y));root.append(remove);
+      for(const direction of directions){const x=panel.x+direction.dx,y=panel.y+direction.dy;if(set.has(panelKey(x,y)))continue;const addition=panelAdditionContract(x,y),add=makeButton('＋',addition.ok?'Добавить соседнюю панель 20×20':addition.message,left+direction.px*panelPixels+direction.ox,top+direction.py*panelPixels+direction.oy);add.dataset.panelAdd=`${x},${y}`;add.dataset.panelSource=`${panel.x},${panel.y}:${direction.name}`;add.disabled=!state.ready||!addition.ok;add.setAttribute('aria-label',`Добавить панель ${direction.name}`);add.addEventListener('click',()=>addLevelPanel(x,y));root.append(add);}
+    }
+  }
+
   function positionMapEdgeControls(cell = cellPixels()) {
     if (!state.level) return;
+    const panelMode=isPanelLevel();for(const rail of document.querySelectorAll('.size-rail'))rail.hidden=panelMode;renderPanelTopologyControls(cell);if(panelMode)return;
     const left = canvas.offsetLeft;
     const top = canvas.offsetTop;
     const width = state.level.size.width * cell;
@@ -1262,7 +1365,9 @@
     updateToolButtons();
   }
 
-  function closeMobileCategorySheet(){state.mobilePaletteExpanded=false;renderMobilePalette();}
+  function closeMobileCategorySheet(){clearMobilePaletteGesture();state.mobilePaletteExpanded=false;renderMobilePalette();}
+  function closeMobileCategoryFromPointerUp(event){if(event.pointerType!=='touch')return;event.preventDefault();event.stopPropagation();state.mobileCategoryCloseClickUntil=Date.now()+500;closeMobileCategorySheet();}
+  function closeMobileCategoryFromClick(event){if(Date.now()<state.mobileCategoryCloseClickUntil){event.preventDefault();return;}closeMobileCategorySheet();}
 
   function setTool(tool){if(tool==='erase'&&state.tool==='erase')tool='select';state.tool=tool;state.activePaletteId=null;state.linkSourceId=null;state.drag=null;updateToolButtons();renderContextToolbar();renderCanvas();}
   function updateToolButtons(){document.querySelectorAll('[data-tool]').forEach(button=>button.classList.toggle('active',button.dataset.tool===state.tool));const label=({select:'Выбор',pan:'Камера',erase:'Ластик',testSpawn:'Тест отсюда',link:'Выберите цель'})[state.tool]||state.tool;$('toolStatus').textContent=label;canvas.style.cursor=state.tool==='pan'?'grab':state.tool==='erase'?'not-allowed':state.tool==='select'?'grab':'crosshair';}
@@ -1296,6 +1401,7 @@
     if(object.type==='smartPlatform'){
       const issue=tramPathIssue(object,path,level);if(issue)return{ok:false,message:issue};
     }
+    if(!pathInsideLevelShape(level,object,path))return{ok:false,message:'Маршрут проходит через отсутствующую панель.'};
     const occupied=[{...object}];
     for(let index=1;index<path.length;index++){
       const candidate={...object,x:path[index].x,y:path[index].y};
@@ -1369,10 +1475,10 @@
   function rectsOverlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
   function overlapAllowed(a,b){return a.type!==b.type&&(['driftField','label'].includes(a.type)||['driftField','label'].includes(b.type));}
   function placementFootprints(object){const footprints=[object],path=object&&PATH_ENDPOINT_TYPES.has(object.type)&&Array.isArray(object.props?.path)?object.props.path:[];for(const point of path.slice(1))if(Number.isFinite(point?.x)&&Number.isFinite(point?.y))footprints.push({...object,x:Number(point.x),y:Number(point.y)});return footprints;}
-  function relocateProtectedObjects(objects,width,height){const occupied=objects.filter(object=>!PROTECTED_TYPES.has(object.type));for(const object of objects.filter(candidate=>PROTECTED_TYPES.has(candidate.type))){const desired={x:clamp(object.x,0,width-object.w),y:clamp(object.y,0,height-object.h)},candidates=[];for(let y=0;y<=height-object.h;y++)for(let x=0;x<=width-object.w;x++)candidates.push({x,y,distance:Math.abs(x-desired.x)+Math.abs(y-desired.y)});candidates.sort((first,second)=>first.distance-second.distance||Math.abs(first.y-desired.y)-Math.abs(second.y-desired.y)||first.y-second.y||first.x-second.x);const position=candidates.find(candidate=>{const probe={...object,x:candidate.x,y:candidate.y};return!occupied.some(owner=>placementFootprints(owner).some(footprint=>rectsOverlap(probe,footprint)&&!overlapAllowed(probe,footprint)));});if(!position)throw new Error(`После изменения размера нет свободного места для «${TYPE_DEFS[object.type]?.label||object.type}». Освободите область и повторите.`);object.x=position.x;object.y=position.y;occupied.push(object);}return objects;}
-  function coinLimit(level=state.level){return 5*Math.max(1,Math.round(level.size.width/20))*Math.max(1,Math.round(level.size.height/20));}
+  function relocateProtectedObjects(objects,width,height,level=state.level){const occupied=objects.filter(object=>!PROTECTED_TYPES.has(object.type));for(const object of objects.filter(candidate=>PROTECTED_TYPES.has(candidate.type))){const desired={x:clamp(object.x,0,width-object.w),y:clamp(object.y,0,height-object.h)},candidates=[];for(let y=0;y<=height-object.h;y++)for(let x=0;x<=width-object.w;x++)candidates.push({x,y,distance:Math.abs(x-desired.x)+Math.abs(y-desired.y)});candidates.sort((first,second)=>first.distance-second.distance||Math.abs(first.y-desired.y)-Math.abs(second.y-desired.y)||first.y-second.y||first.x-second.x);const position=candidates.find(candidate=>{const probe={...object,x:candidate.x,y:candidate.y};return rectInsideLevelShape(level,probe)&&!occupied.some(owner=>placementFootprints(owner).some(footprint=>rectsOverlap(probe,footprint)&&!overlapAllowed(probe,footprint)));});if(!position)throw new Error(`После изменения формы нет свободного места для «${TYPE_DEFS[object.type]?.label||object.type}». Освободите область и повторите.`);object.x=position.x;object.y=position.y;occupied.push(object);}return objects;}
+  function coinLimit(level=state.level){return isPanelLevel(level)?level.panels.length*5:5*Math.max(1,Math.round(level.size.width/20))*Math.max(1,Math.round(level.size.height/20));}
   function ownPairPlacement(candidate){if(!PATH_ENDPOINT_TYPES.has(candidate.type))return{ok:true};const end=pathEnd(candidate);if(rectsOverlap(candidate,{...candidate,x:end.x,y:end.y}))return{ok:false,message:'Начальная и конечная позиции парного предмета не должны накладываться.'};if(candidate.type==='movingPlatform'&&Math.max(Math.abs(end.x-candidate.x),Math.abs(end.y-candidate.y))<4)return{ok:false,message:'Лифт должен проходить минимум 4 клетки хотя бы по одной оси.'};return{ok:true};}
-  function canPlaceInLevel(level,candidate,ignoreIds=[],options={}){const ignored=new Set(ignoreIds);if(candidate.x<0||candidate.y<0||candidate.x+candidate.w>level.size.width||candidate.y+candidate.h>level.size.height)return{ok:false,message:'Предмет выходит за границы уровня.'};for(const owner of level.objects){if(ignored.has(owner.id))continue;for(const footprint of placementFootprints(owner))if(rectsOverlap(candidate,footprint)&&!overlapAllowed(candidate,footprint))return{ok:false,message:`Здесь уже находится «${TYPE_DEFS[owner.type]?.label||owner.type}».`};}return options.checkOwnPair===false?{ok:true}:ownPairPlacement(candidate);}
+  function canPlaceInLevel(level,candidate,ignoreIds=[],options={}){const ignored=new Set(ignoreIds);if(!rectInsideLevelShape(level,candidate))return{ok:false,message:isPanelLevel(level)?'Предмет выходит за доступную форму уровня.':'Предмет выходит за границы уровня.'};for(const owner of level.objects){if(ignored.has(owner.id))continue;for(const footprint of placementFootprints(owner))if(rectsOverlap(candidate,footprint)&&!overlapAllowed(candidate,footprint))return{ok:false,message:`Здесь уже находится «${TYPE_DEFS[owner.type]?.label||owner.type}».`};}return options.checkOwnPair===false?{ok:true}:ownPairPlacement(candidate);}
   function canPlace(candidate,ignoreIds=[],options={}){return canPlaceInLevel(state.level,candidate,ignoreIds,options);}
   function portalPairPlacement(first,level=state.level,ignoreIds=[]){
     const firstPlacement=canPlaceInLevel(level,first,ignoreIds);if(!firstPlacement.ok)return{...firstPlacement,reason:'first'};
@@ -1412,6 +1518,64 @@
     if(left>solid.x)pieces.push({...deepClone(solid),id:nextObjectId('solid',pieces.map(item=>item.id)),x:solid.x,y:top,w:left-solid.x,h:bottom-top});
     if(right<solid.x+solid.w)pieces.push({...deepClone(solid),id:nextObjectId('solid',pieces.map(item=>item.id)),x:right,y:top,w:solid.x+solid.w-right,h:bottom-top});
     return pieces.filter(piece=>piece.w>0&&piece.h>0);
+  }
+
+  function shiftObjectGeometry(object,dx,dy){object.x+=dx;object.y+=dy;shiftPath(object,dx,dy);return object;}
+  function legacyPanelConversion(level=state.level){
+    if(!level||level.schemaVersion!==1)return{ok:false,message:'Эта карта уже использует панельную форму.'};
+    const width=Number(level.size?.width),height=Number(level.size?.height),columns=width/LEVEL_PANEL_SIZE,rows=height/LEVEL_PANEL_SIZE,count=columns*rows;
+    if(!Number.isInteger(columns)||!Number.isInteger(rows)||columns<1||rows<1||columns>LEVEL_PANEL_EXTENT_LIMIT||rows>LEVEL_PANEL_EXTENT_LIMIT||count>LEVEL_PANEL_LIMIT)return{ok:false,message:'Преобразование доступно для прямоугольников из 1–8 панелей с габаритом не больше 4×4.'};
+    const panels=[];for(let y=0;y<rows;y++)for(let x=0;x<columns;x++)panels.push({x,y});return{ok:true,panels};
+  }
+  async function convertLegacyToPanels(){
+    const conversion=legacyPanelConversion();if(!conversion.ok){toast(conversion.message,'error');return;}
+    const ok=await confirmAction('Преобразовать карту в панели?','Карта сохранит предметы и размер, но после преобразования форму можно будет менять отдельными блоками 20×20. Вернуться к legacy-формату можно только через отмену или резервную копию.');if(!ok)return;
+    mutate('Карта преобразована в панели',()=>{state.level.schemaVersion=2;state.level.panels=conversion.panels;requirePanelContract(state.level);});
+  }
+  function panelRemovalContract(panel,level=state.level){
+    if(!isPanelLevel(level)||level.panels.length<=1)return{ok:false,message:'Последнюю панель удалить нельзя.'};
+    try{return{ok:true,topology:normalizedPanelTopology(level.panels.filter(candidate=>candidate.x!==panel.x||candidate.y!==panel.y))};}catch(error){return{ok:false,message:error.message};}
+  }
+  function panelAdditionContract(x,y,level=state.level){
+    if(!isPanelLevel(level))return{ok:false,message:'Сначала преобразуйте карту в панельный формат.'};
+    if(level.panels.length>=LEVEL_PANEL_LIMIT)return{ok:false,message:`На уровне может быть не больше ${LEVEL_PANEL_LIMIT} панелей.`};
+    if(level.panels.some(panel=>panel.x===x&&panel.y===y))return{ok:false,message:'Здесь уже есть панель.'};
+    if(!level.panels.some(panel=>Math.abs(panel.x-x)+Math.abs(panel.y-y)===1))return{ok:false,message:'Новая панель должна примыкать к существующей стороной.'};
+    try{return{ok:true,topology:normalizedPanelTopology([...level.panels,{x,y}])};}catch(error){return{ok:false,message:error.message};}
+  }
+  function addLevelPanel(x,y){
+    const addition=panelAdditionContract(x,y);if(!addition.ok){toast(addition.message,'error');return false;}
+    const {topology}=addition,oldTestSpawn=state.testSpawn?deepClone(state.testSpawn):null;
+    const changed=mutate('Добавлена панель 20×20',()=>{for(const object of state.level.objects)shiftObjectGeometry(object,topology.shiftX,topology.shiftY);state.level.panels=topology.panels;state.level.size=topology.size;if(oldTestSpawn)state.testSpawn={x:oldTestSpawn.x+topology.shiftX,y:oldTestSpawn.y+topology.shiftY};requirePanelContract(state.level);}, {preserveTestSpawn:true});
+    if(changed)requestAnimationFrame(fitLevel);return changed;
+  }
+  function splitSolidForRemovedPanel(solid,cut,reservedIds){
+    if(!rectsOverlap(solid,cut))return[solid];
+    const left=Math.max(solid.x,cut.x),right=Math.min(solid.x+solid.w,cut.x+cut.w),top=Math.max(solid.y,cut.y),bottom=Math.min(solid.y+solid.h,cut.y+cut.h),rects=[];
+    if(top>solid.y)rects.push({x:solid.x,y:solid.y,w:solid.w,h:top-solid.y});
+    if(bottom<solid.y+solid.h)rects.push({x:solid.x,y:bottom,w:solid.w,h:solid.y+solid.h-bottom});
+    if(left>solid.x)rects.push({x:solid.x,y:top,w:left-solid.x,h:bottom-top});
+    if(right<solid.x+solid.w)rects.push({x:right,y:top,w:solid.x+solid.w-right,h:bottom-top});
+    return rects.filter(rect=>rect.w>0&&rect.h>0).map((rect,index)=>{let id=index===0?solid.id:`${solid.id}-part-${index+1}`,suffix=2;while(reservedIds.has(id))id=`${solid.id}-part-${index+1}-${suffix++}`;reservedIds.add(id);return{...deepClone(solid),...rect,id};});
+  }
+  function buildPanelRemoval(panel){
+    const removal=panelRemovalContract(panel);if(!removal.ok)throw new Error(removal.message);const {topology}=removal;
+    const next={...deepClone(state.level),panels:topology.panels,size:topology.size,objects:[]},shifted=state.level.objects.map(object=>shiftObjectGeometry(deepClone(object),topology.shiftX,topology.shiftY)),cut={x:panel.x*LEVEL_PANEL_SIZE+topology.shiftX,y:panel.y*LEVEL_PANEL_SIZE+topology.shiftY,w:LEVEL_PANEL_SIZE,h:LEVEL_PANEL_SIZE},reservedIds=new Set(shifted.map(object=>object.id));
+    const candidates=[];let splitSolids=0;for(const object of shifted){if(object.type!=='solid'){candidates.push(object);continue;}reservedIds.delete(object.id);const pieces=splitSolidForRemovedPanel(object,cut,reservedIds).filter(piece=>rectInsideLevelShape(next,piece));if(pieces.length!==1||pieces[0]?.x!==object.x||pieces[0]?.y!==object.y||pieces[0]?.w!==object.w||pieces[0]?.h!==object.h)splitSolids++;candidates.push(...pieces);}
+    const invalidIds=new Set();for(const object of candidates){if(PROTECTED_TYPES.has(object.type))continue;const footprintsInside=placementFootprints(object).every(footprint=>rectInsideLevelShape(next,footprint));if(!footprintsInside||!pathInsideLevelShape(next,object))invalidIds.add(object.id);}
+    const removedPortalPairs=new Set(candidates.filter(object=>object.type==='portal'&&invalidIds.has(object.id)).map(object=>object.props?.pairId).filter(Boolean));for(const object of candidates)if(object.type==='portal'&&removedPortalPairs.has(object.props?.pairId))invalidIds.add(object.id);
+    let objects=candidates.filter(object=>!invalidIds.has(object.id));const allowedCoins=topology.panels.length*5,coins=objects.filter(object=>object.type==='coin');for(const coin of coins.slice(allowedCoins)){invalidIds.add(coin.id);objects=objects.filter(object=>object.id!==coin.id);}
+    relocateProtectedObjects(objects,topology.size.width,topology.size.height,next);const survivingIds=new Set(objects.map(object=>object.id));for(const object of objects)if(Array.isArray(object.props?.targets))object.props.targets=object.props.targets.filter(target=>survivingIds.has(targetDescriptorId(target)));next.objects=objects;
+    let testSpawn=null;if(state.testSpawn){const shiftedSpawn={x:state.testSpawn.x+topology.shiftX,y:state.testSpawn.y+topology.shiftY},position=firstShapePosition(next,1,2,shiftedSpawn,objects);if(position)testSpawn=position;}
+    return{level:next,testSpawn,removedIds:invalidIds,splitSolids,shiftX:topology.shiftX,shiftY:topology.shiftY};
+  }
+  async function removeLevelPanel(x,y){
+    const panel=state.level?.panels?.find(candidate=>candidate.x===x&&candidate.y===y),removal=panel&&panelRemovalContract(panel);if(!panel||!removal?.ok){toast(removal?.message||'Панель не найдена.','error');return false;}
+    let preview;try{preview=buildPanelRemoval(panel);}catch(error){toast(error.message,'error');return false;}
+    const affected=preview.removedIds.size+preview.splitSolids,detail=affected?` Будут удалены или обрезаны связанные предметы: ${affected}.`:' Внутри удаляемой панели нет затронутых предметов.';
+    const ok=await confirmAction('Удалить панель 20×20?',`${detail} Вход и выход при необходимости переместятся в ближайшее свободное место. Действие можно отменить.`);if(!ok)return false;
+    const changed=mutate('Удалена панель 20×20',()=>{state.level=preview.level;state.slot.difficulties[state.difficulty]=state.level;state.testSpawn=preview.testSpawn;if(!state.level.objects.some(object=>object.id===state.selectedId))state.selectedId=null;requirePanelContract(state.level);}, {preserveTestSpawn:true});
+    if(changed)requestAnimationFrame(fitLevel);return changed;
   }
 
   function eraseRegion(rect) {
@@ -1454,15 +1618,64 @@
     return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
   }
 
-  function beginMobilePaletteDrag(event, paletteId) {
-    if(state.drag||state.pan||state.pinch||state.domResize||state.wireDrag||state.mobilePaletteDrag)return;
-    event.preventDefault();
-    event.stopPropagation();
+  function activateMobilePaletteDrag(pointerId,paletteId,clientX,clientY) {
     setTool('select');
-    state.mobilePaletteDrag = { pointerId:event.pointerId, paletteId, startX:event.clientX, startY:event.clientY, clientX:event.clientX, clientY:event.clientY, moved:false };
+    state.mobilePaletteDrag = { pointerId, paletteId, startX:clientX, startY:clientY, clientX, clientY, moved:false };
     const item=PALETTE_BY_ID.get(paletteId),ghost=$('mobileDragGhost');
-    if(item&&ghost){ghost.hidden=false;ghost.style.left=`${event.clientX}px`;ghost.style.top=`${event.clientY}px`;ghost.style.setProperty('--tool-color',item.color||TYPE_DEFS[item.type].color);ghost.querySelector('small').textContent=item.label||TYPE_DEFS[item.type].label;drawToolIcon(ghost.querySelector('canvas'),item);}
+    if(item&&ghost){ghost.hidden=false;ghost.style.left=`${clientX}px`;ghost.style.top=`${clientY}px`;ghost.style.setProperty('--tool-color',item.color||TYPE_DEFS[item.type].color);ghost.querySelector('small').textContent=item.label||TYPE_DEFS[item.type].label;drawToolIcon(ghost.querySelector('canvas'),item);}
+  }
+
+  function clearMobilePaletteGesture() {
+    const gesture=state.mobilePaletteGesture;
+    if(gesture?.timer)clearTimeout(gesture.timer);
+    state.mobilePaletteGesture=null;
+  }
+
+  function beginMobilePaletteDrag(event, paletteId) {
+    if(state.drag||state.pan||state.pinch||state.domResize||state.wireDrag||state.mobilePaletteDrag||state.mobilePaletteGesture)return;
+    event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    if(event.pointerType!=='touch'){
+      event.preventDefault();
+      activateMobilePaletteDrag(event.pointerId,paletteId,event.clientX,event.clientY);
+      return;
+    }
+    const gesture={pointerId:event.pointerId,paletteId,target:event.currentTarget,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,mode:'pending',timer:null};
+    gesture.timer=setTimeout(()=>{if(state.mobilePaletteGesture!==gesture||gesture.mode!=='pending')return;gesture.mode='drag';gesture.timer=null;activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,gesture.lastX,gesture.lastY);},MOBILE_PALETTE_LONG_PRESS_MS);
+    state.mobilePaletteGesture=gesture;
+  }
+
+  function updateMobilePaletteGesture(event) {
+    const gesture=state.mobilePaletteGesture;
+    if(!gesture||gesture.pointerId!==event.pointerId||gesture.mode==='drag')return;
+    const deltaX=event.clientX-gesture.startX,deltaY=event.clientY-gesture.startY;
+    if(gesture.mode==='pending'&&Math.hypot(deltaX,deltaY)>MOBILE_PALETTE_GESTURE_SLOP){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='scroll';state.mobileIgnoreClickUntil=Date.now()+450;}
+    if(gesture.mode==='scroll'){
+      event.preventDefault();
+      const items=$('mobileCategoryItems');
+      if(items){
+        const portrait=window.matchMedia?.('(orientation: portrait)')?.matches ?? innerHeight>=innerWidth;
+        if(portrait)items.scrollLeft-=event.clientX-gesture.lastX;
+        else items.scrollTop-=event.clientY-gesture.lastY;
+      }
+    }
+    gesture.lastX=event.clientX;gesture.lastY=event.clientY;
+  }
+
+  function endMobilePaletteGesture(event) {
+    const gesture=state.mobilePaletteGesture;
+    if(!gesture||gesture.pointerId!==event.pointerId)return;
+    const mode=gesture.mode;
+    clearMobilePaletteGesture();
+    if(mode==='scroll'){event.preventDefault();state.mobileIgnoreClickUntil=Date.now()+450;}
+  }
+
+  function cancelMobilePaletteGesture(event) {
+    const gesture=state.mobilePaletteGesture;
+    if(!gesture||gesture.pointerId!==event.pointerId)return;
+    if(gesture.mode!=='pending')event.preventDefault();
+    state.mobileIgnoreClickUntil=Date.now()+450;
+    clearMobilePaletteGesture();
   }
 
   function updateMobilePaletteDrag(event) {
@@ -1515,7 +1728,7 @@
     if(state.tool==='erase'){state.drag={kind:'erase',pointerId:event.pointerId,start:point,current:point,pointerType:event.pointerType};renderCanvas();return;}
     if(state.tool==='testSpawn'){const candidate={x:clamp(point.x,0,state.level.size.width-1),y:clamp(point.y,0,state.level.size.height-2),w:1,h:2};if(canPlace(candidate).ok){state.testSpawn={x:candidate.x,y:candidate.y};setTool('select');toast('Play начнётся с временной точки; прохождение не будет засчитано.');renderCanvas();}else toast('Точка теста должна быть в свободном месте.','error');return;}
     if(state.tool==='link'){linkSelectedTo(linkTargetAt(point,event.pointerType));return;}
-    if(state.tool==='select'){let endpointObject=selectedObject(),linkedTarget=linkedSocketAt(point,event.pointerType);if(linkedTarget){state.drag={kind:'wireDetach',pointerId:event.pointerId,sourceId:endpointObject.id,targetId:linkedTarget.id,descriptor:String(linkedTarget.linkDescriptor||linkedTarget.id),start:point,current:point};toast('Вилка вынута. Отпустите в стороне, чтобы удалить провод.');renderCanvas();return;}if(tramHandle){endpointObject=tramHandle.object;state.selectedId=endpointObject.id;let nodeIndex=tramHandle.nodeIndex??-1;if(tramHandle.segment){const segment=tramHandle.segment,candidatePath=endpointObject.props.path.map(node=>({...node}));candidatePath.splice(segment.index,0,segment.point);const placement=pairedPathPlacement(endpointObject,candidatePath);if(!placement.ok){toast(`Узел маршрута не добавлен: ${placement.message}`,'error');return;}mutate('Узел маршрута добавлен',()=>{endpointObject.props.path=candidatePath;});nodeIndex=segment.index;state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};}else state.activeTramInsertion=null;if(nodeIndex>=1){const node=endpointObject.props.path[nodeIndex];state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:deepClone(endpointObject),start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:{...node}};canvas.style.cursor='grabbing';renderCanvas();return;}}endpointObject=pathGhostObjectAt(point)||pathEndpointObjectAt(point,event.pointerType)||endpointObject;if(endpointObject&&(pathGhostObjectAt(point)?.id===endpointObject.id||pathEndpointHit(endpointObject,point,event.pointerType))){state.selectedId=endpointObject.id;const end=pathEnd(endpointObject);state.drag={kind:'pathEndpoint',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(endpointObject),start:point,current:point,offsetX:point.rawX-end.x,offsetY:point.rawY-end.y};refreshAll();canvas.style.cursor='grabbing';renderCanvas();return;}const object=objectAt(point);if(object){state.selectedId=object.id;state.selectedWire=null;showInteractionHint(object);state.drag={kind:'move',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(object),start:point,current:point,offsetX:point.rawX-object.x,offsetY:point.rawY-object.y};refreshAll();return;}state.selectedId=null;state.selectedWire=null;showInteractionHint(null);state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');refreshAll();return;}
+    if(state.tool==='select'){let endpointObject=selectedObject(),linkedTarget=linkedSocketAt(point,event.pointerType);if(linkedTarget){state.drag={kind:'wireDetach',pointerId:event.pointerId,sourceId:endpointObject.id,targetId:linkedTarget.id,descriptor:String(linkedTarget.linkDescriptor||linkedTarget.id),start:point,current:point};toast('Вилка вынута. Отпустите в стороне, чтобы удалить провод.');renderCanvas();return;}if(tramHandle){endpointObject=tramHandle.object;state.selectedId=endpointObject.id;let nodeIndex=tramHandle.nodeIndex??-1,insertedNode=false;if(tramHandle.segment){const segment=tramHandle.segment,candidatePath=endpointObject.props.path.map(node=>({...node}));candidatePath.splice(segment.index,0,segment.point);const placement=pairedPathPlacement(endpointObject,candidatePath);if(!placement.ok){toast(`Узел маршрута не добавлен: ${placement.message}`,'error');return;}mutate('Узел маршрута добавлен',()=>{endpointObject.props.path=candidatePath;});nodeIndex=segment.index;insertedNode=true;}if(nodeIndex>=1){state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};const node=endpointObject.props.path[nodeIndex];state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:deepClone(endpointObject),start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:{...node},insertedNode};canvas.style.cursor='grabbing';renderCanvas();return;}}state.activeTramInsertion=null;endpointObject=pathGhostObjectAt(point)||pathEndpointObjectAt(point,event.pointerType)||endpointObject;if(endpointObject&&(pathGhostObjectAt(point)?.id===endpointObject.id||pathEndpointHit(endpointObject,point,event.pointerType))){state.selectedId=endpointObject.id;const end=pathEnd(endpointObject);state.drag={kind:'pathEndpoint',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(endpointObject),start:point,current:point,offsetX:point.rawX-end.x,offsetY:point.rawY-end.y};refreshAll();canvas.style.cursor='grabbing';renderCanvas();return;}const object=objectAt(point);if(object){state.selectedId=object.id;state.selectedWire=null;showInteractionHint(object);state.drag={kind:'move',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(object),start:point,current:point,offsetX:point.rawX-object.x,offsetY:point.rawY-object.y};refreshAll();return;}state.selectedId=null;state.selectedWire=null;showInteractionHint(null);state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');refreshAll();return;}
   }
 
   function handlePointerMove(event){if(state.pointers.has(event.pointerId))state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});if(state.pinch){updatePinch();return;}if(state.pan&&state.pan.pointerId!==event.pointerId||state.drag&&state.drag.pointerId!==event.pointerId)return;const point=pointerGridPoint(event);state.hoverPoint=point;$('cursorReadout').style.display='none';$('cursorStatus').textContent='';
@@ -1535,7 +1748,7 @@
     renderCanvas();
   }
 
-  function cancelCanvasPointer(event){state.pointers.delete(event.pointerId);const cancelledPinch=!!state.pinch,cancelledDrag=state.drag?.pointerId===event.pointerId,cancelledPan=state.pan?.pointerId===event.pointerId;if(cancelledPinch)state.pinch=null;if(cancelledDrag)state.drag=null;if(cancelledPan)state.pan=null;if(!cancelledPinch&&!cancelledDrag&&!cancelledPan)return;state.hoverPoint=null;if(cancelledDrag)canvas.classList.remove('will-delete');if(cancelledPan)viewport.classList.remove('dragging');renderCanvas();}
+  function cancelCanvasPointer(event){state.pointers.delete(event.pointerId);const cancelledPinch=!!state.pinch,cancelledDrag=state.drag?.pointerId===event.pointerId,cancelledPan=state.pan?.pointerId===event.pointerId;if(cancelledPinch)state.pinch=null;if(cancelledDrag)state.drag=null;if(cancelledPan)state.pan=null;if(!cancelledPinch&&!cancelledDrag&&!cancelledPan)return;state.activeTramInsertion=null;state.hoverPoint=null;if(cancelledDrag)canvas.classList.remove('will-delete');if(cancelledPan)viewport.classList.remove('dragging');renderCanvas();}
 
   function movePreviewRectFromDrag(drag){const point=drag.current||drag.start;return constrainMoveTarget(drag.object,point.rawX-drag.offsetX,point.rawY-drag.offsetY);}
   function moveCandidateFromDrag(drag){if(drag?.kind!=='move')return null;const target=movePreviewRectFromDrag(drag),current=state.level.objects.find(object=>object.id===drag.object.id)||drag.object,fixedPath=Array.isArray(drag.object.props?.path)?drag.object.props.path.map(point=>({...point})):null,dx=target.x-drag.object.x,dy=target.y-drag.object.y,movedPath=current.type==='smartPlatform'&&fixedPath?.length?fixedPath.map(point=>({x:point.x+dx,y:point.y+dy})):fixedPath?.length>1?[{x:target.x,y:target.y},fixedPath[fixedPath.length-1]]:fixedPath;return{...current,...target,props:{...current.props,...(movedPath?{path:movedPath}:{})}};}
@@ -1604,19 +1817,19 @@
 
   function isAllowedLevelSize(width,height){const steps=[20,40,60,80];return steps.includes(width)&&steps.includes(height)&&((width===20||height===20)||(width===40&&height===40));}
   function canResizeLevelAxis(horizontal,delta){const width=state.level.size.width,height=state.level.size.height,nextWidth=horizontal?width+delta:width,nextHeight=horizontal?height:height+delta;if(isAllowedLevelSize(nextWidth,nextHeight))return true;return !isAllowedLevelSize(width,height)&&delta<0&&nextWidth>=20&&nextHeight>=20;}
-  function refreshLevelForm(){if(!state.level)return;$('levelTitleInput').value=state.level.title;$('widthInput').value=state.level.size.width;$('heightInput').value=state.level.size.height;$('notesInput').value=state.level.designerNotes||'';document.querySelectorAll('[data-difficulty]').forEach(button=>button.classList.toggle('active',button.dataset.difficulty===state.difficulty));$('copyDifficultySelect').value=DIFFICULTIES.find(value=>value!==state.difficulty)||'medium';for(const button of document.querySelectorAll('[data-resize-side]')){const horizontal=['left','right'].includes(button.dataset.resizeSide),delta=Number(button.dataset.resizeDelta);button.disabled=!state.ready||!canResizeLevelAxis(horizontal,delta);}try{const unavailable=!state.ready||!state.mapClipboard&&!localStorage.getItem(MAP_CLIPBOARD_KEY);$('pasteMapButton').disabled=unavailable;$('mobilePasteMapButton').disabled=unavailable;}catch(error){}updateZoomControls();refreshPlayerHeader();}
+  function refreshLevelForm(){if(!state.level)return;const panelMode=isPanelLevel(),conversion=legacyPanelConversion();$('levelTitleInput').value=state.level.title;$('widthInput').value=state.level.size.width;$('heightInput').value=state.level.size.height;$('widthInput').disabled=panelMode;$('heightInput').disabled=panelMode;$('applySizeButton').hidden=panelMode;$('applySizeButton').disabled=panelMode||!state.ready;const summary=$('panelShapeSummary');summary.hidden=!panelMode;summary.textContent=panelMode?`Панельная форма: ${state.level.panels.length}/${LEVEL_PANEL_LIMIT} блоков 20×20 · габарит ${state.level.size.width}×${state.level.size.height}. Добавляйте блоки кнопками ＋ у свободных сторон, удаляйте кнопкой − на блоке.`:'';const convert=$('convertPanelsButton');convert.hidden=panelMode;convert.disabled=panelMode||!state.ready||!conversion.ok;convert.title=conversion.ok?'Сохранить прямоугольник и включить редактирование отдельными панелями':conversion.message;$('notesInput').value=state.level.designerNotes||'';document.querySelectorAll('[data-difficulty]').forEach(button=>button.classList.toggle('active',button.dataset.difficulty===state.difficulty));$('copyDifficultySelect').value=DIFFICULTIES.find(value=>value!==state.difficulty)||'medium';for(const button of document.querySelectorAll('[data-resize-side]')){const horizontal=['left','right'].includes(button.dataset.resizeSide),delta=Number(button.dataset.resizeDelta);button.disabled=panelMode||!state.ready||!canResizeLevelAxis(horizontal,delta);}try{const unavailable=!state.ready||!state.mapClipboard&&!localStorage.getItem(MAP_CLIPBOARD_KEY);$('pasteMapButton').disabled=unavailable;$('mobilePasteMapButton').disabled=unavailable;}catch(error){}updateZoomControls();refreshPlayerHeader();}
 
   function calculateBudget(level=state.level){const counts={};for(const object of level.objects)counts[object.type]=(counts[object.type]||0)+1;const dynamic=['fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','conveyor','door'].reduce((sum,type)=>sum+(counts[type]||0),0);const generators=['flyerSpawner','shooterSpawner','bomberSpawner','cannon'].reduce((sum,type)=>sum+(counts[type]||0),0);const enemies=['enemyGoomba','enemyFlyer','enemyLeech','enemySpikeCube'].reduce((sum,type)=>sum+(counts[type]||0),0);const routePoints=level.objects.reduce((sum,object)=>sum+(Array.isArray(object.props?.path)?object.props.path.length:0),0);const links=level.objects.reduce((sum,object)=>sum+(Array.isArray(object.props?.targets)?object.props.targets.length:0),0);const solidCells=level.objects.filter(object=>object.type==='solid').reduce((sum,object)=>sum+object.w*object.h,0);const score=Math.ceil(solidCells/64)+Math.ceil((counts.coin||0)/8)+Math.max(0,level.objects.length-(counts.solid||0)-(counts.coin||0))+2*dynamic+3*((counts.smartPlatform||0)+enemies)+4*((counts.pushBlock||0)+(counts.enemySpikeCube||0))+6*(counts.crusherWall||0)+8*generators+Math.max(0,routePoints-2*(counts.movingPlatform||0));return{counts,dynamic,generators,enemies,routePoints,links,score,bytes:new Blob([JSON.stringify(level)]).size};}
 
   function validateLevel(selectChecks=false){const issues=[];const add=(severity,message,objectId=null)=>issues.push({severity,message,objectId});const level=state.level;const title=level.title.trim();if(!title)add('error','Введите название уровня.');if(title.length>48)add('error','Название длиннее 48 символов.');if(/(?:https?:\/\/|www\.|@\w+\.)/iu.test(title))add('error','В названии нельзя размещать ссылки или адреса.');if(/(?:хуй|пизд|еба|бля|fuck|shit)/iu.test(title))add('error','Название не прошло локальный фильтр публикации.');
-    if(!isAllowedLevelSize(level.size.width,level.size.height))add('error','Допустимы только 20×20, 20×40/60/80, 40/60/80×20 и 40×40. Другие размеры запрещены.');
+    if(isPanelLevel(level)){const contract=inspectPanelContract(level);if(!contract.ok)add('error',contract.message);}else if(!isAllowedLevelSize(level.size.width,level.size.height))add('error','Допустимы только 20×20, 20×40/60/80, 40/60/80×20 и 40×40. Другие размеры запрещены.');
     const spawns=level.objects.filter(object=>object.type==='spawn'),exits=level.objects.filter(object=>object.type==='exit');if(spawns.length!==1)add('error',`Нужен ровно один вход; найдено ${spawns.length}.`,spawns[0]?.id);if(exits.length!==1)add('error',`Нужен ровно один выход; найдено ${exits.length}.`,exits[0]?.id);
-    const ids=new Set(),objectsById=new Map();for(const object of level.objects){if(ids.has(object.id))add('error','Повторяется внутренний идентификатор предмета.',object.id);ids.add(object.id);objectsById.set(object.id,object);if(!TYPE_DEFS[object.type])add('error',`Игра не знает предмет ${object.type}.`,object.id);if(object.x<0||object.y<0||object.x+object.w>level.size.width||object.y+object.h>level.size.height)add('error','Предмет выходит за границы.',object.id);if([object.x,object.y,object.w,object.h].some(value=>Math.abs(value/GRID_STEP-Math.round(value/GRID_STEP))>1e-8))add('error','Предмет не привязан к сетке.',object.id);if(object.type==='solid'&&[object.x,object.y,object.w,object.h].some(value=>!Number.isInteger(value)))add('error','Монолит должен занимать целые клетки — игра не округляет его скрыто.',object.id);}
+    const ids=new Set(),objectsById=new Map();for(const object of level.objects){if(ids.has(object.id))add('error','Повторяется внутренний идентификатор предмета.',object.id);ids.add(object.id);objectsById.set(object.id,object);if(!TYPE_DEFS[object.type])add('error',`Игра не знает предмет ${object.type}.`,object.id);if(!rectInsideLevelShape(level,object))add('error',isPanelLevel(level)?'Предмет выходит за доступную форму уровня.':'Предмет выходит за границы.',object.id);if([object.x,object.y,object.w,object.h].some(value=>Math.abs(value/GRID_STEP-Math.round(value/GRID_STEP))>1e-8))add('error','Предмет не привязан к сетке.',object.id);if(object.type==='solid'&&[object.x,object.y,object.w,object.h].some(value=>!Number.isInteger(value)))add('error','Монолит должен занимать целые клетки — игра не округляет его скрыто.',object.id);}
     for(const label of level.objects.filter(object=>object.type==='label')){const text=String(label.props?.text||'').trim();if(!text)add('error','Подпись не может быть пустой.',label.id);if(text.length>80)add('error','Подпись длиннее 80 символов.',label.id);if(/(?:https?:\/\/|www\.|@\w+\.)/iu.test(text))add('error','В подписи нельзя размещать ссылки или адреса.',label.id);if(/(?:хуй|пизд|еба|бля|fuck|shit)/iu.test(text))add('error','Подпись не прошла локальный фильтр публикации.',label.id);}
     for(let a=0;a<level.objects.length;a++)for(let b=a+1;b<level.objects.length;b++)if(rectsOverlap(level.objects[a],level.objects[b])&&!overlapAllowed(level.objects[a],level.objects[b]))add('error',`Предметы «${TYPE_DEFS[level.objects[a].type]?.label}» и «${TYPE_DEFS[level.objects[b].type]?.label}» занимают одно место.`,level.objects[b].id);
     const portalGroups=new Map(),portalColors=new Map();for(const portal of level.objects.filter(object=>object.type==='portal')){const key=portal.props?.pairId||'';if(!portalGroups.has(key))portalGroups.set(key,[]);portalGroups.get(key).push(portal);}for(const [key,pair] of portalGroups){if(!key||pair.length!==2)add('error','Каждый портал должен иметь ровно один парный конец.',pair[0]?.id);const color=pair[0]?.props?.color;if(color&&portalColors.has(color)&&portalColors.get(color)!==key)add('error','Две разные пары порталов не могут иметь одинаковый цвет.',pair[0]?.id);else if(color)portalColors.set(color,key);}
     for(const button of level.objects.filter(object=>object.type==='button')){const uniqueTargets=new Set();for(const target of button.props?.targets||[]){if(typeof target!=='string'){add('error','Связь кнопки должна быть строковым идентификатором розетки.',button.id);continue;}const descriptor=target,targetId=targetDescriptorId(descriptor),targetObject=objectsById.get(targetId);if(!targetObject)add('error','Кнопка связана с удалённым предметом.',button.id);else if(!targetDescriptorAllowed(descriptor,targetObject))add('error','Кнопка связана с неподдерживаемой розеткой предмета.',button.id);if(uniqueTargets.has(descriptor))add('error','Одна и та же розетка не может быть подключена к кнопке дважды.',button.id);uniqueTargets.add(descriptor);}}
-    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||point.x<0||point.y<0||point.x+moving.w>level.size.width||point.y+moving.h>level.size.height||Math.abs(point.x/GRID_STEP-Math.round(point.x/GRID_STEP))>1e-8||Math.abs(point.y/GRID_STEP-Math.round(point.y/GRID_STEP))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за границы или не привязана к сетке.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
+    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/GRID_STEP-Math.round(point.x/GRID_STEP))>1e-8||Math.abs(point.y/GRID_STEP-Math.round(point.y/GRID_STEP))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
     const budget=calculateBudget(level);if(level.objects.length>512)add('error','Больше 512 авторских объектов.');if((budget.counts.coin||0)>coinLimit(level))add('error',`Монет больше допустимых ${coinLimit(level)} для карты ${level.size.width}×${level.size.height}.`);if(budget.dynamic>48)add('error','Больше 48 динамических платформ, дверей и конвейеров.');if((budget.counts.crusherWall||0)>8)add('error','Больше 8 прессов.');if((budget.counts.pushBlock||0)>12)add('error','Больше 12 тяжёлых кубов.');if(portalGroups.size>6)add('error','Больше 6 пар порталов: уникальных цветов не хватит.');if((budget.counts.button||0)>32)add('error','Больше 32 кнопок.');if(budget.links>64)add('error','Больше 64 связей кнопок.');if(budget.routePoints>128)add('error','Больше 128 точек маршрутов.');if(budget.generators>8)add('error','Больше 8 генераторов.');if(budget.enemies>40)add('error','Больше 40 заранее размещённых врагов.');if(budget.bytes>512*1024)add('error','Файл уровня больше 512 КБ.');if(budget.score>100)add('error',`Нагрузка ${budget.score}: выше стартового hard cap 100.`);else if(budget.score>70)add('warning',`Нагрузка ${budget.score}: жёлтая зона, нужен тест слабого устройства.`);
     if(!issues.length)add('ok','Критических ошибок не найдено. Теперь уровень надо пройти в игре.');state.issues=issues;renderIssues();updateBudget(budget);if(selectChecks)selectInspectorTab('checks');return issues;}
 
@@ -1641,23 +1854,23 @@
     state.level.size[horizontal?'width':'height']=newSize;const width=state.level.size.width,height=state.level.size.height;for(const object of kept.filter(object=>object.type==='portal'&&objectOutsideLevelBounds(object,width,height)))if(object.props?.pairId)removedPortalPairs.add(object.props.pairId);const survivors=kept.filter(object=>(!objectOutsideLevelBounds(object,width,height)||PROTECTED_TYPES.has(object.type))&&!(object.type==='portal'&&removedPortalPairs.has(object.props?.pairId)));relocateProtectedObjects(survivors,width,height);const survivingIds=new Set(survivors.map(object=>object.id));for(const object of survivors){if(Array.isArray(object.props?.targets))object.props.targets=object.props.targets.filter(target=>survivingIds.has(targetDescriptorId(target)));}state.level.objects=survivors;for(const object of survivors.filter(candidate=>PATH_ENDPOINT_TYPES.has(candidate.type)&&candidate.type!=='smartPlatform')){const end=constrainPathEndpoint(object,pathEnd(object));object.props.path=routeForObject(object,end);}state.selectedId=survivingIds.has(state.selectedId)?state.selectedId:null;
   }
 
-  async function resizeLevelFromSide(side,delta){if(!state.ready||!['top','right','bottom','left'].includes(side)||![20,-20].includes(delta))return;const horizontal=side==='left'||side==='right',current=horizontal?state.level.size.width:state.level.size.height;if(!canResizeLevelAxis(horizontal,delta)){toast('Доступны шахты 20×20/40/60/80, их повёрнутые варианты и квадрат 40×40.','error');return;}const next=current+delta,actual=delta,affected=actual>0?0:state.level.objects.filter(object=>objectAffectedBySideCut(object,side,Math.abs(actual),next)).length,direction=({top:'сверху',right:'справа',bottom:'снизу',left:'слева'})[side],detail=affected?` Предметы и маршруты в отрезаемой области будут удалены: ${affected}.` : '',ok=await confirmAction(actual>0?'Увеличить поле?':'Уменьшить поле?',`${actual>0?'Добавить':'Убрать'} ${Math.abs(actual)} клеток ${direction}.${detail} Действие можно отменить.`);if(!ok)return;mutate(`Размер изменён ${direction}`,()=>applySideResize(side,actual));requestAnimationFrame(fitLevel);}
+  async function resizeLevelFromSide(side,delta){if(!state.ready||isPanelLevel()||!['top','right','bottom','left'].includes(side)||![20,-20].includes(delta))return;const horizontal=side==='left'||side==='right',current=horizontal?state.level.size.width:state.level.size.height;if(!canResizeLevelAxis(horizontal,delta)){toast('Доступны шахты 20×20/40/60/80, их повёрнутые варианты и квадрат 40×40.','error');return;}const next=current+delta,actual=delta,affected=actual>0?0:state.level.objects.filter(object=>objectAffectedBySideCut(object,side,Math.abs(actual),next)).length,direction=({top:'сверху',right:'справа',bottom:'снизу',left:'слева'})[side],detail=affected?` Предметы и маршруты в отрезаемой области будут удалены: ${affected}.` : '',ok=await confirmAction(actual>0?'Увеличить поле?':'Уменьшить поле?',`${actual>0?'Добавить':'Убрать'} ${Math.abs(actual)} клеток ${direction}.${detail} Действие можно отменить.`);if(!ok)return;mutate(`Размер изменён ${direction}`,()=>applySideResize(side,actual));requestAnimationFrame(fitLevel);}
 
   function copyMap(){if(!state.level)return;const payload={kind:'nubu.map-clipboard',version:1,copiedAt:Date.now(),level:deepClone(state.level)};state.mapClipboard=payload;$('pasteMapButton').disabled=false;$('mobilePasteMapButton').disabled=false;let persisted=true;try{localStorage.setItem(MAP_CLIPBOARD_KEY,JSON.stringify(payload));}catch(error){persisted=false;}toast(persisted?`Карта ${state.level.size.width}×${state.level.size.height} скопирована.`:`Карта скопирована в этой вкладке. Браузер запретил постоянный буфер.`,persisted?'ok':'warn');}
   async function pasteMap(){let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту.','error');return;}const ok=await confirmAction('Вставить карту?',`Все предметы текущей ${difficultyTitle(state.difficulty).toLowerCase()} карты будут заменены копией ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;const identity={id:state.level.id,title:state.level.title,episode:state.level.episode,sequence:state.level.sequence,metadata:{...state.level.metadata,difficulty:state.difficulty}};const next=normalizeLevel({...deepClone(payload.level),...identity},{difficulty:state.difficulty});mutate('Карта вставлена из буфера',()=>{state.level=next;state.slot.difficulties[state.difficulty]=next;state.selectedId=null;});requestAnimationFrame(fitLevel);}
 
-  function applySize(){const width=clampInt($('widthInput').value,20,80),height=clampInt($('heightInput').value,20,80);if(!isAllowedLevelSize(width,height)){toast('Допустимы только 20×20, 20×40/60/80, 40/60/80×20 и 40×40.','error');refreshLevelForm();return;}const outside=state.level.objects.filter(object=>objectOutsideLevelBounds(object,width,height));const apply=()=>mutate('Размер уровня изменён',()=>{state.level.size={width,height};if(outside.length){const removedPortalPairs=new Set(outside.filter(object=>object.type==='portal').map(object=>object.props?.pairId).filter(Boolean)),ids=new Set(outside.filter(object=>!PROTECTED_TYPES.has(object.type)).map(object=>object.id));for(const portal of state.level.objects.filter(object=>object.type==='portal'&&removedPortalPairs.has(object.props?.pairId)))ids.add(portal.id);state.level.objects=state.level.objects.filter(object=>!ids.has(object.id));const survivingIds=new Set(state.level.objects.map(object=>object.id));for(const object of state.level.objects)if(Array.isArray(object.props?.targets))object.props.targets=object.props.targets.filter(target=>survivingIds.has(targetDescriptorId(target)));}relocateProtectedObjects(state.level.objects,width,height);});if(outside.length)confirmAction('Изменить размер?',`${outside.length} предметов или маршрутов выйдут за границы. Обычные предметы будут удалены, вход и выход сдвинутся внутрь.`).then(ok=>{if(ok){apply();requestAnimationFrame(fitLevel);}else refreshLevelForm();});else{apply();requestAnimationFrame(fitLevel);}}
+  function applySize(){if(isPanelLevel()){toast('Панельная карта меняется кнопками ＋ и − вокруг поля.','error');return;}const width=clampInt($('widthInput').value,20,80),height=clampInt($('heightInput').value,20,80);if(!isAllowedLevelSize(width,height)){toast('Допустимы только 20×20, 20×40/60/80, 40/60/80×20 и 40×40.','error');refreshLevelForm();return;}const outside=state.level.objects.filter(object=>objectOutsideLevelBounds(object,width,height));const apply=()=>mutate('Размер уровня изменён',()=>{state.level.size={width,height};if(outside.length){const removedPortalPairs=new Set(outside.filter(object=>object.type==='portal').map(object=>object.props?.pairId).filter(Boolean)),ids=new Set(outside.filter(object=>!PROTECTED_TYPES.has(object.type)).map(object=>object.id));for(const portal of state.level.objects.filter(object=>object.type==='portal'&&removedPortalPairs.has(object.props?.pairId)))ids.add(portal.id);state.level.objects=state.level.objects.filter(object=>!ids.has(object.id));const survivingIds=new Set(state.level.objects.map(object=>object.id));for(const object of state.level.objects)if(Array.isArray(object.props?.targets))object.props.targets=object.props.targets.filter(target=>survivingIds.has(targetDescriptorId(target)));}relocateProtectedObjects(state.level.objects,width,height);});if(outside.length)confirmAction('Изменить размер?',`${outside.length} предметов или маршрутов выйдут за границы. Обычные предметы будут удалены, вход и выход сдвинутся внутрь.`).then(ok=>{if(ok){apply();requestAnimationFrame(fitLevel);}else refreshLevelForm();});else{apply();requestAnimationFrame(fitLevel);}}
 
   async function copyDifficulty(){const target=$('copyDifficultySelect').value;if(target===state.difficulty)return;const ok=await confirmAction('Скопировать карту?',`${difficultyTitle(target)} карта будет полностью заменена текущей ${difficultyTitle(state.difficulty).toLowerCase()} картой. После этого они редактируются независимо.`);if(!ok)return;const previous=deepClone(state.slot.difficulties[target]),revisions=Array.isArray(state.slot.revisions)?state.slot.revisions:[];revisions.push({difficulty:target,savedAt:Date.now(),hash:stableHash(previous),level:previous});state.slot.revisions=revisions.slice(-10);state.slot.difficulties[target]=cloneForDifficulty(state.level,target);invalidateSlotVerification(state.slot,target);state.dirty=true;await saveNow({revision:true});toast(`Создана отдельная ${difficultyTitle(target).toLowerCase()} карта.`,'ok');}
 
-  async function restoreTemplate(){const ok=await confirmAction('Вернуть исходную заготовку?','Текущая карта этой сложности будет заменена. В истории IndexedDB останется до 10 точек восстановления.');if(!ok)return;await saveNow({revision:true});let level;if(state.slot.kind==='campaign')level=await fetchCampaignLevel(state.slot.sequence,state.difficulty);else level=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,true);state.level=level;state.slot.difficulties[state.difficulty]=level;invalidateSlotVerification(state.slot,state.difficulty);state.selectedId=null;state.dirty=true;resetHistory('Восстановлен шаблон');scheduleSave();refreshAll();fitLevel();}
-  async function clearLevel(){const ok=await confirmAction('Очистить карту?','Останутся только вход и выход. Это действие попадёт в историю и автосохранение.');if(!ok)return;const blank=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,false);blank.id=state.level.id;blank.episode=state.level.episode;blank.sequence=state.level.sequence;blank.designerNotes=state.level.designerNotes;mutate('Карта очищена',()=>{state.level=blank;state.slot.difficulties[state.difficulty]=blank;state.selectedId=null;});}
+  async function restoreTemplate(){const ok=await confirmAction('Вернуть исходную заготовку?','Текущая карта этой сложности будет заменена. В истории IndexedDB останется до 10 точек восстановления.');if(!ok)return;await saveNow({revision:true});let level;if(state.slot.kind==='campaign')level=await fetchCampaignLevel(state.slot.sequence,state.difficulty);else level=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,true,{schemaVersion:state.level.schemaVersion,panels:state.level.panels});state.level=level;state.slot.difficulties[state.difficulty]=level;invalidateSlotVerification(state.slot,state.difficulty);state.selectedId=null;state.dirty=true;resetHistory('Восстановлен шаблон');scheduleSave();refreshAll();fitLevel();}
+  async function clearLevel(){const ok=await confirmAction('Очистить карту?','Останутся только вход и выход. Форма поля сохранится. Это действие попадёт в историю и автосохранение.');if(!ok)return;const blank=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,false,{schemaVersion:state.level.schemaVersion,panels:state.level.panels});blank.id=state.level.id;blank.episode=state.level.episode;blank.sequence=state.level.sequence;blank.designerNotes=state.level.designerNotes;mutate('Карта очищена',()=>{state.level=blank;state.slot.difficulties[state.difficulty]=blank;state.selectedId=null;});}
 
   async function createUserSlot(random=false){await refreshUserSlots();const drafts=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft');if(drafts.length>=MAX_DRAFT_LEVELS){toast(`В работе уже ${MAX_DRAFT_LEVELS} уровней. Опубликуйте или удалите один из них.`,'error');return;}const width=20,height=20;const number=Math.max(0,...state.userSlots.map(slot=>Number(slot.sequence)||0))+1;const title=`Мой уровень ${number}`;const easy=random?makeRandomLevel(width,height,title,'easy'):makeBlankLevel(width,height,title,'easy',true);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const slot=makeSlot(key,'user',0,number,{easy,medium:cloneForDifficulty(easy,'medium'),hard:cloneForDifficulty(easy,'hard')});await dbPut(slot);scheduleLibraryMirror();await refreshUserSlots();closeLibrary();await loadSlot(key,'easy');toast(random?'Создана случайная заготовка 20×20.':'Создан новый уровень 20×20.','ok');}
   async function confirmCreateUserSlot(random=false){await refreshUserSlots();if(state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft').length>=MAX_DRAFT_LEVELS){toast(`В работе уже ${MAX_DRAFT_LEVELS} уровней. Опубликуйте или удалите один из них.`,'error');return;}const ok=await confirmAction(random?'Создать случайную заготовку?':'Создать новый уровень?',random?'Будет создана новая случайная карта 20×20 и открыта в редакторе.':'Будет создана новая пустая карта 20×20 и открыта в редакторе.');if(ok)await createUserSlot(random);}
 
   function makeRandomLevel(width,height,title,difficulty){const level=makeBlankLevel(width,height,title,difficulty,true);let seed=Date.now()>>>0;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};let x=4,y=height-6,index=1;while(x<width-7&&index<12){const w=3+Math.floor(random()*4);y=clamp(y+(random()>.5?-3:3),3,height-5);const object=normalizeObject({id:`one-way-${String(index).padStart(2,'0')}`,type:'oneWay',x,y,w,h:1,layer:'terrain',props:{}});if(canPlaceForLevel(level,object))level.objects.push(object);if(random()>.35){const coin=normalizeObject({id:`coin-${String(index).padStart(2,'0')}`,type:'coin',x:x+Math.floor(w/2),y:y-2,w:1,h:1,layer:'entity',props:{}});if(canPlaceForLevel(level,coin))level.objects.push(coin);}x+=w+3+Math.floor(random()*4);index++;}level.metadata.seed=seed;level.designerNotes='Детерминированная безопасная заготовка. Проверьте и переработайте её перед публикацией.';return level;}
-  function canPlaceForLevel(level,candidate){return candidate.x>=0&&candidate.y>=0&&candidate.x+candidate.w<=level.size.width&&candidate.y+candidate.h<=level.size.height&&!level.objects.some(object=>rectsOverlap(object,candidate)&&!overlapAllowed(object,candidate));}
+  function canPlaceForLevel(level,candidate){return rectInsideLevelShape(level,candidate)&&!level.objects.some(object=>rectsOverlap(object,candidate)&&!overlapAllowed(object,candidate));}
 
   async function duplicateLevel(){await refreshUserSlots();if(state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft').length>=MAX_DRAFT_LEVELS){toast(`В работе уже ${MAX_DRAFT_LEVELS} уровней.`,'error');return;}const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const slot=deepClone(state.slot);slot.key=key;slot.kind='user';slot.episode=0;slot.sequence=Math.max(0,...state.userSlots.map(item=>Number(item.sequence)||0))+1;slot.title=`${state.level.title} · ремикс`;slot.publicationStatus='draft';slot.clearProofs={};slot.revisions=[];slot.createdAt=Date.now();slot.updatedAt=Date.now();for(const difficulty of DIFFICULTIES){slot.difficulties[difficulty].id=`${key}-${difficulty}`;slot.difficulties[difficulty].title=slot.difficulties[difficulty].title.replace(state.level.title,slot.title);slot.difficulties[difficulty].metadata={...(slot.difficulties[difficulty].metadata||{}),difficulty,status:'idea',source:`remix of ${state.slotKey}`};}await dbPut(slot);scheduleLibraryMirror();await refreshUserSlots();await loadSlot(key,state.difficulty);toast('Создан независимый ремикс уровня.','ok');}
 
@@ -1688,7 +1901,7 @@
     try {
       if (file.size > 512 * 1024) throw new Error('файл больше 512 КБ');
       const raw = JSON.parse(await file.text());
-      if (raw?.kind !== 'nubu.level' || raw?.schemaVersion !== 1) throw new Error('неподдерживаемая версия формата уровня');
+      if (raw?.kind !== 'nubu.level' || ![1,2].includes(raw?.schemaVersion)) throw new Error('неподдерживаемая версия формата уровня');
       const unknown = Array.isArray(raw.objects) ? raw.objects.find(object => !TYPE_DEFS[object?.type]) : null;
       if (unknown) throw new Error(`неизвестный предмет ${unknown.type || '<без типа>'}`);
       const identity={id:state.level.id,title:state.level.title,episode:state.level.episode,sequence:state.level.sequence,metadata:{...state.level.metadata,difficulty:state.difficulty}};
@@ -1735,7 +1948,7 @@
   function readEditorView(){try{const view=JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'null');return view&&typeof view==='object'?view:null;}catch(error){return null;}}
   function restoreEditorView(view){if(!view||view.slotKey!==state.slotKey||view.difficulty!==state.difficulty)return false;state.zoom=clamp(Number(view.zoom)||1,.25,2);if(view.selectedId&&state.level.objects.some(object=>object.id===view.selectedId))state.selectedId=view.selectedId;renderCanvas();requestAnimationFrame(()=>{viewport.scrollLeft=Math.max(0,Number(view.scrollLeft)||0);viewport.scrollTop=Math.max(0,Number(view.scrollTop)||0);refreshInspector();});return true;}
 
-  async function playLevel(options={}){const exam=options?.exam===true,issues=validateLevel(false),errors=issues.filter(issue=>issue.severity==='error');updatePlayAvailability(issues);if(errors.length){const details=errors.slice(0,3).map(issue=>issue.message).join(' · ');showHintText('Уровень пока не запускается',details+(errors.length>3?` · Ещё ошибок: ${errors.length-3}.`:''));return null;}const attemptId=`attempt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const embedded=window.parent!==window;if(!embedded){setEditorReady(false);const veil=$('editorLoadingVeil');if(veil?.querySelector('b'))veil.querySelector('b').textContent='Готовлю проверку…';}try{await saveNow({revision:true});if(state.dirty)throw new Error('Последняя версия карты ещё не сохранена.');persistEditorView();const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:playtestReturnUrl(attemptId,state.slotKey,state.difficulty)};try{localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));localStorage.removeItem(RESULT_KEY);if(exam)localStorage.setItem(EXAM_PENDING_KEY,JSON.stringify({slotKey:payload.slotKey,difficulty:payload.difficulty,attemptId:payload.attemptId,levelHash:payload.levelHash}));else localStorage.removeItem(EXAM_PENDING_KEY);}catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}if(embedded){window.parent.postMessage({type:'nubu:start-editor-playtest',url:gamePlaytestUrl().href},window.location.origin);showHintText('Проверка запускается','Редактор остаётся открытым под игрой — возврат будет мгновенным.');return payload;}state.pageSuspended=true;window.location.assign(gamePlaytestUrl().href);return payload;}catch(error){try{const pending=JSON.parse(localStorage.getItem(EXAM_PENDING_KEY)||'null');if(pending?.attemptId===attemptId)localStorage.removeItem(EXAM_PENDING_KEY);}catch(storageError){}state.pageSuspended=false;setEditorReady(true);toast(`Не удалось начать проверку: ${error.message}`,'error');return null;}}
+  async function playLevel(options={}){const exam=options?.exam===true,issues=validateLevel(false),errors=issues.filter(issue=>issue.severity==='error');updatePlayAvailability(issues);if(errors.length){const details=errors.slice(0,3).map(issue=>issue.message).join(' · ');showHintText('Уровень пока не запускается',details+(errors.length>3?` · Ещё ошибок: ${errors.length-3}.`:''));return null;}const attemptId=`attempt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const embedded=window.parent!==window;if(!embedded){setEditorReady(false);const veil=$('editorLoadingVeil');if(veil?.querySelector('b'))veil.querySelector('b').textContent='Готовлю проверку…';}try{await saveNow({revision:true});if(state.dirty)throw new Error('Последняя версия карты ещё не сохранена.');persistEditorView();const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:playtestReturnUrl(attemptId,state.slotKey,state.difficulty)};try{localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));localStorage.removeItem(RESULT_KEY);if(exam)localStorage.setItem(EXAM_PENDING_KEY,JSON.stringify({slotKey:payload.slotKey,difficulty:payload.difficulty,attemptId:payload.attemptId,levelHash:payload.levelHash}));else localStorage.removeItem(EXAM_PENDING_KEY);}catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}if(embedded){window.parent.postMessage({type:'nubu:start-editor-playtest',url:gamePlaytestUrl().href,payload:deepClone(payload)},window.location.origin);showHintText('Входим в уровень','Редактор остаётся открытым под игрой — возврат будет мгновенным.');return payload;}state.pageSuspended=true;window.location.assign(gamePlaytestUrl().href);return payload;}catch(error){try{const pending=JSON.parse(localStorage.getItem(EXAM_PENDING_KEY)||'null');if(pending?.attemptId===attemptId)localStorage.removeItem(EXAM_PENDING_KEY);}catch(storageError){}state.pageSuspended=false;setEditorReady(true);toast(`Не удалось начать проверку: ${error.message}`,'error');return null;}}
 
   function activePlaytestResultChanged(result){return state.slotKey===result.slotKey&&state.difficulty===result.difficulty&&(!state.level||state.dirty||stableHash(state.level)!==result.levelHash);}
   async function restoreActiveDraftAfterStaleResult(result){if(state.slotKey!==result.slotKey||state.difficulty!==result.difficulty||!state.slot||!state.level)return;state.slot.difficulties[state.difficulty]=state.level;invalidateSlotVerification(state.slot,state.difficulty);state.dirty=true;await saveNow({revision:true,allowDuringResult:true});scheduleLibraryMirror();}
@@ -1785,8 +1998,10 @@
   function openDeveloperNote(object=selectedObject()){if(object?.type!=='developerNote')return;state.developerNoteId=object.id;$('developerNoteInput').value=String(object.props?.comment||'');$('developerNoteModal').classList.add('open');$('developerNoteModal').setAttribute('aria-hidden','false');requestAnimationFrame(()=>$('developerNoteInput').focus());}
   function closeDeveloperNote(save=false){const object=state.level?.objects.find(candidate=>candidate.id===state.developerNoteId);if(save&&object)mutate('Комментарий изменён',()=>{object.props.comment=String($('developerNoteInput').value||'').slice(0,1200);});state.developerNoteId=null;$('developerNoteModal').classList.remove('open');$('developerNoteModal').setAttribute('aria-hidden','true');}
 
-  async function shareCurrentLevel(){await saveNow({revision:true});const payload={kind:'nubu.level-transfer',version:1,exportedAt:new Date().toISOString(),slot:{...deepClone(state.slot),key:'portable',kind:'user',publicationStatus:'draft',clearProofs:{},revisions:[]}};const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'}),fileName=`${slug(state.level.title)}.nubu-level.json`;if(navigator.share&&typeof File==='function'){const file=new File([blob],fileName,{type:'application/json'});if(navigator.canShare?.({files:[file]})){await navigator.share({title:state.level.title,files:[file]});toast('Уровень передан через системное меню.','ok');return;}}const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileName;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Файл уровня скачан. Его можно открыть на другом устройстве.','ok');}
-  async function receiveSharedLevel(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{const payload=JSON.parse(await file.text());if(payload?.kind!=='nubu.level-transfer'||payload?.version!==1||!payload.slot?.difficulties)throw new Error('Это не файл переноса NuBu2600.');await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='draft').length>=MAX_DRAFT_LEVELS)throw new Error(`В работе уже ${MAX_DRAFT_LEVELS} уровней.`);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,slot=deepClone(payload.slot);slot.key=key;slot.kind='user';slot.sequence=Math.max(0,...state.userSlots.map(item=>Number(item.sequence)||0))+1;slot.title=String(slot.title||'Полученный уровень').slice(0,48);slot.publicationStatus='draft';slot.clearProofs={};slot.revisions=[];slot.createdAt=Date.now();slot.updatedAt=Date.now();for(const difficulty of DIFFICULTIES)slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty]||slot.difficulties.easy,{difficulty});await dbPut(slot);closeLibrary();await loadSlot(key,'easy');toast('Уровень получен и сохранён как новый черновик.','ok');}catch(error){toast(`Не удалось получить уровень: ${error.message}`,'error');}}
+  function makeLevelTransferPayload(slot=state.slot){return{kind:'nubu.level-transfer',version:1,exportedAt:new Date().toISOString(),slot:{...deepClone(slot),key:'portable',kind:'user',publicationStatus:'draft',clearProofs:{},revisions:[]}};}
+  function normalizeLevelTransferPayload(payload,key,sequence){if(payload?.kind!=='nubu.level-transfer'||payload?.version!==1||!payload.slot?.difficulties)throw new Error('Это не файл переноса NuBu2600.');const slot=deepClone(payload.slot);slot.key=key;slot.kind='user';slot.sequence=sequence;slot.title=String(slot.title||'Полученный уровень').slice(0,48);slot.publicationStatus='draft';slot.clearProofs={};slot.revisions=[];slot.createdAt=Date.now();slot.updatedAt=Date.now();for(const difficulty of DIFFICULTIES)slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty]||slot.difficulties.easy,{difficulty});return slot;}
+  async function shareCurrentLevel(){await saveNow({revision:true});const payload=makeLevelTransferPayload();const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'}),fileName=`${slug(state.level.title)}.nubu-level.json`;if(navigator.share&&typeof File==='function'){const file=new File([blob],fileName,{type:'application/json'});if(navigator.canShare?.({files:[file]})){await navigator.share({title:state.level.title,files:[file]});toast('Уровень передан через системное меню.','ok');return;}}const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileName;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Файл уровня скачан. Его можно открыть на другом устройстве.','ok');}
+  async function receiveSharedLevel(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{const payload=JSON.parse(await file.text());await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='draft').length>=MAX_DRAFT_LEVELS)throw new Error(`В работе уже ${MAX_DRAFT_LEVELS} уровней.`);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,sequence=Math.max(0,...state.userSlots.map(item=>Number(item.sequence)||0))+1,slot=normalizeLevelTransferPayload(payload,key,sequence);await dbPut(slot);closeLibrary();await loadSlot(key,'easy');toast('Уровень получен и сохранён как новый черновик.','ok');}catch(error){toast(`Не удалось получить уровень: ${error.message}`,'error');}}
 
   async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?`campaign-${state.slot.episode||1}`:'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;showHintText('Библиотека','Уровни идут одной колонкой. Нажмите карточку — действия раскроются прямо под ней.');await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');}
   function closeLibrary(){$('libraryModal').classList.remove('open');$('libraryModal').setAttribute('aria-hidden','true');}
@@ -1798,7 +2013,7 @@
     const thumb=document.createElement('canvas');thumb.width=96;thumb.height=72;
     const info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small'),statusChip=document.createElement('small');
     title.textContent=displayTitle;
-    meta.textContent=`${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${level.size.width}×${level.size.height} · ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})}`;
+    meta.textContent=`${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${level.size.width}×${level.size.height}${isPanelLevel(level)?` · ${level.panels.length} пан.`:''} · ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})}`;
     statusChip.className='level-status';statusChip.dataset.status=status.key;statusChip.hidden=true;statusChip.textContent='';statusChip.setAttribute('aria-label',status.label);
     info.append(title,meta,statusChip);select.append(thumb,info);
     select.addEventListener('click',()=>{state.librarySelectedKey=state.librarySelectedKey===slot.key?null:slot.key;state.librarySelectedSlot=state.librarySelectedKey?slot:null;renderLibrary();showHintText(state.librarySelectedKey?'Уровень выбран':'Карточка закрыта',state.librarySelectedKey?'Действия открыты прямо под этой картой.':'Выберите другой уровень.');});
@@ -1809,7 +2024,7 @@
     state.librarySelectedSlot=slot;panel.hidden=false;card.querySelector('.level-card')?.setAttribute('hidden','');card.append(panel);
     const level=libraryLevelFor(slot),status=showUsers?playerSlotStatus(slot):{key:'campaign',label:'Кампания'},displayTitle=showUsers?slot.title:(level?.title||slot.title),published=status.key==='submitted';
     $('librarySelectedTitle').textContent=showUsers?'':displayTitle;$('librarySelectedTitle').hidden=showUsers;
-    $('librarySelectedMeta').textContent=`${showUsers?'':`${difficultyTitle(state.libraryDifficulty)} · `}${level.size.width}×${level.size.height} · изменён ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'medium',timeStyle:'short'})}`;
+    $('librarySelectedMeta').textContent=`${showUsers?'':`${difficultyTitle(state.libraryDifficulty)} · `}${level.size.width}×${level.size.height}${isPanelLevel(level)?` · ${level.panels.length} пан.`:''} · изменён ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'medium',timeStyle:'short'})}`;
     $('libraryLevelTitleInput').value=displayTitle||'';$('libraryLevelTitleInput').disabled=showUsers&&published;$('librarySelectedTitleField').hidden=!showUsers;
     $('examLevelButton').hidden=!showUsers||published;$('withdrawLevelButton').hidden=!showUsers||!published;$('libraryDeleteButton').hidden=!showUsers||published;
     $('libraryCopyMapButton').hidden=showUsers;$('libraryPasteMapButton').hidden=showUsers;$('libraryPasteMapButton').disabled=false;$('libraryPasteMapButton').title='Заменить выбранную карту копией';for(const id of ['libraryExportLevelButton','libraryImportLevelLabel'])$(id).hidden=showUsers;
@@ -1841,11 +2056,11 @@
   async function copySelectedLibraryMap(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key),level=slot?.difficulties?.[difficulty]||slot?.difficulties?.easy;if(!level)return;const payload={kind:'nubu.map-clipboard',version:1,copiedAt:Date.now(),level:deepClone(level)};state.mapClipboard=payload;try{localStorage.setItem(MAP_CLIPBOARD_KEY,JSON.stringify(payload));}catch(error){}toast(`Карта ${level.size.width}×${level.size.height} скопирована.`,'ok');});}
   async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
   function exportSelectedCampaignLevel(){const slot=state.librarySelectedSlot,level=libraryLevelFor(slot);if(slot?.kind!=='campaign'||!level)return;const blob=new Blob([`${JSON.stringify(level,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`ep${slot.episode}-${String(slot.sequence).padStart(2,'0')}-${state.libraryDifficulty}.level.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан ${anchor.download}. Сохраните его в iCloud.`,'ok');}
-  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||raw?.schemaVersion!==1)throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
+  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
 
   async function renameSelectedLibraryLevel(event){const selected=state.librarySelectedSlot;if(selected?.kind!=='user')return;if(playerSlotStatus(selected).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');return;}const key=selected.key,title=String(event.target.value).trim().slice(0,48)||'Без названия';return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key);if(!slot)return;if(playerSlotStatus(slot).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');await renderLibrary();return;}slot.title=title;for(const difficulty of DIFFICULTIES)if(slot.difficulties?.[difficulty])slot.difficulties[difficulty].title=title;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();if(state.slotKey===key)syncActiveSlotAfterLibraryWrite(slot,state.difficulty,'Название изменено в библиотеке');state.librarySelectedKey=key;await refreshUserSlots();await renderLibrary();});}
 
-  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#08100d';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;for(const object of [...level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true});}
+  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#030706';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;if(isPanelLevel(level)){context.fillStyle='#10241d';context.strokeStyle='#5e8b78';context.lineWidth=1;for(const panel of level.panels){const x=offsetX+panel.x*LEVEL_PANEL_SIZE*scale,y=offsetY+panel.y*LEVEL_PANEL_SIZE*scale,size=LEVEL_PANEL_SIZE*scale;context.fillRect(x,y,size,size);context.strokeRect(x+.5,y+.5,Math.max(0,size-1),Math.max(0,size-1));}}else{context.fillStyle='#10241d';context.fillRect(offsetX,offsetY,level.size.width*scale,level.size.height*scale);}for(const object of [...level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true});}
 
   function confirmAction(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmModal').classList.add('open');$('confirmModal').setAttribute('aria-hidden','false');return new Promise(resolve=>{state.confirmResolver=resolve;});}
   function closeConfirm(result){$('confirmModal').classList.remove('open');$('confirmModal').setAttribute('aria-hidden','true');const resolve=state.confirmResolver;state.confirmResolver=null;resolve?.(result);}
@@ -1879,13 +2094,13 @@
     document.querySelectorAll('[data-close-drawer]').forEach(button=>button.addEventListener('click',()=>closeDrawer(button.dataset.closeDrawer)));
     document.querySelectorAll('[data-inspector-tab]').forEach(button=>button.addEventListener('click',()=>selectInspectorTab(button.dataset.inspectorTab)));
     document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>switchDifficulty(button.dataset.difficulty)));
-    $('openPaletteButton').addEventListener('click',()=>openDrawer('palettePanel'));$('rotateButton').addEventListener('click',rotateSelected);$('rotateObjectButton').addEventListener('click',rotateSelected);$('testHereButton').addEventListener('click',()=>setTool('testSpawn'));$('undoButton').addEventListener('click',undo);$('redoButton').addEventListener('click',redo);$('fitButton').addEventListener('click',fitLevel);$('playButton').addEventListener('click',()=>playLevel());$('mobilePlayButton').addEventListener('click',()=>playLevel());$('issuesButton').addEventListener('click',()=>{validateLevel(true);openDrawer('inspectorPanel');});$('closeMobileCategorySheet').addEventListener('click',closeMobileCategorySheet);
+    $('openPaletteButton').addEventListener('click',()=>openDrawer('palettePanel'));$('rotateButton').addEventListener('click',rotateSelected);$('rotateObjectButton').addEventListener('click',rotateSelected);$('testHereButton').addEventListener('click',()=>setTool('testSpawn'));$('undoButton').addEventListener('click',undo);$('redoButton').addEventListener('click',redo);$('fitButton').addEventListener('click',fitLevel);$('playButton').addEventListener('click',()=>playLevel());$('mobilePlayButton').addEventListener('click',()=>playLevel());$('issuesButton').addEventListener('click',()=>{validateLevel(true);openDrawer('inspectorPanel');});$('closeMobileCategorySheet').addEventListener('pointerup',closeMobileCategoryFromPointerUp);$('closeMobileCategorySheet').addEventListener('click',closeMobileCategoryFromClick);
     const openLibrarySafely=()=>openLibrary().catch(error=>toast(error.message,'error'));
     $('libraryButton').addEventListener('click',openLibrarySafely);$('mobileLevelButton').addEventListener('click',openLibrarySafely);$('closeLibraryButton').addEventListener('click',closeLibrary);$('newUserLevelButton').addEventListener('click',()=>confirmCreateUserSlot($('randomStarterCheckbox').checked).catch(error=>toast(error.message,'error')));$('randomStarterButton').addEventListener('click',()=>confirmCreateUserSlot(true).catch(error=>toast(error.message,'error')));$('manualSaveButton').addEventListener('click',()=>shareCurrentLevel().catch(error=>toast(error.message,'error')));$('libraryOpenButton').addEventListener('click',()=>openSelectedLibraryLevel().catch(error=>toast(error.message,'error')));
     $('libraryLevelTitleInput').addEventListener('change',event=>renameSelectedLibraryLevel(event).catch(error=>toast(error.message,'error')));$('libraryCopyMapButton').addEventListener('click',()=>copySelectedLibraryMap().catch(error=>toast(error.message,'error')));$('libraryPasteMapButton').addEventListener('click',()=>replaceSelectedMapFromClipboard().catch(error=>toast(error.message,'error')));$('libraryExportLevelButton').addEventListener('click',exportSelectedCampaignLevel);$('libraryImportLevelInput').addEventListener('change',importSelectedCampaignLevel);$('libraryDeleteButton').addEventListener('click',()=>{if(state.librarySelectedSlot?.kind==='user')deleteUserSlot(state.librarySelectedSlot.key).catch(error=>toast(error.message,'error'));});$('withdrawLevelButton').addEventListener('click',()=>withdrawSelectedLevel().catch(error=>toast(error.message,'error')));
     document.querySelectorAll('[data-library-filter]').forEach(button=>button.addEventListener('click',()=>{state.libraryUserFilter=button.dataset.libraryFilter;state.librarySelectedKey=null;renderLibrary();}));$('librarySourceSelect').addEventListener('change',()=>{state.librarySelectedKey=null;renderLibrary();});$('libraryLobbyButton').addEventListener('click',async()=>{const ok=await confirmAction('Выйти в лобби?','Текущая карта будет сохранена, затем редактор закроется.');if(!ok)return;await saveNow({revision:true});closeLibrary();if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else window.location.assign(gameLobbyUrl().href);});$('libraryEpisodeSelect').addEventListener('change',()=>{$('librarySourceSelect').value=`campaign-${$('libraryEpisodeSelect').value}`;state.librarySelectedKey=null;renderLibrary();});$('libraryDifficultySelect').addEventListener('change',event=>{state.libraryDifficulty=event.target.value;renderLibrary();});$('examLevelButton').addEventListener('click',async()=>{const slot=state.librarySelectedSlot;if(slot?.kind!=='user'){toast('Экзамен доступен только для уровней игрока.','error');return;}await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='submitted').length>=MAX_PUBLISHED_LEVELS){toast(`Опубликовано уже ${MAX_PUBLISHED_LEVELS} уровней. Для следующего нужен дополнительный объём.`,'error');return;}const ok=await confirmAction('Экзамен уровня','Уровень запустится с обычного входа. Чтобы получить статус «Опубликован», нужно дойти до выхода без смерти.');if(!ok)return;closeLibrary();await loadSlot(slot.key,'easy');await playLevel({exam:true});});document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-size]').forEach(item=>item.classList.toggle('active',item===button));state.chosenSize=button.dataset.size.split('x').map(Number);}));const updateChosenSize=()=>{state.chosenSize=[Number($('newLevelWidth').value),Number($('newLevelHeight').value)];};$('newLevelWidth').addEventListener('change',updateChosenSize);$('newLevelHeight').addEventListener('change',updateChosenSize);
     $('episodeSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;refreshSelectors(event.target.value);const first=$('levelSelect').value;if(first)loadSlot(first,'easy').catch(error=>toast(error.message,'error'));});$('levelSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;loadSlot(event.target.value,state.difficulty).catch(error=>toast(error.message,'error'));});
-    $('levelTitleInput').addEventListener('change',event=>mutate('Название изменено',()=>{state.level.title=String(event.target.value).trim().slice(0,48)||'Без названия';}));$('notesInput').addEventListener('change',event=>mutate('Заметки изменены',()=>{state.level.designerNotes=String(event.target.value).slice(0,1000);}));$('applySizeButton').addEventListener('click',applySize);$('copyDifficultyButton').addEventListener('click',copyDifficulty);$('restoreTemplateButton').addEventListener('click',()=>restoreTemplate().catch(error=>toast(error.message,'error')));$('clearLevelButton').addEventListener('click',clearLevel);$('duplicateLevelButton').addEventListener('click',()=>duplicateLevel().catch(error=>toast(error.message,'error')));$('exportButton').addEventListener('click',exportLevel);$('importInput').addEventListener('change',importLevel);
+    $('levelTitleInput').addEventListener('change',event=>mutate('Название изменено',()=>{state.level.title=String(event.target.value).trim().slice(0,48)||'Без названия';}));$('notesInput').addEventListener('change',event=>mutate('Заметки изменены',()=>{state.level.designerNotes=String(event.target.value).slice(0,1000);}));$('applySizeButton').addEventListener('click',applySize);$('convertPanelsButton').addEventListener('click',()=>convertLegacyToPanels().catch(error=>toast(error.message,'error')));$('copyDifficultyButton').addEventListener('click',copyDifficulty);$('restoreTemplateButton').addEventListener('click',()=>restoreTemplate().catch(error=>toast(error.message,'error')));$('clearLevelButton').addEventListener('click',clearLevel);$('duplicateLevelButton').addEventListener('click',()=>duplicateLevel().catch(error=>toast(error.message,'error')));$('exportButton').addEventListener('click',exportLevel);$('importInput').addEventListener('change',importLevel);
     bindObjectNumber('objectXInput','x');bindObjectNumber('objectYInput','y');bindObjectNumber('objectWInput','w');bindObjectNumber('objectHInput','h');$('deleteObjectButton').addEventListener('click',()=>state.selectedId&&removeObject(state.selectedId));$('linkObjectButton').addEventListener('click',()=>{const object=selectedObject();if(object?.type==='button'){state.linkSourceId=object.id;state.tool='link';updateToolButtons();closeDrawer('inspectorPanel');toast('Выберите цель кнопки на карте.');}});
     $('confirmCancelButton').addEventListener('click',()=>closeConfirm(false));$('confirmAcceptButton').addEventListener('click',()=>closeConfirm(true));$('developerNoteCancelButton').addEventListener('click',()=>closeDeveloperNote(false));$('developerNoteSaveButton').addEventListener('click',()=>closeDeveloperNote(true));$('libraryModal').addEventListener('click',event=>{if(event.target===$('libraryModal'))closeLibrary();});$('confirmModal').addEventListener('click',event=>{if(event.target===$('confirmModal'))closeConfirm(false);});$('developerNoteModal').addEventListener('click',event=>{if(event.target===$('developerNoteModal'))closeDeveloperNote(false);});
     $('copyMapButton').addEventListener('click',copyMap);$('pasteMapButton').addEventListener('click',pasteMap);$('mobileCopyMapButton').addEventListener('click',copyMap);$('mobilePasteMapButton').addEventListener('click',pasteMap);$('mobileUndoButton').addEventListener('click',undo);$('mobileRedoButton').addEventListener('click',redo);$('zoomOutButton').addEventListener('click',()=>setZoom(state.zoom-.1));$('zoomInButton').addEventListener('click',()=>setZoom(state.zoom+.1));$('zoomSlider').addEventListener('input',event=>setZoom(Number(event.target.value)/100));document.querySelectorAll('[data-resize-side]').forEach(button=>button.addEventListener('click',()=>resizeLevelFromSide(button.dataset.resizeSide,Number(button.dataset.resizeDelta))));document.querySelectorAll('[data-resize-handle]').forEach(button=>button.addEventListener('pointerdown',beginDomResize));window.addEventListener('pointermove',updateDomResize);window.addEventListener('pointerup',endDomResize);window.addEventListener('pointercancel',cancelDomResize);try{$('authorNameInput').value=localStorage.getItem(AUTHOR_NAME_KEY)||'';}catch(error){}$('authorNameInput').addEventListener('change',event=>{try{localStorage.setItem(AUTHOR_NAME_KEY,String(event.target.value).trim().slice(0,24));}catch(error){}});$('exportLibraryButton').addEventListener('click',()=>exportLibrary().catch(error=>toast(error.message,'error')));$('importLibraryInput').addEventListener('change',importLibrary);
@@ -1893,8 +2108,9 @@
     viewport.addEventListener('wheel',event=>{if(!(event.ctrlKey||event.metaKey)){if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();return;}event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(state.zoom+(event.deltaY<0?.1:-.1),{x:event.clientX-rect.left,y:event.clientY-rect.top});},{passive:false});viewport.addEventListener('gesturestart',beginNativeGesture,{passive:false});viewport.addEventListener('gesturechange',updateNativeGesture,{passive:false});viewport.addEventListener('gestureend',endNativeGesture,{passive:false});
     document.addEventListener('contextmenu',event=>event.preventDefault());document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});document.addEventListener('touchstart',event=>{const touch=event.touches?.[0];if(touch&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();},{passive:false,capture:true});document.addEventListener('touchmove',event=>{const nativeScroll=event.target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,input,textarea,select');if((event.touches?.length||0)>1||!nativeScroll)event.preventDefault();},{passive:false,capture:true});
     document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
-    window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
-    window.addEventListener('message',async event=>{if(event.origin!==window.location.origin||event.data?.type!=='nubu:resume-after-playtest')return;state.pageSuspended=false;await consumePlaytestResult();validateLevel(false);showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');});window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});window.addEventListener('resize',()=>{const mode=window.innerWidth>window.innerHeight?'landscape':'portrait';if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}else renderCanvas();});window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
+    window.addEventListener('pointermove',updateMobilePaletteGesture,{passive:false});window.addEventListener('pointerup',endMobilePaletteGesture,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteGesture,{passive:false});window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
+    window.addEventListener('blur',()=>{clearMobilePaletteGesture();state.activeTramInsertion=null;});
+    window.addEventListener('message',async event=>{if(event.origin!==window.location.origin||event.data?.type!=='nubu:resume-after-playtest')return;state.pageSuspended=false;await consumePlaytestResult();validateLevel(false);showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');requestAnimationFrame(()=>{viewport.focus({preventScroll:true});if(window.parent!==window)window.parent.postMessage({type:'nubu:editor-resumed'},window.location.origin);});});window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});window.addEventListener('resize',()=>{const mode=window.innerWidth>window.innerHeight?'landscape':'portrait';if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}else renderCanvas();});window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
   }
 
   async function initialize() {
