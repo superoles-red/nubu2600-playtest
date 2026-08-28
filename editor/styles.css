@@ -882,3 +882,361 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .command-actions #undoButton,
   .command-actions #redoButton { display:inline-flex !important; width:42px !important; min-width:42px !important; height:42px !important; min-height:42px !important; padding:2px !important; font-size:20px !important; }
 }
+
+/* 2026-08-28: final orientation-only shell and the expanded library card.
+   Legacy width queries above remain as compatibility fallbacks, but no longer
+   control a visible composition at the 1024/1025 boundary. */
+.player-level-button { justify-content:flex-start !important; overflow:hidden !important; }
+.player-level-gear { overflow:visible !important; font-weight:400 !important; text-overflow:clip !important; white-space:normal !important; }
+.player-level-button > span:not(.player-level-gear) { font-size:inherit !important; font-weight:inherit !important; text-overflow:clip !important; white-space:normal !important; }
+.player-level-button strong { font-weight:900 !important; }
+.player-level-button small { font-weight:800 !important; }
+.command-actions { overflow:visible !important; }
+.zoom-controls { border-radius:13px !important; }
+.zoom-controls input { min-width:0 !important; }
+.zoom-controls output { line-height:8px !important; }
+.size-rail { opacity:.92 !important; }
+.size-rail:hover,
+.size-rail:focus-within { opacity:1 !important; }
+.mobile-palette-shell { min-width:0 !important; min-height:0 !important; }
+.mobile-category-sheet { z-index:90 !important; }
+#libraryModal { backdrop-filter:blur(5px) !important; }
+#libraryModal .library-panel { padding:0 !important; border-radius:20px !important; }
+.modal-panel { max-height:calc(100dvh - 22px) !important; padding:13px !important; }
+.toast-region { align-items:center !important; justify-content:center !important; }
+.toast {
+  width:min(100%,720px) !important;
+  padding:8px 11px !important;
+  border-radius:10px !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.42) !important;
+  font-size:9px !important;
+  text-align:center !important;
+}
+.mobile-category-button span { width:auto !important; text-align:center !important; }
+.mobile-drag-ghost canvas { display:block !important; width:54px !important; height:42px !important; }
+.mobile-drag-ghost small {
+  display:block !important;
+  width:100% !important;
+  overflow:hidden !important;
+  color:var(--text) !important;
+  font-size:7px !important;
+  font-weight:900 !important;
+  text-align:center !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+
+.mobile-variant-button {
+  min-width:0 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  gap:0 !important;
+  border-radius:10px !important;
+}
+.mobile-variant-button canvas {
+  display:block !important;
+  width:82% !important;
+  min-width:0 !important;
+  max-width:62px !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:72% !important;
+  object-fit:contain !important;
+}
+.mobile-variant-button small {
+  display:block !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow:hidden !important;
+  -webkit-box-orient:initial !important;
+  -webkit-line-clamp:unset !important;
+}
+.mobile-variant-button .coin-cap {
+  position:absolute !important;
+  top:3px !important;
+  left:3px !important;
+  display:block !important;
+  min-width:0 !important;
+  height:auto !important;
+  padding:2px 5px !important;
+  border-radius:999px !important;
+  color:#211503 !important;
+  background:#ffd258 !important;
+  font:900 7px var(--mono) !important;
+}
+
+.level-card { grid-template-columns:72px minmax(0,1fr); }
+.level-card canvas { width:72px; height:54px; align-self:center; object-fit:contain; }
+
+.library-source-line .library-lobby-button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  color:#fff;
+  border-color:rgba(140,190,255,.48);
+  background:linear-gradient(180deg,rgba(40,52,82,.98),rgba(24,30,48,.98));
+  box-shadow:inset 0 1px rgba(255,255,255,.08),0 6px 16px rgba(8,16,36,.26);
+  font-weight:900;
+}
+.library-source-line .library-lobby-button:hover {
+  border-color:rgba(170,210,255,.72);
+  background:linear-gradient(180deg,rgba(53,70,110,.98),rgba(31,40,65,.98));
+}
+.library-source-line .library-lobby-button > span:first-child { font-size:18px; line-height:1; }
+
+.library-selected { position:relative; align-items:stretch; }
+.library-selected > .library-preview-open {
+  position:relative;
+  grid-column:1;
+  grid-row:1 / 3;
+  min-width:0;
+  min-height:160px;
+  align-self:stretch;
+  overflow:hidden;
+  padding:0;
+  border:1px solid var(--line-bright);
+  border-radius:12px;
+  background:#08100d;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.library-selected > .library-preview-open:hover { border-color:var(--accent-2); background:#0b1713; }
+.library-preview-open canvas {
+  position:absolute;
+  inset:0;
+  display:block;
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  object-fit:contain;
+  pointer-events:none;
+}
+.library-preview-open-label {
+  position:absolute;
+  right:8px;
+  bottom:8px;
+  left:8px;
+  padding:5px 7px;
+  border:1px solid rgba(231,255,114,.55);
+  border-radius:8px;
+  color:#11180f;
+  background:rgba(231,255,114,.92);
+  font-size:9px;
+  font-weight:950;
+  text-align:center;
+  pointer-events:none;
+}
+.library-selected-copy { grid-column:2; grid-row:1; }
+.library-selected-actions {
+  position:relative;
+  grid-column:2;
+  grid-row:2;
+  min-height:42px;
+  padding-right:0 !important;
+}
+.library-selected-actions:has(> .compact-library-action:not([hidden])) { padding-right:88px !important; }
+.library-selected-actions > .exam-button {
+  width:88px !important;
+  min-width:88px !important;
+  max-width:88px !important;
+  height:88px !important;
+  min-height:88px !important;
+  max-height:88px !important;
+  flex:0 0 88px !important;
+  aspect-ratio:1;
+  padding:7px !important;
+  line-height:1.1;
+  white-space:normal;
+}
+.library-selected-actions > .compact-library-action:not([hidden]) {
+  position:absolute;
+  right:0;
+  bottom:0;
+  width:74px !important;
+  min-width:74px !important;
+  max-width:74px !important;
+  min-height:34px !important;
+  margin:0 !important;
+}
+
+@media (orientation:portrait) {
+  .app-shell { grid-template-columns:minmax(0,1fr) !important; grid-template-rows:104px minmax(0,1fr) 86px !important; }
+  .command-bar {
+    grid-template-columns:repeat(5,minmax(0,1fr)) 64px !important;
+    grid-template-rows:50px 42px !important;
+    min-height:104px !important;
+    column-gap:5px !important;
+    row-gap:4px !important;
+  }
+  .player-level-button { grid-column:1 / 3 !important; grid-row:1 !important; height:50px !important; padding:5px 7px !important; }
+  .zoom-controls {
+    position:static !important;
+    grid-column:3 / 6 !important;
+    grid-row:1 !important;
+    width:auto !important;
+    grid-template-columns:30px minmax(34px,1fr) 30px !important;
+    grid-template-rows:27px 9px !important;
+    gap:0 3px !important;
+    padding:3px !important;
+    box-shadow:none !important;
+  }
+  .command-actions { display:contents !important; grid-template-columns:none !important; }
+  .command-actions #playButton {
+    grid-column:6 !important;
+    grid-row:1 !important;
+    width:64px !important;
+    min-width:64px !important;
+    height:50px !important;
+    padding:4px !important;
+    font-size:13px !important;
+    justify-self:stretch !important;
+  }
+  .interaction-hint {
+    position:static !important;
+    grid-column:2 / 5 !important;
+    grid-row:2 !important;
+    width:100% !important;
+    height:38px !important;
+    min-height:38px !important;
+    inset:auto !important;
+    transform:none !important;
+    overflow:hidden !important;
+    padding:3px 6px !important;
+    border-radius:10px !important;
+    min-width:0 !important;
+  }
+  .interaction-hint strong { overflow:hidden; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+  .interaction-hint span { display:block; overflow:hidden !important; max-height:none !important; font-size:7px; text-overflow:ellipsis; white-space:nowrap; }
+  .command-actions #headerEraserButton,
+  .command-actions #undoButton,
+  .command-actions #redoButton {
+    position:static !important;
+    display:inline-flex !important;
+    width:42px !important;
+    min-width:42px !important;
+    height:38px !important;
+    min-height:38px !important;
+    align-self:center !important;
+    justify-self:center !important;
+    padding:2px !important;
+    font-size:20px !important;
+  }
+  .command-actions #headerEraserButton { grid-column:1 !important; grid-row:2 !important; }
+  .command-actions #undoButton { grid-column:5 !important; grid-row:2 !important; }
+  .command-actions #redoButton { grid-column:6 !important; grid-row:2 !important; }
+  .toast-region {
+    top:112px !important;
+    right:8px !important;
+    bottom:auto !important;
+    left:8px !important;
+    width:auto !important;
+    min-width:0 !important;
+    z-index:75 !important;
+  }
+
+  .library-selected { grid-template-columns:minmax(112px,38%) minmax(0,1fr) !important; gap:9px !important; padding:9px !important; }
+  .library-selected > .library-preview-open { min-height:132px; }
+  .library-selected-actions { gap:5px !important; }
+  .library-selected-actions:has(> .compact-library-action:not([hidden])) { padding-right:0 !important; }
+  .library-selected-actions > button:not(.compact-library-action),
+  .library-selected-actions > label { flex:0 1 auto; min-width:0; padding-inline:7px; font-size:9px; }
+  .library-selected-actions > .compact-library-action:not([hidden]) {
+    position:static !important;
+    flex:0 0 74px !important;
+    margin-left:auto !important;
+  }
+}
+
+@media (orientation:landscape) {
+  .app-shell { grid-template-columns:136px minmax(0,1fr) !important; grid-template-rows:54px minmax(0,1fr) !important; }
+  .command-bar {
+    grid-template-columns:minmax(108px,136px) minmax(124px,166px) minmax(0,1fr) auto !important;
+    grid-template-rows:46px !important;
+    min-height:54px !important;
+    gap:5px !important;
+  }
+  .player-level-button { grid-column:1 !important; grid-row:1 !important; height:42px !important; padding:4px 6px !important; }
+  .zoom-controls {
+    position:static !important;
+    grid-column:2 !important;
+    grid-row:1 !important;
+    width:auto !important;
+    grid-template-columns:31px minmax(42px,1fr) 31px !important;
+    grid-template-rows:25px 8px !important;
+    gap:0 3px !important;
+    padding:3px !important;
+    box-shadow:none !important;
+  }
+  .interaction-hint {
+    position:static !important;
+    grid-column:3 !important;
+    grid-row:1 !important;
+    width:100% !important;
+    height:42px !important;
+    min-width:0 !important;
+    min-height:42px !important;
+    inset:auto !important;
+    transform:none !important;
+    overflow:hidden !important;
+    padding:3px 7px !important;
+  }
+  .interaction-hint strong,
+  .interaction-hint span { overflow:hidden !important; max-height:none !important; text-overflow:ellipsis; white-space:nowrap; }
+  .command-actions {
+    display:flex !important;
+    grid-column:4 !important;
+    grid-row:1 !important;
+    grid-template-columns:none !important;
+    gap:5px !important;
+  }
+  .command-actions #headerEraserButton {
+    position:fixed !important;
+    top:62px !important;
+    left:208px !important;
+    z-index:83 !important;
+    display:inline-flex !important;
+    width:42px !important;
+    min-width:42px !important;
+    height:42px !important;
+    min-height:42px !important;
+    padding:2px !important;
+    font-size:20px !important;
+  }
+  .command-actions #undoButton,
+  .command-actions #redoButton {
+    position:static !important;
+    display:inline-flex !important;
+    width:42px !important;
+    min-width:42px !important;
+    height:42px !important;
+    min-height:42px !important;
+    padding:2px !important;
+    font-size:20px !important;
+  }
+  .command-actions #playButton {
+    grid-column:auto !important;
+    grid-row:auto !important;
+    width:70px !important;
+    min-width:70px !important;
+    height:42px !important;
+    padding:4px !important;
+    font-size:13px !important;
+  }
+  .toast-region {
+    top:62px !important;
+    right:8px !important;
+    bottom:auto !important;
+    left:144px !important;
+    width:auto !important;
+    min-width:0 !important;
+    z-index:75 !important;
+  }
+
+  .library-selected { grid-template-columns:minmax(180px,260px) minmax(180px,1fr) !important; }
+  .library-selected > .library-preview-open { min-height:170px; }
+  .mobile-category-sheet { top:54px !important; max-height:calc(100dvh - 54px - env(safe-area-inset-bottom)) !important; }
+  .inspector-panel { top:max(62px,env(safe-area-inset-top)) !important; }
+}

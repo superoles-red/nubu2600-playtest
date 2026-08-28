@@ -2660,9 +2660,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'conveyor': addConveyor(room, id, x, y, w, editorDirection(props.direction, 'r'), props.speed || 'slow', props); break;
       case 'bouncePad': (room.bouncePads ||= []).push({ x, y, w, h }); break;
       case 'spike': {
-        const direction=props.direction||'up', runtimeW=['left','right'].includes(direction)?.5:w, runtimeH=['up','down'].includes(direction)?.5:h;
-        const runtimeX=direction==='left'?x+w-runtimeW:x, runtimeY=direction==='up'?y+h-runtimeH:y;
-        addSpike(room, runtimeX, runtimeY, editorSpikeDirection(direction), runtimeW, runtimeH, { ...props, id });
+        const direction=props.direction||'up';
+        addSpike(room, x, y, editorSpikeDirection(direction), w, h, { ...props, id });
         break;
       }
       case 'crusherWall': {
@@ -5866,7 +5865,10 @@ function getHangRefRect(kind, ref) {
   if (kind === 'bullet' || kind === 'cannonBullet') return { x:ref.x, y:ref.y, w:ref.w, h:ref.h, kind, ref };
   return null;
 }
-function rectHitsBlocking(rect, ignoreRef=null) {
+function isOneWayKinematicKind(kind) {
+  return kind === 'mover' || kind === 'smart' || kind === 'drop';
+}
+function rectHitsBlocking(rect, ignoreRef=null, ignoreOneWayKinematics=false) {
   const startX = Math.floor(rect.x / CELL);
   const endX = Math.floor((rect.x + rect.w - 1) / CELL);
   const startY = Math.floor(rect.y / CELL);
@@ -5881,6 +5883,7 @@ function rectHitsBlocking(rect, ignoreRef=null) {
   }
   for (const plat of getKinematicPlatforms()) {
     if (plat.ref === ignoreRef) continue;
+    if (ignoreOneWayKinematics && isOneWayKinematicKind(plat.kind)) continue;
     if (rectsOverlap(rect, plat)) return true;
   }
   return false;
@@ -5957,7 +5960,7 @@ function crushPlayerByKinematic(p, carrierRef=null) {
 }
 function canStandAtDuringCarry(p, x, y, carrierRef=null) {
   const box = { x, y, w:p.w, h:p.h };
-  return !rectHitsBlocking(box, carrierRef);
+  return !rectHitsBlocking(box, carrierRef, true);
 }
 function tryLandOnTopDuringCarry(p, prevY, nextY, carrierRef=null) {
   if (nextY <= prevY) return false;
@@ -6007,7 +6010,7 @@ function applyCarryMotion(p, dx, dy, carrierRef=null) {
   while (remX > 0.0001) {
     const step = Math.min(1, remX) * stepX;
     const test = { x:p.x + step, y:p.y, w:p.w, h:p.h };
-    if (rectHitsBlocking(test, carrierRef)) break;
+    if (rectHitsBlocking(test, carrierRef, true)) break;
     p.x += step;
     remX -= Math.abs(step);
     moved = true;
@@ -6021,7 +6024,7 @@ function applyCarryMotion(p, dx, dy, carrierRef=null) {
       moved = true;
       break;
     }
-    if (rectHitsBlocking(test, carrierRef)) {
+    if (rectHitsBlocking(test, carrierRef, true)) {
       if (stepY < 0 && carrierRef) crushPlayerByKinematic(p, carrierRef);
       else if (stepY < 0) forceDropFromKinematic(p, carrierRef);
       break;
@@ -6276,9 +6279,22 @@ function resolveKinematicPlatformContacts(p) {
     const hadStrongCubeTopPrev = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerPrev, prevSupportRect);
     const hasStrongCubeTopNow = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerNow, nowSupportRect);
     const wasOnTop = prevXOverlap > KINEMATIC_TOP_MIN_OVERLAP && prevBottom <= prev.y + 1.25 && prevBottom >= prev.y - 1.25 && hadStrongCubeTopPrev;
-    // Лифты, трамваи и падающие платформы односторонние: снизу они никогда
-    // не подхватывают игрока и не телепортируют его на верхнюю грань.
-    const pickupFromBelow = false;
+    // Все движущиеся платформы остаются односторонними. Единственное исключение:
+    // лифт, который снизу пересёк стопы стоящего на обычной опоре игрока,
+    // подхватывает его на верхнюю грань. Трамваи и падающие платформы так не делают.
+    const supportedByOrdinaryPlatform = p.onGround
+      && !(p.groundRef && ('dx' in p.groundRef))
+      && supportedBySolid;
+    const pickupFromBelow = plat.kind === 'mover'
+      && !sameGround
+      && !p.hanging
+      && supportedByOrdinaryPlatform
+      && (p.jumpAttachBlockTimer || 0) <= 0
+      && p.vy >= -0.01
+      && plat.dy < -0.01
+      && maxOverlap > KINEMATIC_TOP_MIN_OVERLAP
+      && prev.y > prevBottom + 0.25
+      && plat.y <= nowBottom + 1.5;
 
     if (!sameGround && !wasOnTop && !pickupFromBelow) continue;
     if (!sameGround && !pickupFromBelow && supportedBySolid) continue;
@@ -6307,7 +6323,8 @@ function resolveKinematicPlatformContacts(p) {
       p.kinematicTopResolvedRef = best.ref;
       return;
     }
-    if (best.dy < -0.01) crushPlayerByKinematic(p, best.ref);
+    // Если над игроком нет места, односторонний лифт проходит сквозь него,
+    // не толкая и не раздавливая снизу.
     return;
   }
 
