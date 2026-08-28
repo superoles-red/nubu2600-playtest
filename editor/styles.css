@@ -772,7 +772,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 .level-card-wrap[data-status="submitted"].selected { border-color:var(--library-published) !important; box-shadow:0 0 0 2px color-mix(in srgb,var(--library-published) 30%,transparent) !important; }
 .level-card-wrap[data-status="draft"].selected > .library-selected { border-color:var(--library-draft) !important; background:linear-gradient(145deg,color-mix(in srgb,var(--library-draft) 12%,transparent),rgba(113,152,225,.05)); }
 .level-card-wrap[data-status="submitted"].selected > .library-selected { border-color:var(--library-published) !important; background:linear-gradient(145deg,color-mix(in srgb,var(--library-published) 12%,transparent),rgba(113,152,225,.05)); }
-.level-card-wrap.current::after { content:'Активен' !important; }
+.level-card-wrap.current::after { content:'Активный' !important; }
 .level-card-wrap.selected > .library-selected { margin:0; }
 .library-selected-copy { display:flex; min-width:0; flex-direction:column; }
 .library-title-edit { order:-10; width:100% !important; margin-bottom:7px; }
@@ -848,4 +848,37 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .library-actions { display:flex !important; flex-wrap:wrap !important; }
   .library-filter-row { display:flex !important; flex-wrap:wrap !important; }
   .library-selected { grid-template-columns:minmax(150px,220px) minmax(180px,1fr) !important; }
+}
+
+/* 2026-08-28: strict two-orientation editor. These rules deliberately erase
+   the remaining 1024/1025 layout seam and keep editing commands outside the
+   scrollable field in both universal compositions. */
+.canvas-stage { display:grid !important; place-items:center !important; }
+.canvas-tools, .mobile-edit-controls { display:none !important; }
+.command-actions #headerEraserButton { display:inline-flex !important; align-items:center; justify-content:center; }
+.command-actions > button.active { color:#11180f; border-color:var(--accent); background:var(--accent); }
+.library-source-line .library-source-title select,
+.library-source-line #libraryLobbyButton { height:52px !important; min-height:52px !important; }
+.library-author-controls { display:none !important; }
+
+@media (orientation:portrait) {
+  .app-shell { grid-template-rows:104px minmax(0,1fr) 86px !important; }
+  .command-bar { grid-template-columns:minmax(82px,1fr) minmax(116px,146px) 64px !important; grid-template-rows:50px 38px !important; min-height:104px !important; row-gap:4px !important; }
+  .player-level-button, .zoom-controls { grid-row:1 !important; }
+  .command-actions { display:contents !important; }
+  .command-actions #playButton { grid-column:3 !important; grid-row:1 !important; width:64px !important; min-width:64px !important; height:50px !important; justify-self:stretch !important; }
+  .command-actions #headerEraserButton,
+  .command-actions #undoButton,
+  .command-actions #redoButton { display:inline-flex !important; width:50px !important; min-width:50px !important; height:38px !important; min-height:38px !important; align-items:center !important; justify-content:center !important; padding:2px !important; font-size:20px !important; }
+  .command-actions #headerEraserButton { grid-column:1 !important; grid-row:2 !important; justify-self:center !important; }
+  .command-actions #undoButton { grid-column:2 !important; grid-row:2 !important; justify-self:center !important; }
+  .command-actions #redoButton { grid-column:3 !important; grid-row:2 !important; justify-self:center !important; }
+  .interaction-hint { top:calc(110px + env(safe-area-inset-top)) !important; }
+  .mobile-category-sheet { max-height:calc(100dvh - 104px - 86px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important; }
+}
+
+@media (orientation:landscape) {
+  .command-actions #headerEraserButton,
+  .command-actions #undoButton,
+  .command-actions #redoButton { display:inline-flex !important; width:42px !important; min-width:42px !important; height:42px !important; min-height:42px !important; padding:2px !important; font-size:20px !important; }
 }

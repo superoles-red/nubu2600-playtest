@@ -2833,6 +2833,8 @@ function startEditorPlaytest(payload) {
   document.getElementById('editorPlaytestLabel').textContent = payload.testSpawn ? 'Тест отсюда · без зачёта' : `Проверка · ${payload.level.title}`;
   updateHUD();
   pushMsg(payload.testSpawn ? 'ТЕСТ ОТСЮДА' : 'ПРОХОЖДЕНИЕ ОТ ВХОДА', '#e7ff72', 1.2);
+  canvas.tabIndex = -1;
+  requestAnimationFrame(() => { window.focus();canvas.focus({ preventScroll:true }); });
 }
 function restartEditorPlaytest() {
   if (!state.editorPlaytest) return;
@@ -2845,6 +2847,7 @@ function restartEditorPlaytest() {
   showOverlay(null);
   updateHUD();
   pushMsg('НОВАЯ ПОПЫТКА', '#e7ff72', 0.9);
+  requestAnimationFrame(() => { window.focus();canvas.focus({ preventScroll:true }); });
 }
 function finishEditorPlaytest() {
   if (!state.editorPlaytest) return false;
@@ -14182,6 +14185,12 @@ window.addEventListener('message', event => {
       playFrame.onload = null;
       playFrame.style.visibility = '';
       shell.classList.add('playtesting');
+      requestAnimationFrame(() => {
+        playFrame.focus({ preventScroll:true });
+        playFrame.contentWindow?.focus();
+        const gameCanvas=playFrame.contentDocument?.getElementById('game');
+        if(gameCanvas){gameCanvas.tabIndex=-1;gameCanvas.focus({ preventScroll:true });}
+      });
     };
     playFrame.src = target.href;
     return;
