@@ -123,9 +123,9 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .size-rail[hidden] { display: none !important; }
 .panel-topology-controls { position: absolute; z-index: 23; inset: 0; pointer-events: none; }
 .panel-topology-controls[hidden] { display: none; }
-.panel-control { position: absolute; display: grid; width: 36px; min-width: 36px; height: 36px; min-height: 36px; place-items: center; padding: 0; transform: translate(-50%,-50%); border: 2px solid var(--panel-control-color,#7dffad); border-radius: 50%; color: #f5fff9; background: rgba(7,16,12,.94); box-shadow: 0 5px 16px rgba(0,0,0,.48); font: 900 23px/1 var(--font); pointer-events: auto; }
-.panel-control[data-panel-remove] { --panel-control-color: #ff8c9b; width: 32px; min-width: 32px; height: 32px; min-height: 32px; font-size: 20px; }
-.panel-control:disabled { opacity: .3; filter: grayscale(.8); cursor: not-allowed; }
+.panel-control { position: absolute; display: grid; width: 44px; min-width: 44px; height: 44px; min-height: 44px; place-items: center; padding: 0; transform: translate(-50%,-50%); border: 2px solid var(--panel-control-color,#7dffad); border-radius: 50%; color: #f5fff9; background: rgba(7,16,12,.94); box-shadow: 0 5px 16px rgba(0,0,0,.48); font: 900 23px/1 var(--font); pointer-events: auto; touch-action: manipulation; }
+.panel-control[data-panel-remove] { --panel-control-color: #ff8c9b; font-size: 20px; }
+.panel-control:disabled { opacity: .3; filter: grayscale(.8); transform: translate(-50%,-50%); cursor: not-allowed; }
 .panel-shape-summary { margin: 7px 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
 .editor-loading-veil { position: absolute; z-index: 30; inset: 0; display: none; align-items: center; justify-content: center; gap: 10px; color: var(--text); background: rgba(4,9,7,.72); backdrop-filter: blur(3px); pointer-events: auto; }
 .editor-loading-veil.visible { display: flex; }
@@ -143,7 +143,7 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .context-toolbar[data-side="below"]::after { left: var(--context-anchor-x); bottom: 100%; width: 2px; height: 14px; transform: translateX(-50%); }
 .context-toolbar[data-side="left"]::after { left: 100%; top: var(--context-anchor-y); width: 14px; height: 2px; transform: translateY(-50%); }
 .context-toolbar[data-side="right"]::after { right: 100%; top: var(--context-anchor-y); width: 14px; height: 2px; transform: translateY(-50%); }
-.context-toolbar .context-icon-button { display: grid; width: var(--context-control-size); min-width: var(--context-control-size); height: var(--context-control-size); min-height: var(--context-control-size); place-items: center; padding: 0; border: 2px solid var(--context-color,var(--line-bright)); border-radius: 50%; color: var(--context-ink,var(--text)); background: color-mix(in srgb,var(--context-color,var(--panel-3)) 50%,transparent); box-shadow: 0 5px 14px rgba(0,0,0,.46); font: 900 22px/1 var(--font); }
+.context-toolbar .context-icon-button { display: grid; width: var(--context-control-size); min-width: var(--context-control-size); height: var(--context-control-size); min-height: var(--context-control-size); place-items: center; padding: 0; border: 2px solid var(--context-color,var(--line-bright)); border-radius: 50%; color: var(--context-ink,var(--text)); background: color-mix(in srgb,var(--context-color,var(--panel-3)) 50%,transparent); box-shadow: 0 5px 14px rgba(0,0,0,.46); font: 900 22px/1 var(--font); touch-action: manipulation; }
 .context-toolbar .context-icon-button.is-active { color: var(--context-active-ink,#11180f); background: color-mix(in srgb,var(--context-color,var(--accent)) 50%,transparent); }
 .context-toolbar .context-rotate { --context-color: var(--accent); --context-ink: #11180f; background: color-mix(in srgb,var(--accent) 50%,transparent); font-size: 28px; }
 .context-toolbar .context-link { --context-color: #65ff9a; --context-active-ink: #07110c; }
@@ -744,8 +744,9 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 .mobile-category-button.active { color:#11180f; border-color:var(--accent); background:var(--accent); }
 .mobile-category-button span { font-size:20px; line-height:1; }
 .mobile-category-button small { font-size:7px; font-weight:900; }
-.mobile-category-sheet { position:fixed !important; z-index:70; display:none; height:auto !important; overflow:hidden; border:1px solid var(--line-bright); background:rgba(10,18,15,.99); box-shadow:var(--shadow); }
+.mobile-category-sheet { position:fixed !important; z-index:70; display:none; height:auto !important; overflow:hidden; border:1px solid var(--line-bright); background:rgba(10,18,15,.82); box-shadow:var(--shadow); backdrop-filter:blur(7px); transition:opacity .14s ease,filter .14s ease; }
 .mobile-category-sheet.open { display:flex !important; flex-direction:column; animation:none !important; }
+.mobile-category-sheet.drag-hidden { opacity:0; filter:blur(2px); pointer-events:none; }
 .mobile-category-sheet > header { display:flex; min-height:48px; flex:0 0 auto; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border-bottom:1px solid var(--line); }
 .mobile-category-sheet > header div { display:flex; min-width:0; flex-direction:column; }
 .mobile-category-sheet > header small { color:var(--muted); font-size:8px; }
@@ -1161,10 +1162,10 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
      Pointer gestures are resolved in editor.js so swiping directly on a card
      can scroll the ribbon while a deliberate long press still starts a drag. */
   .mobile-category-items {
-    grid-template-columns:none !important;
+    grid-template-columns:repeat(var(--portrait-palette-columns,1),96px) !important;
     grid-template-rows:repeat(2,96px) !important;
-    grid-auto-flow:column !important;
-    grid-auto-columns:96px !important;
+    grid-auto-flow:row !important;
+    grid-auto-columns:auto !important;
     grid-auto-rows:auto !important;
     align-content:start !important;
     justify-content:start !important;
