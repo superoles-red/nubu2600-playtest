@@ -16,11 +16,14 @@
     --danger:#ff7f96;
     --gold:#ffd76f;
     --move-btn-h:min(17vw,76px);
+    --move-cluster-w:min(46vw,260px);
+    --move-btn-w:calc((var(--move-cluster-w) - 10px) / 2);
   }
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020712;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;touch-action:none} body{position:fixed;inset:0;}
   body{user-select:none;-webkit-user-select:none}
-  #app{position:fixed;inset:0}
+  #app{position:fixed;inset:0;opacity:1;will-change:opacity;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
+  #app.runtime-surface-leaving,#app.runtime-surface-entering{opacity:0;pointer-events:none}
   canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#081428}
   .hud{position:fixed;inset:0;pointer-events:none;z-index:10}
   .hud-top{position:absolute;left:max(10px, env(safe-area-inset-left));right:max(10px, env(safe-area-inset-right));top:max(10px, env(safe-area-inset-top));display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
@@ -43,21 +46,21 @@
   .tip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px 14px;line-height:1.35;color:#d8def1}
   .controls{position:fixed;inset:auto max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));height:min(34vh,240px);z-index:20;pointer-events:none;display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
   .control-left,.control-right{pointer-events:auto}
-  .control-left{display:flex;gap:10px;align-items:flex-end;min-width:min(46vw,260px);max-width:min(46vw,320px)}
+  .control-left{display:flex;gap:10px;align-items:flex-end;width:var(--move-cluster-w);min-width:var(--move-cluster-w);max-width:var(--move-cluster-w)}
   .move-btn{flex:1 1 0;min-width:0;height:var(--move-btn-h);border-radius:22px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg, rgba(60,72,108,.23), rgba(18,22,36,.23));box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.20);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.78);font-weight:900;font-size:30px;letter-spacing:.04em;pointer-events:auto}
   .move-btn.active{background:linear-gradient(180deg, rgba(120,156,255,.31), rgba(40,56,98,.31));color:#fff}
-  .control-right{flex:1 1 auto;height:100%;border-radius:28px;position:relative;min-width:min(36vw,320px)}
-  .jump-zone{position:absolute;inset:0;border-radius:28px;background:linear-gradient(180deg, rgba(132,223,255,.06), rgba(132,223,255,.02));border:1px dashed rgba(132,223,255,.10);opacity:.34}
-  .jump-label{position:absolute;right:16px;bottom:14px;color:rgba(255,255,255,.7);font-weight:800;font-size:14px;letter-spacing:.08em}
+  .control-right{flex:1 1 auto;height:100%;position:relative;min-width:min(36vw,320px)}
+  .jump-zone{position:absolute;right:0;bottom:0;width:var(--move-btn-w);height:var(--move-btn-h);border-radius:22px;background:linear-gradient(180deg, rgba(60,72,108,.27), rgba(18,22,36,.27));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(0,0,0,.20);pointer-events:none}
+  .jump-label{position:absolute;right:0;bottom:0;display:grid;width:var(--move-btn-w);height:var(--move-btn-h);place-items:center;color:rgba(255,255,255,.78);font-weight:900;font-size:12px;letter-spacing:.06em;pointer-events:none}
 
   @media (orientation:landscape) and (pointer:coarse){
-    :root{--move-btn-h:min(12.4vw,65px);--move-btn-w:calc(var(--move-btn-h) * 1.5)}
+    :root{--move-btn-h:min(12.4vw,65px);--move-btn-w:calc(var(--move-btn-h) * 1.5);--move-cluster-w:calc(var(--move-btn-w) * 2 + 12px)}
     .controls{height:min(22vh,124px);gap:12px;inset:auto max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left))}
     .control-left{min-width:calc(var(--move-btn-w) * 2 + 12px);max-width:calc(var(--move-btn-w) * 2 + 12px);gap:12px}
     .move-btn{flex:0 0 var(--move-btn-w);width:var(--move-btn-w);height:var(--move-btn-h);border-radius:22px;font-size:26px}
-    .control-right{flex:0 0 min(23.5vw,210px);min-width:min(23.5vw,210px);max-width:min(23.5vw,210px);border-radius:24px}
-    .jump-zone{border-radius:24px}
-    .jump-label{right:14px;bottom:12px;font-size:13px}
+    .control-right{flex:0 0 min(23.5vw,210px);min-width:min(23.5vw,210px);max-width:min(23.5vw,210px)}
+    .jump-zone{border-radius:22px}
+    .jump-label{font-size:11px}
   }
   .rulers-overlay{position:fixed;inset:0;pointer-events:none;z-index:60;font-size:11px;font-weight:700;color:rgba(236,243,255,.94);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   .ruler-top,.ruler-left{position:absolute;pointer-events:none}
@@ -80,8 +83,11 @@
   .confirm-actions .action{flex:1 1 0}
 
 
-  #pauseOverlay{padding:max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))}
-  #pauseOverlay .panel{width:min(88vw,420px);max-width:420px;max-height:min(82vh,620px);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:flex-start;padding:16px 16px 14px;border-radius:20px}
+  #pauseOverlay{z-index:90;padding:max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))}
+  #lobbyConfirmOverlay{z-index:300}
+  #lobbyConfirmOverlay .panel{width:min(90vw,390px);text-align:center}
+  #lobbyConfirmOverlay .confirm-actions{margin-top:18px}
+  #pauseOverlay .panel{width:min(88vw,420px);max-width:420px;max-height:min(82vh,620px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:flex-start;padding:16px 16px 14px;border-radius:20px}
   #pauseOverlay .title{font-size:clamp(24px,4.6vw,34px);text-align:center}
   #pauseOverlay .btns{margin-top:12px;gap:8px}
   #pauseOverlay button.action{min-height:50px;font-size:17px;padding:10px 14px;border-radius:16px}
@@ -106,10 +112,10 @@
   }
 
   @media (hover:hover) and (pointer:fine){.controls{display:none}}
-  .editor-playtest-bar{position:fixed;z-index:70;top:max(8px, env(safe-area-inset-top));right:max(72px, calc(env(safe-area-inset-right) + 72px));display:flex;align-items:center;gap:8px;max-width:calc(100vw - 150px);padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px)}
-  .editor-playtest-bar span{max-width:min(46vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:#e7ff72}
-  .editor-playtest-bar button{min-height:40px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;background:#24324d;color:#fff;font:800 14px system-ui}
-  body.editor-playtest .hud-card{display:none}
+  .editor-playtest-bar{position:fixed;z-index:70;top:max(8px,env(safe-area-inset-top));left:50%;display:grid;width:min(620px,calc(100vw - max(16px,env(safe-area-inset-left)) - max(16px,env(safe-area-inset-right))));grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:6px;padding:6px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px);transform:translateX(-50%)}
+  .editor-playtest-bar span{display:none}
+  .editor-playtest-bar button{min-width:0;min-height:44px;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:7px 5px;background:#24324d;color:#fff;font:800 clamp(10px,2.9vw,14px)/1 system-ui;text-overflow:ellipsis;white-space:nowrap}
+  body.editor-playtest .hud-card,body.editor-playtest #menuBtn{display:none}
   html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
   img,canvas{-webkit-user-drag:none}
   .editor-shell{position:fixed;z-index:200;inset:0;opacity:1;background:#07100d;will-change:opacity;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
@@ -128,9 +134,9 @@
   .editor-bridge-transition.show::before,.editor-bridge-transition.show::after{transform:translateX(0)}
   .editor-bridge-card{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;min-width:min(74vw,300px);padding:22px 26px;border:1px solid rgba(231,255,114,.3);border-radius:20px;background:rgba(5,12,9,.9);box-shadow:0 24px 70px rgba(0,0,0,.48);text-align:center}
   .editor-bridge-card span{font-size:30px;color:#e7ff72}.editor-bridge-card b{font:900 clamp(18px,4vw,25px)/1.1 system-ui}.editor-bridge-card small{font:700 12px/1.2 system-ui;color:#9fb6aa}
-  @media (prefers-reduced-motion:reduce){.editor-shell,.editor-shell #editorPlaytestFrame,.editor-bridge-transition,.editor-bridge-transition::before,.editor-bridge-transition::after{transition:none!important}}
-  body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto;left:max(8px,env(safe-area-inset-left));max-width:none;justify-content:flex-end}
-  @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;left:max(6px,env(safe-area-inset-left));max-width:none}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px;padding-inline:9px}}
+  @media (prefers-reduced-motion:reduce){#app,.editor-shell,.editor-shell #editorPlaytestFrame,.editor-bridge-transition,.editor-bridge-transition::before,.editor-bridge-transition::after{transition:none!important}}
+  @media (pointer:coarse){.editor-playtest-bar{top:max(6px,env(safe-area-inset-top));width:calc(100vw - max(12px,env(safe-area-inset-left)) - max(12px,env(safe-area-inset-right)));gap:5px;padding:5px}.editor-playtest-bar button{min-height:44px;padding-inline:4px}}
+  @media (max-width:340px) and (pointer:coarse){.editor-playtest-bar button{padding-inline:2px;font-size:9.5px}}
 </style>
 <link rel="manifest" href="manifest.webmanifest?v=3e228b05a119">
 <meta name="theme-color" content="#111b18">
@@ -168,9 +174,10 @@
   </div>
   <div class="editor-playtest-bar hidden" id="editorPlaytestBar">
     <span id="editorPlaytestLabel">Тест уровня</span>
-    <button id="editorRestartBtn" type="button">↻ Заново</button>
-    <button id="editorReturnBtn" type="button">← В редактор</button>
-    <button id="editorLobbyBtn" type="button">В лобби</button>
+    <button id="editorMenuBtn" type="button" aria-label="Открыть меню паузы">≡ Меню</button>
+    <button id="editorRestartBtn" type="button" aria-label="Начать проверку заново">↻ Заново</button>
+    <button id="editorReturnBtn" type="button" aria-label="Вернуться в редактор">← Редактор</button>
+    <button id="editorLobbyBtn" type="button" aria-label="Выйти в лобби">⌂ Лобби</button>
   </div>
 </div>
 
@@ -250,6 +257,17 @@
       <button class="action secondary hidden" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
       <button class="action secondary" id="pauseEditorBtn">В редактор</button>
       <button class="action secondary" id="pauseLobbyBtn">В лобби</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="lobbyConfirmOverlay" aria-hidden="true">
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="lobbyConfirmTitle" aria-describedby="lobbyConfirmText">
+    <h1 class="title" id="lobbyConfirmTitle">Выйти в лобби?</h1>
+    <p class="subtitle" id="lobbyConfirmText">Текущая проверка или игра будет остановлена.</p>
+    <div class="confirm-actions">
+      <button class="action secondary" id="lobbyConfirmCancelBtn" type="button">Остаться</button>
+      <button class="action" id="lobbyConfirmAcceptBtn" type="button">Выйти в лобби</button>
     </div>
   </div>
 </div>
@@ -2915,6 +2933,10 @@ let editorSurfaceTransitionBusy = false;
 let editorBridgeTransitionToken = 0;
 let editorBridgeTransitionStartedAt = 0;
 let embeddedEditorBackgroundPaused = false;
+let lobbyConfirmAction = null;
+let lobbyConfirmReturnFocus = null;
+let lobbyConfirmPreviousMode = 'playing';
+let lobbyConfirmHadPauseOverlay = false;
 const EDITOR_SURFACE_FADE_MS = 180;
 function prefersReducedEditorMotion() {
   return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -2928,6 +2950,7 @@ function setEditorAccessibleSurface(surfaceName) {
   const shell = document.getElementById('editorShell');
   const editorFrame = document.getElementById('editorFrame');
   const playFrame = document.getElementById('editorPlaytestFrame');
+  const lobbyConfirm = document.getElementById('lobbyConfirmOverlay');
   const setActive = (element, active) => {
     if (!element) return;
     if (active) {
@@ -2943,7 +2966,9 @@ function setEditorAccessibleSurface(surfaceName) {
   setActive(editorFrame, surfaceName === 'editor');
   setActive(playFrame, surfaceName === 'nested-play');
   for (const overlay of document.querySelectorAll('.overlay')) {
-    setActive(overlay, surfaceName === 'app' && overlay.classList.contains('show'));
+    setActive(overlay, surfaceName === 'lobby-confirm'
+      ? overlay === lobbyConfirm
+      : surfaceName === 'app' && overlay.classList.contains('show'));
   }
   document.documentElement.dataset.editorAccessibleSurface = surfaceName;
 }
@@ -2957,9 +2982,15 @@ function setEditorSurfaceState(stateName, busy=editorSurfaceTransitionBusy) {
   shell?.setAttribute('aria-busy', String(!!busy));
   app?.setAttribute('aria-busy', String(!!busy));
   const controls = [
+    document.getElementById('openEditorBtn'),
+    document.getElementById('pauseEditorBtn'),
+    document.getElementById('pauseLobbyBtn'),
+    document.getElementById('editorMenuBtn'),
     document.getElementById('editorRestartBtn'),
     document.getElementById('editorReturnBtn'),
     document.getElementById('editorLobbyBtn'),
+    document.getElementById('lobbyConfirmAcceptBtn'),
+    document.getElementById('lobbyConfirmCancelBtn'),
   ];
   for (const control of controls) {
     if (!control) continue;
@@ -3011,6 +3042,8 @@ function waitForEditorSurfaceTransition(element, token, callback) {
 }
 document.documentElement.dataset.editorBridgeState = 'runtime';
 document.documentElement.dataset.editorBridgeBusy = 'false';
+document.documentElement.dataset.editorPendingOpen = 'false';
+document.documentElement.dataset.lobbyConfirm = 'closed';
 document.getElementById('editorShell')?.setAttribute('aria-busy', 'false');
 document.getElementById('app')?.setAttribute('aria-busy', 'false');
 setEditorAccessibleSurface('app');
@@ -3059,20 +3092,50 @@ function preloadEmbeddedEditor() {
   const frame = document.getElementById('editorFrame');
   if (frame && !frame.src) frame.src = editorUrlFromRuntime();
 }
-function revealEmbeddedEditor({ finishTransition=true }={}) {
+function setEmbeddedEditorPendingOpen(pending) {
+  document.documentElement.dataset.editorPendingOpen = pending ? 'true' : 'false';
+  for (const id of [
+    'openEditorBtn', 'pauseEditorBtn', 'startBtn', 'startTestBtn',
+    'worldPrevBtn', 'worldNextBtn', 'startConfirmYesBtn', 'startConfirmNoBtn',
+    'resumeBtn', 'retryRoomBtn', 'nextRoomBtn', 'restartRunBtn',
+    'restartEpisodeBtn', 'restartTestLevelBtn', 'pauseLobbyBtn',
+  ]) {
+    const control = document.getElementById(id);
+    if (!control) continue;
+    if (pending) {
+      if (!control.hasAttribute('data-editor-pending-was-disabled')) control.dataset.editorPendingWasDisabled = control.disabled ? 'true' : 'false';
+      control.disabled = true;
+      control.setAttribute('aria-busy', 'true');
+    } else if (control.hasAttribute('data-editor-pending-was-disabled')) {
+      control.disabled = control.dataset.editorPendingWasDisabled === 'true';
+      control.removeAttribute('aria-busy');
+      delete control.dataset.editorPendingWasDisabled;
+    }
+  }
+}
+function revealEmbeddedEditor() {
   const shell = document.getElementById('editorShell');
-  if (!shell) return;
+  if (!shell || editorSurfaceTransitionBusy) return;
+  embeddedEditorPendingOpen = false;
+  setEmbeddedEditorPendingOpen(false);
+  const surfaceToken = beginEditorSurfaceTransition('editor-open-start', 'nubu-editor-open-transition-start');
+  if (!surfaceToken) return;
   const playFrame = document.getElementById('editorPlaytestFrame');
   if (!playFrame || playFrame.src === 'about:blank') shell.classList.remove('playtesting');
-  shell.classList.remove('editor-surface-entering', 'editor-surface-leaving', 'editor-nested-returning');
+  shell.classList.remove('editor-surface-leaving', 'editor-nested-returning');
+  shell.classList.add('editor-surface-entering');
   shell.classList.remove('hidden');
-  setEditorAccessibleSurface('editor');
-  embeddedEditorPendingOpen = false;
   clearActiveInput();
-  focusEmbeddedEditor();
-  if (finishTransition) afterEditorBridgePaint(() => {
-    setEditorSurfaceState('editor', false);
-    finishEditorBridgeTransition();
+  void shell.offsetWidth;
+  setEditorSurfaceState('editor-frame-ready', true);
+  markEditorSurface('nubu-editor-open-frame-ready');
+  shell.classList.remove('editor-surface-entering');
+  waitForEditorSurfaceTransition(shell, surfaceToken, () => {
+    state.mode = 'editor';
+    showOverlay(null);
+    markEditorSurface('nubu-editor-open-frame-visible');
+    finishEditorSurfaceTransition(surfaceToken, 'editor', 'nubu-editor-open-transition-complete');
+    focusEmbeddedEditor();
   });
 }
 function openLevelEditor() {
@@ -3093,10 +3156,11 @@ function openLevelEditor() {
     window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
     return;
   }
+  if (embeddedEditorPendingOpen) return;
   setEmbeddedEditorBackgroundPaused(false);
-  beginEditorBridgeTransition('Открываю редактор');
   preloadEmbeddedEditor();
   embeddedEditorPendingOpen = true;
+  setEmbeddedEditorPendingOpen(true);
   if (embeddedEditorReady) revealEmbeddedEditor();
 }
 function clearEmbeddedEditorPlaytest() {
@@ -3171,7 +3235,45 @@ function resumeEmbeddedEditorAfterPlaytest({ direct=false, clearNested=false }={
   editorFrame.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
   embeddedEditorResumeTimer = setTimeout(() => completeEmbeddedEditorResume(token), 1600);
 }
-function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;const editorFrame=document.getElementById('editorFrame'),playFrame=document.getElementById('editorPlaytestFrame'),playFrameSource=playFrame?.getAttribute('src')||'',playtestActive=embeddedEditorDirectPlaytest||shell.classList.contains('playtesting')||(playFrameSource&&playFrameSource!=='about:blank');embeddedEditorPendingOpen=false;clearTimeout(embeddedEditorResumeTimer);embeddedEditorResumeTimer=0;if(playtestActive)editorFrame?.contentWindow?.postMessage({type:'nubu:resume-after-playtest'},window.location.origin);if(embeddedEditorDirectPlaytest)resetDirectEditorPlaytestState();clearEmbeddedEditorPlaytest();shell.classList.add('hidden');setEditorAccessibleSurface('app');returnToStartMenu();afterEditorBridgePaint(()=>document.getElementById('openEditorBtn')?.focus({preventScroll:true}));finishEditorBridgeTransition();}
+function closeEmbeddedEditor() {
+  const shell = document.getElementById('editorShell');
+  if (!shell || editorSurfaceTransitionBusy) return;
+  const surfaceToken = beginEditorSurfaceTransition('editor-lobby-start', 'nubu-lobby-transition-start');
+  if (!surfaceToken) return;
+  const editorFrame = document.getElementById('editorFrame');
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  const playFrameSource = playFrame?.getAttribute('src') || '';
+  const playtestActive = embeddedEditorDirectPlaytest || shell.classList.contains('playtesting') || (playFrameSource && playFrameSource !== 'about:blank');
+  embeddedEditorPendingOpen = false;
+  setEmbeddedEditorPendingOpen(false);
+  clearTimeout(embeddedEditorResumeTimer);
+  embeddedEditorResumeTimer = 0;
+  setEmbeddedEditorBackgroundPaused(false);
+  if (playtestActive) editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
+  returnToStartMenu();
+  render();
+  setEditorSurfaceState('lobby-frame-ready', true);
+  markEditorSurface('nubu-lobby-frame-ready');
+  const complete = () => {
+    if (embeddedEditorDirectPlaytest) {
+      resetDirectEditorPlaytestState();
+      state.mode = 'start';
+    }
+    clearEmbeddedEditorPlaytest();
+    shell.classList.add('hidden');
+    shell.classList.remove('editor-surface-entering', 'editor-surface-leaving', 'editor-nested-returning');
+    finishEditorSurfaceTransition(surfaceToken, 'runtime', 'nubu-lobby-transition-complete');
+    afterEditorBridgePaint(() => document.getElementById('openEditorBtn')?.focus({ preventScroll:true }));
+  };
+  if (shell.classList.contains('hidden')) {
+    queueMicrotask(complete);
+    return;
+  }
+  shell.classList.remove('editor-surface-entering', 'editor-nested-returning');
+  void shell.offsetWidth;
+  shell.classList.add('editor-surface-leaving');
+  waitForEditorSurfaceTransition(shell, surfaceToken, complete);
+}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -3258,22 +3360,108 @@ function startEmbeddedEditorPlaytest(payload) {
     canvas.focus({ preventScroll:true });
   });
 }
-function leaveDirectEditorPlaytestToLobby() {
+function transitionRuntimeToLobby(cleanup=()=>{}) {
   if (editorSurfaceTransitionBusy) return;
-  const transitionToken = beginEditorBridgeTransition('Возвращаюсь в лобби');
-  const editorFrame = document.getElementById('editorFrame');
-  setEmbeddedEditorBackgroundPaused(false);
-  editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
-  resetDirectEditorPlaytestState();
-  const shell = document.getElementById('editorShell');
-  clearEmbeddedEditorPlaytest();
-  shell?.classList.add('hidden');
-  setEditorAccessibleSurface('app');
-  returnToStartMenu();
-  afterEditorBridgePaint(() => {
-    document.getElementById('openEditorBtn')?.focus({ preventScroll:true });
-    finishEditorBridgeTransition(transitionToken);
+  const app = document.getElementById('app');
+  if (!app) return;
+  const transitionToken = beginEditorSurfaceTransition('runtime-lobby-start', 'nubu-lobby-transition-start');
+  if (!transitionToken) return;
+  app.classList.remove('runtime-surface-entering', 'runtime-surface-leaving');
+  void app.offsetWidth;
+  app.classList.add('runtime-surface-leaving');
+  waitForEditorSurfaceTransition(app, transitionToken, () => {
+    cleanup();
+    returnToStartMenu();
+    render();
+    setEditorSurfaceState('lobby-frame-ready', true);
+    markEditorSurface('nubu-lobby-frame-ready');
+    app.classList.remove('runtime-surface-leaving');
+    app.classList.add('runtime-surface-entering');
+    void app.offsetWidth;
+    app.classList.remove('runtime-surface-entering');
+    waitForEditorSurfaceTransition(app, transitionToken, () => {
+      app.classList.remove('runtime-surface-entering', 'runtime-surface-leaving');
+      finishEditorSurfaceTransition(transitionToken, 'runtime', 'nubu-lobby-transition-complete');
+      document.getElementById('openEditorBtn')?.focus({ preventScroll:true });
+    });
   });
+}
+function leaveDirectEditorPlaytestToLobby() {
+  transitionRuntimeToLobby(() => {
+    const editorFrame = document.getElementById('editorFrame');
+    setEmbeddedEditorBackgroundPaused(false);
+    editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
+    resetDirectEditorPlaytestState();
+    clearEmbeddedEditorPlaytest();
+    document.getElementById('editorShell')?.classList.add('hidden');
+  });
+}
+function leaveCurrentRuntimeToLobby() {
+  if (state.editorPlaytest) {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type:'nubu:close-editor' }, window.location.origin);
+      return;
+    }
+    if (embeddedEditorDirectPlaytest) {
+      leaveDirectEditorPlaytestToLobby();
+      return;
+    }
+    transitionRuntimeToLobby(() => {
+      state.editorPlaytest = null;
+      document.body.classList.remove('editor-playtest');
+      document.getElementById('editorPlaytestBar')?.classList.add('hidden');
+      const lobbyUrl = new URL(window.location.href);
+      lobbyUrl.search = '';
+      lobbyUrl.hash = '';
+      history.replaceState(history.state, '', lobbyUrl.href);
+    });
+    return;
+  }
+  transitionRuntimeToLobby();
+}
+function requestLobbyExit() {
+  if (editorSurfaceTransitionBusy) return;
+  const overlay = document.getElementById('lobbyConfirmOverlay');
+  if (!overlay || overlay.classList.contains('show')) return;
+  const text = document.getElementById('lobbyConfirmText');
+  if (text) text.textContent = state.editorPlaytest
+    ? 'Проверка уровня будет остановлена. Вернуться в лобби?'
+    : 'Текущая игра будет остановлена. Вернуться в лобби?';
+  lobbyConfirmPreviousMode = state.mode;
+  lobbyConfirmReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  lobbyConfirmAction = leaveCurrentRuntimeToLobby;
+  const pauseOverlay = document.getElementById('pauseOverlay');
+  lobbyConfirmHadPauseOverlay = !!pauseOverlay?.classList.contains('show');
+  pauseOverlay?.classList.remove('show');
+  state.mode = 'pause';
+  clearActiveInput();
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.documentElement.dataset.lobbyConfirm = 'open';
+  setEditorAccessibleSurface('lobby-confirm');
+  requestAnimationFrame(() => document.getElementById('lobbyConfirmCancelBtn')?.focus({ preventScroll:true }));
+}
+function closeLobbyConfirm(confirmed) {
+  const overlay = document.getElementById('lobbyConfirmOverlay');
+  if (!overlay || !overlay.classList.contains('show')) return;
+  const action = lobbyConfirmAction;
+  const returnFocus = lobbyConfirmReturnFocus;
+  lobbyConfirmAction = null;
+  lobbyConfirmReturnFocus = null;
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.documentElement.dataset.lobbyConfirm = confirmed ? 'accepted' : 'cancelled';
+  if (confirmed) {
+    lobbyConfirmHadPauseOverlay = false;
+    setEditorAccessibleSurface('none');
+    requestAnimationFrame(() => action?.());
+    return;
+  }
+  state.mode = lobbyConfirmPreviousMode;
+  if (lobbyConfirmHadPauseOverlay) document.getElementById('pauseOverlay')?.classList.add('show');
+  lobbyConfirmHadPauseOverlay = false;
+  setEditorAccessibleSurface('app');
+  requestAnimationFrame(() => returnFocus?.focus?.({ preventScroll:true }));
 }
 function restartEditorPlaytest() {
   if (!state.editorPlaytest) return;
@@ -14444,7 +14632,9 @@ function drawCollisionDebugOverlay() {
 function consumeJumpPress() { const v = state.jumpPressQueued; state.jumpPressQueued = false; return v; }
 
 window.addEventListener('keydown', (e) => {
+  if (document.getElementById('lobbyConfirmOverlay')?.classList.contains('show')) return;
   if (['ArrowLeft', 'ArrowRight', 'Space', 'Enter'].includes(e.code)) e.preventDefault();
+  if (embeddedEditorPendingOpen || editorSurfaceTransitionBusy) return;
   if (e.repeat && e.code === 'Space') return;
   state.keys.add(e.code);
   if (e.code === 'Space') state.jumpPressQueued = true;
@@ -14631,16 +14821,36 @@ window.addEventListener('message', event => {
     return;
   }
   if (event.data.type === 'nubu:start-editor-playtest' && event.source === editorFrame?.contentWindow) {
-    if (editorSurfaceTransitionBusy || embeddedEditorDirectPlaytest) return;
+    const attemptId = event.data.payload?.attemptId || null;
+    const reply = (accepted, message='') => editorFrame?.contentWindow?.postMessage({
+      type:accepted ? 'nubu:editor-playtest-accepted' : 'nubu:editor-playtest-rejected',
+      attemptId,
+      message,
+    }, window.location.origin);
+    if (editorSurfaceTransitionBusy || embeddedEditorDirectPlaytest) {
+      reply(false, 'Переход ещё не завершён. Нажмите Play ещё раз.');
+      return;
+    }
     if (isEditorPlaytestPayload(event.data.payload)) {
+      reply(true);
       startEmbeddedEditorPlaytest(event.data.payload);
       return;
     }
     let target;
-    try { target = new URL(event.data.url, window.location.href); } catch (error) { return; }
-    if (target.origin !== window.location.origin || !playFrame || !shell) return;
+    try { target = new URL(event.data.url, window.location.href); } catch (error) {
+      reply(false, 'Некорректная ссылка проверки.');
+      return;
+    }
+    if (target.origin !== window.location.origin || !playFrame || !shell) {
+      reply(false, 'Не удалось подготовить окно проверки.');
+      return;
+    }
     const transitionToken = beginEditorSurfaceTransition('play-start', 'nubu-editor-play-transition-start');
-    if (!transitionToken) return;
+    if (!transitionToken) {
+      reply(false, 'Переход ещё не завершён.');
+      return;
+    }
+    reply(true);
     setEmbeddedEditorBackgroundPaused(true);
     const loadToken = ++embeddedEditorPlaytestLoadToken;
     shell.classList.remove('playtesting');
@@ -14677,13 +14887,17 @@ window.addEventListener('message', event => {
     if (embeddedEditorResumeTimer) completeEmbeddedEditorResume();
     return;
   }
-  if (event.data.type === 'nubu:close-editor') closeEmbeddedEditor();
+  if (event.data.type === 'nubu:close-editor' && (event.source === editorFrame?.contentWindow || event.source === playFrame?.contentWindow)) closeEmbeddedEditor();
 });
 document.addEventListener('contextmenu',event=>event.preventDefault());
 document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
 for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
-document.addEventListener('touchstart', event => {const touch=event.touches?.[0];if(touch&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();}, { passive:false, capture:true });
-document.addEventListener('touchmove', event => event.preventDefault(), { passive:false, capture:true });
+document.addEventListener('touchstart', event => {const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"]');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();}, { passive:false, capture:true });
+document.addEventListener('touchmove', event => {
+  const pausePanel = event.target?.closest?.('#pauseOverlay .panel');
+  if (pausePanel && pausePanel.scrollHeight > pausePanel.clientHeight + 1) return;
+  event.preventDefault();
+}, { passive:false, capture:true });
 document.addEventListener('wheel', event => {if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();}, { passive:false, capture:true });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearActiveInput();
@@ -14705,9 +14919,13 @@ const startTestBtn = document.getElementById('startTestBtn');
 const openEditorBtn = document.getElementById('openEditorBtn');
 const pauseEditorBtn = document.getElementById('pauseEditorBtn');
 const pauseLobbyBtn = document.getElementById('pauseLobbyBtn');
+const editorMenuBtn = document.getElementById('editorMenuBtn');
 const editorRestartBtn = document.getElementById('editorRestartBtn');
 const editorReturnBtn = document.getElementById('editorReturnBtn');
 const editorLobbyBtn = document.getElementById('editorLobbyBtn');
+const lobbyConfirmOverlay = document.getElementById('lobbyConfirmOverlay');
+const lobbyConfirmCancelBtn = document.getElementById('lobbyConfirmCancelBtn');
+const lobbyConfirmAcceptBtn = document.getElementById('lobbyConfirmAcceptBtn');
 const worldPrevBtn = document.getElementById('worldPrevBtn');
 const worldNextBtn = document.getElementById('worldNextBtn');
 const worldCycleText = document.getElementById('worldCycleText');
@@ -14750,26 +14968,50 @@ function updatePauseAbilityButtons() {
   apply(toggleCollisionsBtn, state.debug.showCollisions, 'Коллизии');
   apply(toggleGridBtn, hasGridEnabled(), 'Сетка');
 }
+function focusRuntimeCanvas() {
+  requestAnimationFrame(() => {
+    window.focus();
+    canvas.focus({ preventScroll:true });
+  });
+}
+function togglePauseMenu() {
+  if (editorSurfaceTransitionBusy || document.getElementById('lobbyConfirmOverlay')?.classList.contains('show')) return;
+  if (state.mode === 'playing') {
+    state.mode = 'pause';
+    updatePauseAbilityButtons();
+    showOverlay('pause');
+  } else if (state.mode === 'pause') {
+    state.mode = 'playing';
+    showOverlay(null);
+    focusRuntimeCanvas();
+  }
+}
 
 startBtn.addEventListener('click', () => startRun(0));
 startTestBtn.addEventListener('click', () => startTestLevel());
 openEditorBtn.addEventListener('click', openLevelEditor);
 pauseEditorBtn.addEventListener('click', openLevelEditor);
-pauseLobbyBtn.addEventListener('click', () => {
-  if (state.editorPlaytest) {
-    if(window.parent===window&&embeddedEditorDirectPlaytest){leaveDirectEditorPlaytestToLobby();return;}
-    if(window.parent!==window){window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);return;}
-    const lobbyUrl = new URL(window.location.href);
-    lobbyUrl.search = '';
-    lobbyUrl.hash = '';
-    window.location.replace(lobbyUrl.href);
-    return;
-  }
-  returnToStartMenu();
-});
+pauseLobbyBtn.addEventListener('click', requestLobbyExit);
+editorMenuBtn.addEventListener('click', togglePauseMenu);
 editorRestartBtn.addEventListener('click', restartEditorPlaytest);
 editorReturnBtn.addEventListener('click', openLevelEditor);
-editorLobbyBtn.addEventListener('click',()=>{if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else if(embeddedEditorDirectPlaytest)leaveDirectEditorPlaytestToLobby();else returnToStartMenu();});
+editorLobbyBtn.addEventListener('click', requestLobbyExit);
+lobbyConfirmCancelBtn.addEventListener('click', () => closeLobbyConfirm(false));
+lobbyConfirmAcceptBtn.addEventListener('click', () => closeLobbyConfirm(true));
+lobbyConfirmOverlay.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    closeLobbyConfirm(false);
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const controls = [lobbyConfirmCancelBtn, lobbyConfirmAcceptBtn];
+  const current = controls.indexOf(document.activeElement);
+  const next = event.shiftKey ? (current <= 0 ? controls.length - 1 : current - 1) : (current + 1) % controls.length;
+  event.preventDefault();
+  controls[next].focus({ preventScroll:true });
+});
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
 worldPrevBtn.addEventListener('click', () => setSelectedWorld(0));
 worldNextBtn.addEventListener('click', () => setSelectedWorld(0));
@@ -14790,7 +15032,7 @@ heartVendorNoBtn.addEventListener('click', () => {
   state.mode = 'playing';
   showOverlay(null);
 });
-resumeBtn.addEventListener('click', () => { state.mode = 'playing'; showOverlay(null); });
+resumeBtn.addEventListener('click', () => { state.mode = 'playing'; showOverlay(null); focusRuntimeCanvas(); });
 retryRoomBtn.addEventListener('click', () => { restartRoom(); state.mode = 'playing'; showOverlay(null); });
 nextRoomBtn.addEventListener('click', goToNextRoomFromPause);
 restartRunBtn.addEventListener('click', () => { restartBundle(); });
@@ -14830,10 +15072,7 @@ toggleGridBtn.addEventListener('click', () => {
   if (!state.progress.preferences.showGrid && ui.rulersOverlay) ui.rulersOverlay.classList.add('hidden');
 });
 restartAfterOverBtn.addEventListener('click', () => { fullRestart(); });
-menuBtn.addEventListener('click', () => {
-  if (state.mode === 'playing') { state.mode = 'pause'; showOverlay('pause'); }
-  else if (state.mode === 'pause') { state.mode = 'playing'; showOverlay(null); }
-});
+menuBtn.addEventListener('click', togglePauseMenu);
 
 const pendingEditorPlaytest = readEditorPlaytestRequest();
 if (pendingEditorPlaytest) {

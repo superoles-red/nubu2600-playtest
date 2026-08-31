@@ -1282,3 +1282,17 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .mobile-category-sheet { top:54px !important; max-height:calc(100dvh - 54px - env(safe-area-inset-bottom)) !important; }
   .inspector-panel { top:max(62px,env(safe-area-inset-top)) !important; }
 }
+
+/* В embedded PWA safe-area внутри iframe может быть нулевой. Держим Play вне системного края iPhone независимо от env(). */
+@media (max-width:1024px) and (orientation:landscape) and (pointer:coarse) {
+  .command-bar {
+    padding-right:max(53px,env(safe-area-inset-right)) !important;
+    padding-left:max(53px,env(safe-area-inset-left)) !important;
+  }
+  .command-actions #playButton { height:44px !important;min-height:44px !important;touch-action:manipulation; }
+}
+
+@media (max-width:760px) and (orientation:landscape) and (pointer:coarse) {
+  .command-bar { grid-template-columns:112px 128px minmax(0,1fr) 164px !important; }
+  .interaction-hint { padding-inline:4px !important; }
+}

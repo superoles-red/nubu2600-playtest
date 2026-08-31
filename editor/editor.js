@@ -254,6 +254,8 @@
     ready: false,
     loadingSlot: false,
     playInFlight: false,
+    playAttemptId: null,
+    playAckTimer: null,
     backgroundWorkPaused: false,
     loadRequestId: 0,
     hoverPoint: null,
@@ -263,7 +265,7 @@
     mirrorQueue: Promise.resolve(),
     deletingSlotKey: null,
     pageSuspended: false,
-    layoutMode: window.innerWidth>window.innerHeight?'landscape':'portrait',
+    layoutMode: (window.visualViewport?.width||window.innerWidth)>(window.visualViewport?.height||window.innerHeight)?'landscape':'portrait',
     mobileCategory: 'platforms',
     mobilePaletteExpanded: false,
     mobilePaletteGesture: null,
@@ -955,11 +957,35 @@
 
   function setPlayInFlight(active) {
     state.playInFlight=!!active;
+    if(!state.playInFlight){clearTimeout(state.playAckTimer);state.playAckTimer=null;state.playAttemptId=null;}
     document.documentElement.dataset.playInFlight=active?'true':'false';
     for(const button of [$('playButton'),$('mobilePlayButton')].filter(Boolean)){
       button.disabled=!state.ready||state.playInFlight;
       button.setAttribute('aria-busy',state.playInFlight?'true':'false');
     }
+  }
+  function armPlayRequestAck(attemptId){
+    clearTimeout(state.playAckTimer);
+    state.playAttemptId=attemptId;
+    state.playAckTimer=setTimeout(()=>{
+      if(!state.playInFlight||state.playAttemptId!==attemptId)return;
+      setPlayInFlight(false);
+      toast('Игра не подтвердила запуск. Нажмите Play ещё раз.','error');
+    },2200);
+  }
+  function handlePlayRequestReply(message){
+    if(!state.playInFlight||!message?.attemptId||message.attemptId!==state.playAttemptId)return;
+    clearTimeout(state.playAckTimer);
+    state.playAckTimer=null;
+    if(message.type==='nubu:editor-playtest-rejected'){
+      setPlayInFlight(false);
+      toast(message.message||'Переход ещё не завершён. Нажмите Play ещё раз.','error');
+    }
+  }
+  function syncEditorViewportLayout(){
+    const vv=window.visualViewport,width=vv?.width||window.innerWidth,height=vv?.height||window.innerHeight,mode=width>height?'landscape':'portrait';
+    if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}
+    else renderCanvas();
   }
 
   function setEditorReady(ready) {
@@ -2273,6 +2299,7 @@
         else localStorage.removeItem(EXAM_PENDING_KEY);
       }catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}
       if(embedded){
+        armPlayRequestAck(attemptId);
         window.parent.postMessage({type:'nubu:start-editor-playtest',url:gamePlaytestUrl().href,payload:deepClone(payload)},window.location.origin);
         showHintText('Входим в уровень','Редактор остаётся открытым под игрой — возврат будет мгновенным.');
         return payload;
@@ -2447,11 +2474,41 @@
     $('copyMapButton').addEventListener('click',copyMap);$('pasteMapButton').addEventListener('click',pasteMap);$('mobileCopyMapButton').addEventListener('click',copyMap);$('mobilePasteMapButton').addEventListener('click',pasteMap);$('mobileUndoButton').addEventListener('click',undo);$('mobileRedoButton').addEventListener('click',redo);$('zoomOutButton').addEventListener('click',()=>setZoom(state.zoom-.1));$('zoomInButton').addEventListener('click',()=>setZoom(state.zoom+.1));$('zoomSlider').addEventListener('input',event=>setZoom(Number(event.target.value)/100));document.querySelectorAll('[data-resize-side]').forEach(button=>button.addEventListener('click',()=>resizeLevelFromSide(button.dataset.resizeSide,Number(button.dataset.resizeDelta))));document.querySelectorAll('[data-resize-handle]').forEach(button=>button.addEventListener('pointerdown',beginDomResize));window.addEventListener('pointermove',updateDomResize);window.addEventListener('pointerup',endDomResize);window.addEventListener('pointercancel',cancelDomResize);try{$('authorNameInput').value=localStorage.getItem(AUTHOR_NAME_KEY)||'';}catch(error){}$('authorNameInput').addEventListener('change',event=>{try{localStorage.setItem(AUTHOR_NAME_KEY,String(event.target.value).trim().slice(0,24));}catch(error){}});$('exportLibraryButton').addEventListener('click',()=>exportLibrary().catch(error=>toast(error.message,'error')));$('importLibraryInput').addEventListener('change',importLibrary);
     viewport.addEventListener('pointerdown',handlePointerDown);viewport.addEventListener('pointermove',handlePointerMove);viewport.addEventListener('pointerup',handlePointerUp);viewport.addEventListener('pointercancel',cancelCanvasPointer);viewport.addEventListener('pointerleave',()=>{if(!state.drag&&!state.pan&&!state.pinch&&!state.desktopPaletteDrag){state.hoverPoint=null;$('cursorReadout').style.display='none';renderCanvas();}});canvas.addEventListener('contextmenu',event=>event.preventDefault());canvas.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='copy';if(state.desktopPaletteDrag){state.hoverPoint=pointerGridPoint(event);renderCanvas();}});canvas.addEventListener('dragleave',event=>{if(state.desktopPaletteDrag&&!canvas.contains(event.relatedTarget)){state.hoverPoint=null;renderCanvas();}});canvas.addEventListener('drop',event=>{event.preventDefault();const id=event.dataTransfer.getData('text/nubu-tool')||state.desktopPaletteDrag?.paletteId,item=PALETTE_BY_ID.get(id),point=pointerGridPoint(event);state.desktopPaletteDrag=null;state.hoverPoint=null;if(!item){renderCanvas();return;}if(addPlacedObject(makeObjectFromTool(item,{x:point.x,y:point.y,w:1,h:1}))&&item.type!=='solid')setTool('select');else renderCanvas();});
     viewport.addEventListener('wheel',event=>{if(!(event.ctrlKey||event.metaKey)){if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();return;}event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(state.zoom+(event.deltaY<0?.1:-.1),{x:event.clientX-rect.left,y:event.clientY-rect.top});},{passive:false});viewport.addEventListener('gesturestart',beginNativeGesture,{passive:false});viewport.addEventListener('gesturechange',updateNativeGesture,{passive:false});viewport.addEventListener('gestureend',endNativeGesture,{passive:false});
-    document.addEventListener('contextmenu',event=>event.preventDefault());document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});document.addEventListener('touchstart',event=>{const touch=event.touches?.[0],panelControl=event.target?.closest?.('.panel-control');if(touch&&!panelControl&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();},{passive:false,capture:true});document.addEventListener('touchmove',event=>{const nativeInteraction=event.target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,input,textarea,select');if((event.touches?.length||0)>1||!nativeInteraction)event.preventDefault();},{passive:false,capture:true});
+    document.addEventListener('contextmenu',event=>event.preventDefault());
+    document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
+    for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
+    document.addEventListener('touchstart',event=>{const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"],.panel-control');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();},{passive:false,capture:true});
+    document.addEventListener('touchmove',event=>{const nativeInteraction=event.target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,input,textarea,select');if((event.touches?.length||0)>1||!nativeInteraction)event.preventDefault();},{passive:false,capture:true});
     document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
     window.addEventListener('pointermove',updatePanelControlTouch,{passive:false});window.addEventListener('pointerup',endPanelControlTouch,{passive:false});window.addEventListener('pointercancel',cancelPanelControlTouch,{passive:false});window.addEventListener('pointermove',updateMobilePaletteGesture,{passive:false});window.addEventListener('pointerup',endMobilePaletteGesture,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteGesture,{passive:false});window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
     window.addEventListener('blur',()=>{clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
-    window.addEventListener('message',async event=>{if(event.origin!==window.location.origin||!event.data?.type)return;if(event.data.type==='nubu:set-background-work-paused'){state.backgroundWorkPaused=!!event.data.paused;document.documentElement.dataset.backgroundWorkPaused=state.backgroundWorkPaused?'true':'false';return;}if(event.data.type!=='nubu:resume-after-playtest')return;state.pageSuspended=false;setPlayInFlight(false);await consumePlaytestResult();validateLevel(false);showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');requestAnimationFrame(()=>{viewport.focus({preventScroll:true});if(window.parent!==window)window.parent.postMessage({type:'nubu:editor-resumed'},window.location.origin);});});window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});window.addEventListener('resize',()=>{const mode=window.innerWidth>window.innerHeight?'landscape':'portrait';if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}else renderCanvas();});window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
+    window.addEventListener('message',async event=>{
+      if(event.origin!==window.location.origin||!event.data?.type)return;
+      if(event.data.type==='nubu:set-background-work-paused'){
+        state.backgroundWorkPaused=!!event.data.paused;
+        document.documentElement.dataset.backgroundWorkPaused=state.backgroundWorkPaused?'true':'false';
+        return;
+      }
+      if(event.data.type==='nubu:editor-playtest-accepted'||event.data.type==='nubu:editor-playtest-rejected'){
+        handlePlayRequestReply(event.data);
+        return;
+      }
+      if(event.data.type!=='nubu:resume-after-playtest')return;
+      state.pageSuspended=false;
+      setPlayInFlight(false);
+      await consumePlaytestResult();
+      validateLevel(false);
+      showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');
+      requestAnimationFrame(()=>{viewport.focus({preventScroll:true});if(window.parent!==window)window.parent.postMessage({type:'nubu:editor-resumed'},window.location.origin);});
+    });
+    window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});
+    window.addEventListener('resize',syncEditorViewportLayout,{passive:true});
+    window.addEventListener('orientationchange',()=>requestAnimationFrame(syncEditorViewportLayout),{passive:true});
+    window.visualViewport?.addEventListener('resize',syncEditorViewportLayout,{passive:true});
+    window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});
+    window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});
+    window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
   }
 
   async function initialize() {
