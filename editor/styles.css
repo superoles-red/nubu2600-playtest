@@ -23,11 +23,14 @@ html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; color: var(
 body { overscroll-behavior: none; }
 button, input, select, textarea { font: inherit; }
 button { min-height: 40px; border: 1px solid var(--line); border-radius: 11px; padding: 8px 11px; color: var(--text); background: linear-gradient(180deg, #25372f, #17241f); cursor: pointer; transition: border-color .15s, background .15s, transform .1s, opacity .15s; }
-button:hover { border-color: var(--line-bright); background: linear-gradient(180deg, #31493e, #1c2c26); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: .38; cursor: default; transform: none; }
 button.primary, .play-button, .mobile-play { color: #11180f; border-color: #d7ef66; background: linear-gradient(180deg, #f4ffa7, var(--accent)); font-weight: 900; }
 button.danger { color: #ffdadd; border-color: rgba(255,109,118,.55); background: rgba(126,34,42,.42); }
+@media (hover:hover) and (pointer:fine) {
+  button:not(:disabled):hover { border-color: var(--line-bright); background: linear-gradient(180deg, #31493e, #1c2c26); }
+  button.primary:not(:disabled):hover, button.play-button:not(:disabled):hover, .mobile-play:not(:disabled):hover { border-color:#f4ffa7; background:linear-gradient(180deg,#fbffd5,#dff765); }
+}
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .canvas-viewport:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 input, select, textarea { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; color: var(--text); background: #0a1411; }
 textarea { resize: vertical; min-height: 74px; line-height: 1.4; }
@@ -596,7 +599,7 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
 
 /* 2026-08-27: единый компактный интерфейс автора на ПК и мобильном. */
 .play-button.blocked { opacity: .38; filter: grayscale(.85); }
-.play-button.blocked:hover { border-color: #7d8660; background: linear-gradient(180deg,#c8d38f,#9eaa68); }
+@media (hover:hover) and (pointer:fine) { .play-button.blocked:hover { border-color: #7d8660; background: linear-gradient(180deg,#c8d38f,#9eaa68); } }
 .workspace { grid-template-rows: minmax(0,1fr); }
 .workspace-status { display: none; }
 .source-hidden { display: none !important; }
@@ -809,13 +812,13 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .workspace { grid-column:1 !important; grid-row:2 !important; }
   .mobile-edit-controls { display:flex !important; }
   .mobile-edit-controls > div { display:flex !important; gap:4px !important; }
-  .mobile-palette-shell { display:block !important; grid-column:1 !important; grid-row:3 !important; min-width:0 !important; padding:4px max(5px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left)) !important; border-top:1px solid var(--line) !important; border-right:0 !important; }
+  .mobile-palette-shell { display:block !important; grid-column:1 !important; grid-row:3 !important; min-width:0 !important; padding:4px max(5px,env(safe-area-inset-right)) 4px max(5px,env(safe-area-inset-left)) !important; border-top:1px solid var(--line) !important; border-right:0 !important; }
   .mobile-carousel-rail { width:100% !important; height:100% !important; flex-direction:row !important; justify-content:space-evenly !important; gap:4px !important; overflow-x:auto !important; overflow-y:hidden !important; touch-action:pan-x !important; }
-  .mobile-category-button { width:auto !important; min-width:0 !important; min-height:0 !important; flex:1 1 0 !important; flex-direction:column !important; justify-content:center !important; text-align:center !important; touch-action:pan-x !important; }
-  .mobile-category-sheet { top:auto !important; right:0 !important; bottom:calc(86px + env(safe-area-inset-bottom)) !important; left:0 !important; width:auto !important; max-width:none !important; max-height:calc(100dvh - 72px - 86px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important; border-radius:18px 18px 0 0 !important; }
+  .mobile-category-button { width:auto !important; min-width:0 !important; min-height:0 !important; flex:1 1 0 !important; flex-direction:column !important; justify-content:center !important; padding:3px 3px max(3px,env(safe-area-inset-bottom)) !important; text-align:center !important; touch-action:pan-x !important; }
+  .mobile-category-sheet { top:auto !important; right:0 !important; bottom:86px !important; left:0 !important; width:auto !important; max-width:none !important; max-height:calc(100dvh - 104px - 86px - 10px) !important; border-radius:18px 18px 0 0 !important; }
   .mobile-category-items { grid-template-columns:repeat(auto-fit,minmax(72px,88px)) !important; gap:7px !important; padding:9px !important; }
   .canvas-stage { padding:90px 72px 92px !important; }
-  .inspector-panel { top:max(80px,env(safe-area-inset-top)) !important; right:max(8px,env(safe-area-inset-right)) !important; bottom:calc(94px + env(safe-area-inset-bottom)) !important; left:max(8px,env(safe-area-inset-left)) !important; width:auto !important; }
+  .inspector-panel { top:max(80px,env(safe-area-inset-top)) !important; right:max(8px,env(safe-area-inset-right)) !important; bottom:94px !important; left:max(8px,env(safe-area-inset-left)) !important; width:auto !important; }
   #libraryModal { padding:max(64px,calc(env(safe-area-inset-top) + 58px)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)) !important; }
   #libraryModal .library-panel { width:100% !important; max-height:none !important; }
   .library-static-head { grid-template-columns:minmax(0,1fr) !important; }
@@ -887,7 +890,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .command-actions #undoButton { grid-column:2 !important; grid-row:2 !important; justify-self:center !important; }
   .command-actions #redoButton { grid-column:3 !important; grid-row:2 !important; justify-self:center !important; }
   .interaction-hint { top:calc(110px + env(safe-area-inset-top)) !important; }
-  .mobile-category-sheet { max-height:calc(100dvh - 104px - 86px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important; }
+  .mobile-category-sheet { max-height:calc(100dvh - 104px - 86px - 10px) !important; }
 }
 
 @media (orientation:landscape) {
