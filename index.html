@@ -112,11 +112,14 @@
   body.editor-playtest .hud-card{display:none}
   html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
   img,canvas{-webkit-user-drag:none}
-  .editor-shell{position:fixed;z-index:200;inset:0;background:#07100d}
+  .editor-shell{position:fixed;z-index:200;inset:0;opacity:1;background:#07100d;will-change:opacity;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
+  .editor-shell.editor-surface-entering,.editor-shell.editor-surface-leaving{opacity:0;pointer-events:none}
+  body.editor-bridge-busy #app,body.editor-bridge-busy .editor-shell{pointer-events:none}
   .editor-shell iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0;background:#07100d}
   .editor-shell #editorFrame{z-index:1}
-  .editor-shell #editorPlaytestFrame{z-index:2;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .1s ease}
+  .editor-shell #editorPlaytestFrame{z-index:2;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
   .editor-shell.playtesting #editorPlaytestFrame{visibility:visible;opacity:1;pointer-events:auto}
+  .editor-shell.playtesting.editor-nested-returning #editorPlaytestFrame{visibility:visible;opacity:0;pointer-events:none}
   .editor-bridge-transition{position:fixed;z-index:260;inset:0;display:grid;place-items:center;overflow:hidden;visibility:hidden;opacity:0;pointer-events:none;background:#050b09;color:#f3ffe1;transition:opacity .14s ease,visibility 0s linear .14s}
   .editor-bridge-transition::before,.editor-bridge-transition::after{content:"";position:absolute;top:0;bottom:0;width:52%;background:linear-gradient(135deg,#10241d,#07100d 62%);transition:transform .18s cubic-bezier(.2,.8,.2,1)}
   .editor-bridge-transition::before{left:0;transform:translateX(-102%);border-right:1px solid rgba(231,255,114,.28)}
@@ -125,10 +128,17 @@
   .editor-bridge-transition.show::before,.editor-bridge-transition.show::after{transform:translateX(0)}
   .editor-bridge-card{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;min-width:min(74vw,300px);padding:22px 26px;border:1px solid rgba(231,255,114,.3);border-radius:20px;background:rgba(5,12,9,.9);box-shadow:0 24px 70px rgba(0,0,0,.48);text-align:center}
   .editor-bridge-card span{font-size:30px;color:#e7ff72}.editor-bridge-card b{font:900 clamp(18px,4vw,25px)/1.1 system-ui}.editor-bridge-card small{font:700 12px/1.2 system-ui;color:#9fb6aa}
-  @media (prefers-reduced-motion:reduce){.editor-bridge-transition,.editor-bridge-transition::before,.editor-bridge-transition::after{transition:none!important}}
+  @media (prefers-reduced-motion:reduce){.editor-shell,.editor-shell #editorPlaytestFrame,.editor-bridge-transition,.editor-bridge-transition::before,.editor-bridge-transition::after{transition:none!important}}
   body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(72px,calc(env(safe-area-inset-right) + 72px));bottom:auto;left:max(8px,env(safe-area-inset-left));max-width:none;justify-content:flex-end}
   @media (pointer:coarse){body.editor-playtest .editor-playtest-bar{top:max(8px,env(safe-area-inset-top));right:max(66px,calc(env(safe-area-inset-right) + 66px));bottom:auto;left:max(6px,env(safe-area-inset-left));max-width:none}.editor-playtest-bar span{display:none}.editor-playtest-bar button{min-height:44px;padding-inline:9px}}
 </style>
+<link rel="manifest" href="manifest.webmanifest?v=3e228b05a119">
+<meta name="theme-color" content="#111b18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script defer src="pwa-register.js?v=c847a244c635"></script>
 </head>
 <body>
 <div id="app">
@@ -755,6 +765,7 @@ function traceRoundedRect(x, y, w, h, r) {
 function showOverlay(name) {
   for (const key of Object.keys(overlays)) overlays[key].classList.remove('show');
   if (name && overlays[name]) overlays[name].classList.add('show');
+  setEditorAccessibleSurface(document.documentElement.dataset.editorAccessibleSurface || 'app');
 }
 function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
 function cellToPx(n) { return n * CELL; }
@@ -2898,13 +2909,117 @@ let embeddedEditorDirectPlaytest = false;
 let embeddedEditorResumeToken = 0;
 let embeddedEditorResumeTimer = 0;
 let embeddedEditorResumeClearNested = false;
+let embeddedEditorResumeSurfaceToken = 0;
+let editorSurfaceTransitionToken = 0;
+let editorSurfaceTransitionBusy = false;
 let editorBridgeTransitionToken = 0;
 let editorBridgeTransitionStartedAt = 0;
+let embeddedEditorBackgroundPaused = false;
+const EDITOR_SURFACE_FADE_MS = 180;
+function prefersReducedEditorMotion() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function markEditorSurface(name) {
+  if (window.performance?.mark) performance.mark(name);
+  document.documentElement.dataset.editorBridgeMark = name;
+}
+function setEditorAccessibleSurface(surfaceName) {
+  const app = document.getElementById('app');
+  const shell = document.getElementById('editorShell');
+  const editorFrame = document.getElementById('editorFrame');
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  const setActive = (element, active) => {
+    if (!element) return;
+    if (active) {
+      element.removeAttribute('inert');
+      element.setAttribute('aria-hidden', 'false');
+    } else {
+      element.setAttribute('inert', '');
+      element.setAttribute('aria-hidden', 'true');
+    }
+  };
+  setActive(app, surfaceName === 'app');
+  setActive(shell, surfaceName === 'editor' || surfaceName === 'nested-play');
+  setActive(editorFrame, surfaceName === 'editor');
+  setActive(playFrame, surfaceName === 'nested-play');
+  for (const overlay of document.querySelectorAll('.overlay')) {
+    setActive(overlay, surfaceName === 'app' && overlay.classList.contains('show'));
+  }
+  document.documentElement.dataset.editorAccessibleSurface = surfaceName;
+}
+function setEditorSurfaceState(stateName, busy=editorSurfaceTransitionBusy) {
+  const root = document.documentElement;
+  const shell = document.getElementById('editorShell');
+  const app = document.getElementById('app');
+  root.dataset.editorBridgeState = stateName;
+  root.dataset.editorBridgeBusy = String(!!busy);
+  document.body.classList.toggle('editor-bridge-busy', !!busy);
+  shell?.setAttribute('aria-busy', String(!!busy));
+  app?.setAttribute('aria-busy', String(!!busy));
+  const controls = [
+    document.getElementById('editorRestartBtn'),
+    document.getElementById('editorReturnBtn'),
+    document.getElementById('editorLobbyBtn'),
+  ];
+  for (const control of controls) {
+    if (!control) continue;
+    if (busy) {
+      if (!control.hasAttribute('data-editor-bridge-was-disabled')) {
+        control.dataset.editorBridgeWasDisabled = control.disabled ? 'true' : 'false';
+      }
+      control.disabled = true;
+    } else if (control.hasAttribute('data-editor-bridge-was-disabled')) {
+      control.disabled = control.dataset.editorBridgeWasDisabled === 'true';
+      delete control.dataset.editorBridgeWasDisabled;
+    }
+  }
+}
+function beginEditorSurfaceTransition(stateName, markName) {
+  if (editorSurfaceTransitionBusy) return 0;
+  editorSurfaceTransitionBusy = true;
+  const token = ++editorSurfaceTransitionToken;
+  setEditorAccessibleSurface('none');
+  setEditorSurfaceState(stateName, true);
+  markEditorSurface(markName);
+  return token;
+}
+function finishEditorSurfaceTransition(token, stateName, markName, accessibleSurface=stateName === 'editor' ? 'editor' : 'app') {
+  if (!token || token !== editorSurfaceTransitionToken) return;
+  editorSurfaceTransitionBusy = false;
+  setEditorAccessibleSurface(accessibleSurface);
+  setEditorSurfaceState(stateName, false);
+  if (markName) markEditorSurface(markName);
+}
+function waitForEditorSurfaceTransition(element, token, callback) {
+  if (!element || prefersReducedEditorMotion()) {
+    queueMicrotask(() => {
+      if (token === editorSurfaceTransitionToken) callback();
+    });
+    return;
+  }
+  let settled = false;
+  let timer = 0;
+  const finish = event => {
+    if (settled || (event && (event.target !== element || event.propertyName !== 'opacity'))) return;
+    settled = true;
+    element.removeEventListener('transitionend', finish);
+    clearTimeout(timer);
+    if (token === editorSurfaceTransitionToken) callback();
+  };
+  element.addEventListener('transitionend', finish);
+  timer = setTimeout(() => finish(), EDITOR_SURFACE_FADE_MS + 120);
+}
+document.documentElement.dataset.editorBridgeState = 'runtime';
+document.documentElement.dataset.editorBridgeBusy = 'false';
+document.getElementById('editorShell')?.setAttribute('aria-busy', 'false');
+document.getElementById('app')?.setAttribute('aria-busy', 'false');
+setEditorAccessibleSurface('app');
 function beginEditorBridgeTransition(title) {
   const transition = document.getElementById('editorBridgeTransition');
   const label = document.getElementById('editorBridgeTitle');
   const token = ++editorBridgeTransitionToken;
   editorBridgeTransitionStartedAt = performance.now();
+  setEditorAccessibleSurface('none');
   if (label) label.textContent = title || 'Открываю редактор';
   if (transition) {
     transition.classList.add('show');
@@ -2933,6 +3048,12 @@ function focusEmbeddedEditor() {
     viewport?.focus({ preventScroll:true });
   });
 }
+function setEmbeddedEditorBackgroundPaused(paused) {
+  embeddedEditorBackgroundPaused = !!paused;
+  document.documentElement.dataset.backgroundWorkPaused = embeddedEditorBackgroundPaused ? 'true' : 'false';
+  window.dispatchEvent(new Event('nubu:background-work-state'));
+  document.getElementById('editorFrame')?.contentWindow?.postMessage({ type:'nubu:set-background-work-paused', paused:embeddedEditorBackgroundPaused }, window.location.origin);
+}
 function preloadEmbeddedEditor() {
   if (window.parent !== window || state.editorPlaytest) return;
   const frame = document.getElementById('editorFrame');
@@ -2943,14 +3064,19 @@ function revealEmbeddedEditor({ finishTransition=true }={}) {
   if (!shell) return;
   const playFrame = document.getElementById('editorPlaytestFrame');
   if (!playFrame || playFrame.src === 'about:blank') shell.classList.remove('playtesting');
+  shell.classList.remove('editor-surface-entering', 'editor-surface-leaving', 'editor-nested-returning');
   shell.classList.remove('hidden');
-  shell.setAttribute('aria-hidden', 'false');
+  setEditorAccessibleSurface('editor');
   embeddedEditorPendingOpen = false;
   clearActiveInput();
   focusEmbeddedEditor();
-  if (finishTransition) afterEditorBridgePaint(() => finishEditorBridgeTransition());
+  if (finishTransition) afterEditorBridgePaint(() => {
+    setEditorSurfaceState('editor', false);
+    finishEditorBridgeTransition();
+  });
 }
 function openLevelEditor() {
+  if (editorSurfaceTransitionBusy) return;
   if (window.parent !== window && state.editorPlaytest) {
     window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
     return;
@@ -2967,6 +3093,7 @@ function openLevelEditor() {
     window.location.replace(editorUrlFromRuntime(state.editorPlaytest));
     return;
   }
+  setEmbeddedEditorBackgroundPaused(false);
   beginEditorBridgeTransition('Открываю редактор');
   preloadEmbeddedEditor();
   embeddedEditorPendingOpen = true;
@@ -2976,7 +3103,7 @@ function clearEmbeddedEditorPlaytest() {
   const shell = document.getElementById('editorShell');
   const playFrame = document.getElementById('editorPlaytestFrame');
   embeddedEditorPlaytestLoadToken += 1;
-  shell?.classList.remove('playtesting');
+  shell?.classList.remove('playtesting', 'editor-nested-returning');
   if (!playFrame) return;
   playFrame.onload = null;
   playFrame.style.visibility = 'hidden';
@@ -2991,27 +3118,60 @@ function resetDirectEditorPlaytestState() {
   document.getElementById('editorPlaytestBar')?.classList.add('hidden');
 }
 function completeEmbeddedEditorResume(token=embeddedEditorResumeToken) {
-  if (token !== embeddedEditorResumeToken) return;
+  if (token !== embeddedEditorResumeToken || !embeddedEditorResumeTimer) return;
   clearTimeout(embeddedEditorResumeTimer);
   embeddedEditorResumeTimer = 0;
-  if (embeddedEditorResumeClearNested) clearEmbeddedEditorPlaytest();
+  const shell = document.getElementById('editorShell');
+  const playFrame = document.getElementById('editorPlaytestFrame');
+  const surfaceToken = embeddedEditorResumeSurfaceToken;
+  if (!shell || surfaceToken !== editorSurfaceTransitionToken) return;
+  setEditorSurfaceState('editor-frame-ready', true);
+  markEditorSurface('nubu-editor-frame-ready');
+  if (embeddedEditorResumeClearNested && playFrame) {
+    shell.classList.add('editor-nested-returning');
+    waitForEditorSurfaceTransition(playFrame, surfaceToken, () => {
+      clearEmbeddedEditorPlaytest();
+      embeddedEditorResumeClearNested = false;
+      setEditorAccessibleSurface('editor');
+      focusEmbeddedEditor();
+      markEditorSurface('nubu-editor-frame-visible');
+      finishEditorSurfaceTransition(surfaceToken, 'editor', 'nubu-editor-return-transition-complete');
+    });
+    return;
+  }
   embeddedEditorResumeClearNested = false;
-  focusEmbeddedEditor();
-  afterEditorBridgePaint(() => finishEditorBridgeTransition());
+  shell.classList.remove('editor-surface-entering');
+  waitForEditorSurfaceTransition(shell, surfaceToken, () => {
+    setEditorAccessibleSurface('editor');
+    focusEmbeddedEditor();
+    markEditorSurface('nubu-editor-frame-visible');
+    finishEditorSurfaceTransition(surfaceToken, 'editor', 'nubu-editor-return-transition-complete');
+  });
 }
 function resumeEmbeddedEditorAfterPlaytest({ direct=false, clearNested=false }={}) {
   const editorFrame = document.getElementById('editorFrame');
-  if (!editorFrame) return;
-  beginEditorBridgeTransition('Возвращаюсь в редактор');
+  const shell = document.getElementById('editorShell');
+  if (!editorFrame || !shell || editorSurfaceTransitionBusy) return;
+  const surfaceToken = beginEditorSurfaceTransition('return-start', 'nubu-editor-return-transition-start');
+  if (!surfaceToken) return;
+  setEmbeddedEditorBackgroundPaused(false);
+  embeddedEditorResumeSurfaceToken = surfaceToken;
   if (direct) resetDirectEditorPlaytestState();
   embeddedEditorResumeClearNested = !!clearNested;
-  revealEmbeddedEditor({ finishTransition:false });
+  if (!clearNested) {
+    shell.classList.remove('playtesting', 'editor-surface-leaving', 'editor-nested-returning');
+    shell.classList.add('editor-surface-entering');
+    shell.classList.remove('hidden');
+    void shell.offsetWidth;
+  }
+  embeddedEditorPendingOpen = false;
+  clearActiveInput();
   const token = ++embeddedEditorResumeToken;
   clearTimeout(embeddedEditorResumeTimer);
   editorFrame.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
   embeddedEditorResumeTimer = setTimeout(() => completeEmbeddedEditorResume(token), 1600);
 }
-function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;embeddedEditorPendingOpen=false;clearTimeout(embeddedEditorResumeTimer);embeddedEditorResumeTimer=0;if(embeddedEditorDirectPlaytest)resetDirectEditorPlaytestState();clearEmbeddedEditorPlaytest();shell.classList.add('hidden');shell.setAttribute('aria-hidden','true');returnToStartMenu();finishEditorBridgeTransition();}
+function closeEmbeddedEditor(){const shell=document.getElementById('editorShell');if(!shell)return;const editorFrame=document.getElementById('editorFrame'),playFrame=document.getElementById('editorPlaytestFrame'),playFrameSource=playFrame?.getAttribute('src')||'',playtestActive=embeddedEditorDirectPlaytest||shell.classList.contains('playtesting')||(playFrameSource&&playFrameSource!=='about:blank');embeddedEditorPendingOpen=false;clearTimeout(embeddedEditorResumeTimer);embeddedEditorResumeTimer=0;if(playtestActive)editorFrame?.contentWindow?.postMessage({type:'nubu:resume-after-playtest'},window.location.origin);if(embeddedEditorDirectPlaytest)resetDirectEditorPlaytestState();clearEmbeddedEditorPlaytest();shell.classList.add('hidden');setEditorAccessibleSurface('app');returnToStartMenu();afterEditorBridgePaint(()=>document.getElementById('openEditorBtn')?.focus({preventScroll:true}));finishEditorBridgeTransition();}
 function readEditorPlaytestRequest() {
   const query = new URLSearchParams(window.location.search);
   if (query.get('editorPlay') !== '1') return null;
@@ -3067,35 +3227,53 @@ function startEditorPlaytest(payload) {
 }
 function startEmbeddedEditorPlaytest(payload) {
   const shell = document.getElementById('editorShell');
-  if (!shell || embeddedEditorDirectPlaytest) return;
-  const transitionToken = beginEditorBridgeTransition('Запускаю уровень');
+  if (!shell || embeddedEditorDirectPlaytest || editorSurfaceTransitionBusy) return;
+  const transitionToken = beginEditorSurfaceTransition('play-start', 'nubu-editor-play-transition-start');
+  if (!transitionToken) return;
+  setEmbeddedEditorBackgroundPaused(true);
   embeddedEditorDirectPlaytest = true;
   try {
     clearEmbeddedEditorPlaytest();
     startEditorPlaytest(payload);
+    render();
   } catch (error) {
     console.error('NuBu direct editor loader:', error);
     storeEditorPlaytestError(payload, error);
+    finishEditorSurfaceTransition(transitionToken, 'editor', 'nubu-editor-play-transition-cancelled');
     resumeEmbeddedEditorAfterPlaytest({ direct:true });
     return;
   }
-  afterEditorBridgePaint(() => {
+  setEditorSurfaceState('runtime-frame-ready', true);
+  markEditorSurface('nubu-editor-runtime-frame-ready');
+  shell.classList.remove('editor-surface-entering');
+  void shell.offsetWidth;
+  shell.classList.add('editor-surface-leaving');
+  waitForEditorSurfaceTransition(shell, transitionToken, () => {
     shell.classList.add('hidden');
+    shell.classList.remove('editor-surface-leaving');
     shell.setAttribute('aria-hidden', 'true');
-    finishEditorBridgeTransition(transitionToken);
+    markEditorSurface('nubu-editor-shell-hidden');
+    finishEditorSurfaceTransition(transitionToken, 'runtime', 'nubu-editor-play-transition-complete');
     window.focus();
     canvas.focus({ preventScroll:true });
   });
 }
 function leaveDirectEditorPlaytestToLobby() {
+  if (editorSurfaceTransitionBusy) return;
   const transitionToken = beginEditorBridgeTransition('Возвращаюсь в лобби');
+  const editorFrame = document.getElementById('editorFrame');
+  setEmbeddedEditorBackgroundPaused(false);
+  editorFrame?.contentWindow?.postMessage({ type:'nubu:resume-after-playtest' }, window.location.origin);
   resetDirectEditorPlaytestState();
   const shell = document.getElementById('editorShell');
   clearEmbeddedEditorPlaytest();
   shell?.classList.add('hidden');
-  shell?.setAttribute('aria-hidden', 'true');
+  setEditorAccessibleSurface('app');
   returnToStartMenu();
-  afterEditorBridgePaint(() => finishEditorBridgeTransition(transitionToken));
+  afterEditorBridgePaint(() => {
+    document.getElementById('openEditorBtn')?.focus({ preventScroll:true });
+    finishEditorBridgeTransition(transitionToken);
+  });
 }
 function restartEditorPlaytest() {
   if (!state.editorPlaytest) return;
@@ -5668,6 +5846,7 @@ function setSelectedWorld(index) {
 }
 function returnToStartMenu() {
   state.mode = 'start';
+  setEmbeddedEditorBackgroundPaused(false);
   showOverlay('start');
   hideStartConfirm();
   prepareWorldPreview();
@@ -5825,6 +6004,7 @@ function updateRoomTransition(dt) {
 }
 
 function startRun(worldIndex = 0) {
+  setEmbeddedEditorBackgroundPaused(true);
   state.selectedWorldIndex = 0;
   const world = getSelectedWorld();
   state.currentWorldId = world.id;
@@ -5840,6 +6020,7 @@ function startRun(worldIndex = 0) {
 }
 
 function startTestLevel() {
+  setEmbeddedEditorBackgroundPaused(true);
   state.selectedWorldIndex = 0;
   const world = getSelectedWorld();
   state.currentWorldId = world.id;
@@ -14445,10 +14626,12 @@ window.addEventListener('message', event => {
   const playFrame = document.getElementById('editorPlaytestFrame');
   if (event.data.type === 'nubu:editor-ready' && event.source === editorFrame?.contentWindow) {
     embeddedEditorReady = true;
+    setEmbeddedEditorBackgroundPaused(embeddedEditorBackgroundPaused);
     if (embeddedEditorPendingOpen) revealEmbeddedEditor();
     return;
   }
   if (event.data.type === 'nubu:start-editor-playtest' && event.source === editorFrame?.contentWindow) {
+    if (editorSurfaceTransitionBusy || embeddedEditorDirectPlaytest) return;
     if (isEditorPlaytestPayload(event.data.payload)) {
       startEmbeddedEditorPlaytest(event.data.payload);
       return;
@@ -14456,7 +14639,9 @@ window.addEventListener('message', event => {
     let target;
     try { target = new URL(event.data.url, window.location.href); } catch (error) { return; }
     if (target.origin !== window.location.origin || !playFrame || !shell) return;
-    const transitionToken = beginEditorBridgeTransition('Запускаю уровень');
+    const transitionToken = beginEditorSurfaceTransition('play-start', 'nubu-editor-play-transition-start');
+    if (!transitionToken) return;
+    setEmbeddedEditorBackgroundPaused(true);
     const loadToken = ++embeddedEditorPlaytestLoadToken;
     shell.classList.remove('playtesting');
     playFrame.onload = null;
@@ -14467,14 +14652,18 @@ window.addEventListener('message', event => {
       try { loadedHref = playFrame.contentWindow?.location?.href || ''; } catch (error) { return; }
       if (loadedHref !== target.href) return;
       playFrame.onload = null;
+      try { playFrame.contentWindow?.render?.(); } catch (error) {}
+      setEditorSurfaceState('runtime-frame-ready', true);
+      markEditorSurface('nubu-editor-runtime-frame-ready');
       playFrame.style.visibility = '';
+      void playFrame.offsetWidth;
       shell.classList.add('playtesting');
-      requestAnimationFrame(() => {
+      waitForEditorSurfaceTransition(playFrame, transitionToken, () => {
+        finishEditorSurfaceTransition(transitionToken, 'runtime', 'nubu-editor-play-transition-complete', 'nested-play');
         playFrame.focus({ preventScroll:true });
         playFrame.contentWindow?.focus();
         const gameCanvas=playFrame.contentDocument?.getElementById('game');
         if(gameCanvas){gameCanvas.tabIndex=-1;gameCanvas.focus({ preventScroll:true });}
-        finishEditorBridgeTransition(transitionToken);
       });
     };
     playFrame.src = target.href;

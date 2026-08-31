@@ -32,6 +32,8 @@
   const LIBRARY_MIRROR_FILE = 'nubu2600-authoring-backup-v1.json';
   const DELETED_SLOT_TOMBSTONES_KEY = 'nubu2600.editor.deleted-slots.v1';
   const STORAGE_TIMEOUT_MS = 6000;
+  const CAMPAIGN_LEVEL_COUNT = 24;
+  const CAMPAIGN_BACKGROUND_WORKERS = 2;
   const DIFFICULTIES = ['easy', 'medium', 'hard'];
   const DIFFICULTY_LABELS = { easy: 'Лёгкая', medium: 'Средняя', hard: 'Сложная' };
   const LAYER_ORDER = { decor: -1, terrain: 0, gameplay: 1, hazard: 2, entity: 3, meta: 4 };
@@ -251,6 +253,8 @@
     confirmResolver: null,
     ready: false,
     loadingSlot: false,
+    playInFlight: false,
+    backgroundWorkPaused: false,
     loadRequestId: 0,
     hoverPoint: null,
     storagePersistent: false,
@@ -282,6 +286,15 @@
     libraryNeedsScroll: false,
     libraryDifficulty: 'easy',
     activeTramInsertion: null,
+    campaignSlotLoads: new Map(),
+    campaignSeedPromise: null,
+    campaignSeedStatus: 'idle',
+    campaignSeedTotal: 0,
+    campaignSeedProcessed: 0,
+    campaignSeedLoaded: 0,
+    campaignSeedFailed: 0,
+    campaignSeedHintShown: false,
+    firstReadyMarked: false,
   };
 
   function deepClone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -513,10 +526,12 @@
   }
 
   function makeSlot(key, kind, episode, sequence, levels) {
-    return { key, kind, episode, sequence, title: levels.easy?.title || 'Уровень', publicationStatus: kind === 'user' ? 'draft' : 'campaign', difficulties: levels, clearProofs: {}, revisions: [], createdAt: Date.now(), updatedAt: Date.now() };
+    const now=Date.now();
+    return { key, kind, episode, sequence, title: levels.easy?.title || 'Уровень', publicationStatus: kind === 'user' ? 'draft' : 'campaign', difficulties: levels, clearProofs: {}, revisions: [], createdAt: now, updatedAt: now };
   }
 
-  function invalidateSlotVerification(slot,difficulty){if(slot?.clearProofs)delete slot.clearProofs[difficulty];if(slot?.kind==='user')slot.publicationStatus='draft';}
+  function markCampaignSlotModified(slot){if(slot?.kind==='campaign'&&slot.metadata)delete slot.metadata.campaignPristineSeed;}
+  function invalidateSlotVerification(slot,difficulty){if(slot?.clearProofs)delete slot.clearProofs[difficulty];if(slot?.kind==='user')slot.publicationStatus='draft';else markCampaignSlotModified(slot);}
   function readDeletionTombstones(){try{const value=JSON.parse(localStorage.getItem(DELETED_SLOT_TOMBSTONES_KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}catch(error){return{};}}
   function writeDeletionTombstone(key){try{const entries=Object.entries({...readDeletionTombstones(),[key]:Date.now()}).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,500);localStorage.setItem(DELETED_SLOT_TOMBSTONES_KEY,JSON.stringify(Object.fromEntries(entries)));return true;}catch(error){return false;}}
   function removeDeletionTombstone(key){try{const tombstones=readDeletionTombstones();delete tombstones[key];localStorage.setItem(DELETED_SLOT_TOMBSTONES_KEY,JSON.stringify(tombstones));}catch(error){}}
@@ -544,6 +559,35 @@
   async function dbGet(key) { return requestToPromise(state.db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key)); }
   async function dbGetAll() { return requestToPromise(state.db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll()); }
   async function dbPut(value) { const tx = state.db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).put(value); await transactionDone(tx); return value; }
+  async function dbAddIfAbsent(value) {
+    const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);let inserted=false;
+    const request=store.get(value.key);
+    request.onsuccess=()=>{if(request.result===undefined){store.add(value);inserted=true;}};
+    request.onerror=()=>{try{tx.abort();}catch(error){}};
+    await completion;
+    return inserted;
+  }
+  async function dbInstallCampaignSeed(value,{expectedSourceVersion=null}={}) {
+    const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);let written=false;
+    const request=store.get(value.key);
+    request.onsuccess=()=>{
+      const current=request.result;
+      if(current===undefined){store.add(value);written=true;return;}
+      const canRefresh=expectedSourceVersion!==null
+        && current?.kind==='campaign'
+        && current.metadata?.campaignPristineSeed===true
+        && String(current.metadata?.campaignSourceVersion||'')===String(expectedSourceVersion);
+      if(!canRefresh)return;
+      value.createdAt=Number(current.createdAt)||value.createdAt;
+      value.updatedAt=Date.now();
+      value.metadata={...(value.metadata||{}),previousCampaignSourceVersion:String(expectedSourceVersion)};
+      store.put(value);
+      written=true;
+    };
+    request.onerror=()=>{try{tx.abort();}catch(error){}};
+    await completion;
+    return written;
+  }
   async function dbPutAll(values){const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);try{for(const value of values)store.put(value);}catch(error){try{tx.abort();}catch(abortError){}await completion.catch(()=>{});throw error;}await completion;return values;}
   async function dbDelete(key) { const tx = state.db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).delete(key); await transactionDone(tx); }
 
@@ -572,20 +616,110 @@
       : new URL('campaign/ep1/', window.location.href);
   }
 
+  function campaignSequenceFromKey(key) {
+    const match=/^campaign-ep1-(\d{2})$/.exec(String(key||'')),sequence=Number(match?.[1]);
+    return Number.isInteger(sequence)&&sequence>=1&&sequence<=CAMPAIGN_LEVEL_COUNT?sequence:null;
+  }
+
+  function campaignSlotKey(sequence) { return `campaign-ep1-${String(sequence).padStart(2,'0')}`; }
+
+  function campaignSourceVersion() {
+    const buildId=inheritedBuildId();
+    return buildId?String(buildId).slice(0,80):'';
+  }
+
   async function fetchCampaignLevel(sequence, difficulty) {
     const url = new URL(`ep1-${String(sequence).padStart(2, '0')}-${difficulty}.level.json`, campaignBaseUrl());
-    const response = await fetch(url, { cache: 'no-store' });
+    const explicitVersion=explicitBuildId();
+    if(explicitVersion)url.searchParams.set('build',explicitVersion);
+    const response = await fetch(url, { cache: explicitVersion?'force-cache':'default' });
     if (!response.ok) throw new Error(`Не удалось загрузить ${url.pathname}: ${response.status}`);
     return normalizeLevel(await response.json(), { episode: 1, sequence, difficulty });
   }
 
-  async function seedCampaign() {
-    const existingKeys=new Set((await dbGetAll()).map(slot=>slot?.key).filter(Boolean));
-    const missing=Array.from({length:24},(_,index)=>index+1).filter(sequence=>!existingKeys.has(`campaign-ep1-${String(sequence).padStart(2,'0')}`));
-    if(!missing.length)return;
-    const prepared=[],workerCount=Math.min(4,missing.length);let cursor=0;
-    const worker=async()=>{while(cursor<missing.length){const sequence=missing[cursor++],key=`campaign-ep1-${String(sequence).padStart(2,'0')}`;try{const loaded=await Promise.all(DIFFICULTIES.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));prepared.push(makeSlot(key,'campaign',1,sequence,Object.fromEntries(DIFFICULTIES.map((difficulty,index)=>[difficulty,loaded[index]]))));}catch(error){const easy=makeBlankLevel(20,20,`Эпизод 1 · Лёгкая · Уровень 1-${sequence}`,'easy',true,{schemaVersion:1});prepared.push(makeSlot(key,'campaign',1,sequence,{easy,medium:cloneForDifficulty(easy,'medium'),hard:cloneForDifficulty(easy,'hard')}));console.warn(error);}}};
-    await Promise.all(Array.from({length:workerCount},worker));prepared.sort((left,right)=>left.sequence-right.sequence);await dbPutAll(prepared);
+  async function ensureCampaignSlot(key) {
+    const sequence=campaignSequenceFromKey(key);
+    if(!sequence)return null;
+    const inflight=state.campaignSlotLoads.get(key);
+    if(inflight)return inflight;
+    const existing=await dbGet(key),sourceVersion=campaignSourceVersion(),storedSourceVersion=String(existing?.metadata?.campaignSourceVersion||'');
+    const refreshPristine=!!(existing&&sourceVersion&&existing.metadata?.campaignPristineSeed===true&&storedSourceVersion!==sourceVersion);
+    if(existing&&!refreshPristine)return existing;
+    const raced=state.campaignSlotLoads.get(key);
+    if(raced)return raced;
+    const operation=(async()=>{
+      const loaded=await Promise.all(DIFFICULTIES.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));
+      const slot=makeSlot(key,'campaign',1,sequence,Object.fromEntries(DIFFICULTIES.map((difficulty,index)=>[difficulty,loaded[index]])));
+      slot.metadata={...(slot.metadata||{}),campaignSourceVersion:sourceVersion||'unversioned',campaignPristineSeed:true};
+      await dbInstallCampaignSeed(slot,{expectedSourceVersion:refreshPristine?storedSourceVersion:null});
+      return await dbGet(key);
+    })();
+    state.campaignSlotLoads.set(key,operation);
+    try{return await operation;}
+    finally{if(state.campaignSlotLoads.get(key)===operation)state.campaignSlotLoads.delete(key);}
+  }
+
+  function updateCampaignSeedStatus(status,{total=state.campaignSeedTotal,processed=state.campaignSeedProcessed,loaded=state.campaignSeedLoaded,failed=state.campaignSeedFailed}={}) {
+    state.campaignSeedStatus=status;
+    state.campaignSeedTotal=total;
+    state.campaignSeedProcessed=processed;
+    state.campaignSeedLoaded=loaded;
+    state.campaignSeedFailed=failed;
+    const root=document.documentElement;
+    root.dataset.campaignSeedStatus=status;
+    root.dataset.campaignSeedTotal=String(total);
+    root.dataset.campaignSeedProcessed=String(processed);
+    root.dataset.campaignSeedLoaded=String(loaded);
+    root.dataset.campaignSeedFailed=String(failed);
+    const selector=$('levelSelect');
+    if(selector){
+      selector.dataset.campaignSeedStatus=status;
+      selector.title=status==='pending'
+        ? `Карта открыта; библиотека кампании загружается в фоне: ${processed}/${total}`
+        : status==='error'
+          ? `Карта открыта; не удалось загрузить уровней: ${failed}`
+          : status==='complete'?'Все уровни кампании доступны':'';
+    }
+    if(!state.ready)return;
+    const currentLabel=$('interactionHint')?.querySelector('strong')?.textContent||'';
+    const ownsHint=state.campaignSeedHintShown&&['Карта готова','Кампания загружается','Редактор готов','Не все карты загружены'].includes(currentLabel);
+    if(status==='pending'&&!state.campaignSeedHintShown){
+      state.campaignSeedHintShown=true;
+      showHintText('Карта готова',`Остальные уровни кампании загружаются в фоне: ${processed}/${total}. Можно редактировать и нажимать Play.`);
+    }else if(status==='complete'&&ownsHint){
+      showHintText('Редактор готов','Все 24 карты кампании доступны локально.');
+    }else if(status==='error'&&ownsHint){
+      showHintText('Не все карты загружены',`Текущая карта работает. Не удалось загрузить уровней: ${failed}; редактор повторит попытку при следующем запуске.`);
+    }
+  }
+
+  async function backgroundTurn() {
+    while(state.playInFlight||state.backgroundWorkPaused)await new Promise(resolve=>setTimeout(resolve,120));
+    return new Promise(resolve=>{
+      if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:500});
+      else setTimeout(resolve,0);
+    });
+  }
+
+  function seedCampaignInBackground() {
+    if(state.campaignSeedPromise)return state.campaignSeedPromise;
+    const run=(async()=>{
+      try{performance.mark('nubu-campaign-seed-start');}catch(error){}
+      const existingSlots=new Map((await dbGetAll()).map(slot=>[slot?.key,slot])),sourceVersion=campaignSourceVersion();
+      const missing=Array.from({length:CAMPAIGN_LEVEL_COUNT},(_,index)=>index+1).filter(sequence=>{const slot=existingSlots.get(campaignSlotKey(sequence));return !slot||(!!sourceVersion&&slot.metadata?.campaignPristineSeed===true&&String(slot.metadata?.campaignSourceVersion||'')!==sourceVersion);});
+      const available=CAMPAIGN_LEVEL_COUNT-missing.length;
+      if(!missing.length){updateCampaignSeedStatus('complete',{total:CAMPAIGN_LEVEL_COUNT,processed:available,loaded:available,failed:0});try{performance.mark('nubu-campaign-seed-complete');}catch(error){}return;}
+      let cursor=0,processed=available,loaded=available,failed=0;
+      updateCampaignSeedStatus('pending',{total:CAMPAIGN_LEVEL_COUNT,processed,loaded,failed});
+      const worker=async()=>{while(cursor<missing.length){const sequence=missing[cursor++],key=campaignSlotKey(sequence);await backgroundTurn();try{if(await ensureCampaignSlot(key))loaded++;else failed++;}catch(error){failed++;console.warn(`Campaign background load failed for ${key}:`,error);}processed++;updateCampaignSeedStatus('pending',{total:CAMPAIGN_LEVEL_COUNT,processed,loaded,failed});}};
+      await Promise.all(Array.from({length:Math.min(CAMPAIGN_BACKGROUND_WORKERS,missing.length)},worker));
+      updateCampaignSeedStatus(failed?'error':'complete',{total:CAMPAIGN_LEVEL_COUNT,processed,loaded,failed});
+      try{performance.mark(failed?'nubu-campaign-seed-error':'nubu-campaign-seed-complete');}catch(error){}
+      scheduleLibraryMirror();
+      if($('libraryModal')?.classList.contains('open'))renderLibrary().catch(error=>console.warn('Campaign library refresh failed:',error));
+    })().catch(error=>{console.warn('Campaign background seed failed:',error);updateCampaignSeedStatus('error',{failed:Math.max(1,state.campaignSeedFailed)});try{performance.mark('nubu-campaign-seed-error');}catch(markError){}});
+    state.campaignSeedPromise=run.finally(()=>{state.campaignSeedPromise=null;});
+    return state.campaignSeedPromise;
   }
 
   async function importLegacyDraftOnce() {
@@ -611,10 +745,6 @@
     const slot = await dbGet(payload.slotKey);
     if (!slot) return null;
     const savedAt = Number(payload.savedAt) || 0;
-    if (savedAt && Number(slot.updatedAt) >= savedAt) {
-      try { localStorage.removeItem(EMERGENCY_DRAFT_KEY); } catch (error) {}
-      return null;
-    }
     const level = normalizeLevel(payload.level, {
       episode: slot.episode || 1,
       sequence: slot.sequence || 1,
@@ -625,16 +755,43 @@
       try { localStorage.removeItem(EMERGENCY_DRAFT_KEY); } catch (error) {}
       return null;
     }
+    const levelHash=stableHash(level),currentLevel=slot.difficulties?.[payload.difficulty],currentHash=currentLevel?stableHash(currentLevel):'';
+    if(currentHash===levelHash){
+      try { localStorage.removeItem(EMERGENCY_DRAFT_KEY); } catch (error) {}
+      return null;
+    }
+    const pristineCampaignSeed=slot.kind==='campaign'
+      && slot.metadata?.campaignPristineSeed===true
+      && !!slot.metadata?.campaignSourceVersion
+      && !(Array.isArray(slot.revisions)&&slot.revisions.length);
+    if (savedAt && Number(slot.updatedAt) >= savedAt && !pristineCampaignSeed) {
+      try { localStorage.removeItem(EMERGENCY_DRAFT_KEY); } catch (error) {}
+      return null;
+    }
+    const revisions = Array.isArray(slot.revisions) ? slot.revisions : [];
+    if(currentLevel&&currentHash!==levelHash)revisions.push({difficulty:payload.difficulty,savedAt:Number(slot.updatedAt)||Date.now(),hash:currentHash,level:deepClone(currentLevel),preRecovery:true});
     slot.difficulties[payload.difficulty] = level;
     invalidateSlotVerification(slot,payload.difficulty);
     slot.title = level.title;
-    slot.updatedAt = savedAt || Date.now();
-    const revisions = Array.isArray(slot.revisions) ? slot.revisions : [];
-    revisions.push({ difficulty:payload.difficulty, savedAt:slot.updatedAt, hash:stableHash(level), level:deepClone(level), recovery:true });
+    slot.updatedAt = Math.max(savedAt,Date.now());
+    markCampaignSlotModified(slot);
+    revisions.push({ difficulty:payload.difficulty, savedAt:savedAt||slot.updatedAt, hash:levelHash, level:deepClone(level), recovery:true });
     slot.revisions = revisions.slice(-10);
     await dbPut(slot);
     try { localStorage.removeItem(EMERGENCY_DRAFT_KEY); } catch (error) {}
     return { slotKey:slot.key, difficulty:payload.difficulty };
+  }
+
+  function readEmergencyDraftTarget() {
+    try{
+      const payload=JSON.parse(localStorage.getItem(EMERGENCY_DRAFT_KEY)||'null');
+      if(payload?.slotKey&&payload.slotKey.length<=160&&DIFFICULTIES.includes(payload.difficulty)&&payload.level?.kind==='nubu.level'&&[1,2].includes(payload.level?.schemaVersion))return{slotKey:payload.slotKey,difficulty:payload.difficulty};
+    }catch(error){}
+    return null;
+  }
+
+  async function canOpenInitialSlot(key) {
+    return !!campaignSequenceFromKey(key)||!!(key&&await dbGet(key));
   }
 
   function nextObjectId(type, reservedIds = []) {
@@ -694,6 +851,7 @@
     if (!state.level.objects.some(object => object.id === state.selectedId)) state.selectedId = null;
     if (state.slot.clearProofs) delete state.slot.clearProofs[state.difficulty];
     if (state.slot.kind === 'user') state.slot.publicationStatus = 'draft';
+    else markCampaignSlotModified(state.slot);
     state.dirty = true;
     scheduleSave();
     refreshAll();
@@ -795,9 +953,19 @@
     el.querySelector('b').textContent = error ? 'Ошибка' : !state.ready ? 'Загрузка…' : saving ? 'Сохраняю…' : state.dirty ? 'Автосохранение…' : 'Сохранено';
   }
 
+  function setPlayInFlight(active) {
+    state.playInFlight=!!active;
+    document.documentElement.dataset.playInFlight=active?'true':'false';
+    for(const button of [$('playButton'),$('mobilePlayButton')].filter(Boolean)){
+      button.disabled=!state.ready||state.playInFlight;
+      button.setAttribute('aria-busy',state.playInFlight?'true':'false');
+    }
+  }
+
   function setEditorReady(ready) {
     state.ready = !!ready;
     document.documentElement.dataset.editorReady = ready ? 'true' : 'false';
+    if(ready&&!state.firstReadyMarked){state.firstReadyMarked=true;try{performance.mark('nubu-editor-ready');}catch(error){}}
     $('appShell')?.setAttribute('aria-busy', ready ? 'false' : 'true');
     const veil = $('editorLoadingVeil');
     veil?.classList.toggle('visible', !ready);
@@ -808,7 +976,7 @@
       $('copyMapButton'), $('pasteMapButton'), $('mobileCopyMapButton'), $('mobilePasteMapButton'),
       ...document.querySelectorAll('[data-difficulty], [data-palette-id], [data-tool]'),
     ].filter(Boolean);
-    for (const control of controls) control.disabled = !ready;
+    for (const control of controls) control.disabled = !ready||(state.playInFlight&&(control===$('playButton')||control===$('mobilePlayButton')));
     if (ready && state.level) {refreshLevelForm();renderPanelTopologyControls(cellPixels());}
     updateSaveState();
     if (ready && window.parent !== window) window.parent.postMessage({ type:'nubu:editor-ready' }, window.location.origin);
@@ -841,7 +1009,7 @@
     if (episode.value === 'user') {
       for (const slot of state.userSlots) { const option = document.createElement('option'); option.value = slot.key; option.textContent = slot.title || 'Без названия'; levelSelect.append(option); }
     } else {
-      for (let sequence = 1; sequence <= 24; sequence++) { const option = document.createElement('option'); option.value = `campaign-ep1-${String(sequence).padStart(2, '0')}`; option.textContent = `1-${sequence}`; levelSelect.append(option); }
+      for (let sequence = 1; sequence <= CAMPAIGN_LEVEL_COUNT; sequence++) { const option = document.createElement('option'); option.value = campaignSlotKey(sequence); option.textContent = `1-${sequence}`; levelSelect.append(option); }
     }
     if (state.slotKey && [...levelSelect.options].some(option => option.value === state.slotKey)) levelSelect.value = state.slotKey;
   }
@@ -852,7 +1020,9 @@
     setEditorReady(false);
     try {
       if (!skipSave) await saveNow();
-      const slot = await dbGet(key);
+      const slot = campaignSequenceFromKey(key)
+        ? await ensureCampaignSlot(key)
+        : await dbGet(key);
       if (requestId !== state.loadRequestId) return false;
       if (!slot) throw new Error('Уровень не найден в локальной библиотеке.');
       state.slot = slot;
@@ -874,6 +1044,9 @@
       refreshAll();
       requestAnimationFrame(fitLevel);
       return true;
+    } catch(error) {
+      if(requestId===state.loadRequestId&&state.slotKey)refreshSelectors();
+      throw error;
     } finally {
       if (requestId === state.loadRequestId) {
         state.loadingSlot = false;
@@ -2051,9 +2224,10 @@
     }
   }
 
-  function inheritedBuildId(){return new URLSearchParams(window.location.search).get('build');}
-  function gamePlaytestUrl(){const decoded=decodeURIComponent(window.location.pathname),url=decoded.includes('/tools/level-editor/')?new URL('../../02 Разработка/game/index.html?editorPlay=1',window.location.href):new URL('../index.html?editorPlay=1',window.location.href),buildId=inheritedBuildId();if(buildId)url.searchParams.set('build',buildId);return url;}
-  function gameLobbyUrl(){const decoded=decodeURIComponent(window.location.pathname),url=decoded.includes('/tools/level-editor/')?new URL('../../02 Разработка/game/index.html',window.location.href):new URL('../index.html',window.location.href),buildId=inheritedBuildId();if(buildId)url.searchParams.set('build',buildId);return url;}
+  function explicitBuildId(){return new URLSearchParams(window.location.search).get('build')||'';}
+  function inheritedBuildId(){return explicitBuildId()||document.querySelector('meta[name="nubu-campaign-version"]')?.content||'';}
+  function gamePlaytestUrl(){const decoded=decodeURIComponent(window.location.pathname),url=decoded.includes('/tools/level-editor/')?new URL('../../02 Разработка/game/index.html?editorPlay=1',window.location.href):new URL('../index.html?editorPlay=1',window.location.href),buildId=explicitBuildId();if(buildId)url.searchParams.set('build',buildId);return url;}
+  function gameLobbyUrl(){const decoded=decodeURIComponent(window.location.pathname),url=decoded.includes('/tools/level-editor/')?new URL('../../02 Разработка/game/index.html',window.location.href):new URL('../index.html',window.location.href),buildId=explicitBuildId();if(buildId)url.searchParams.set('build',buildId);return url;}
   function playtestReturnUrl(attemptId,slotKey,difficulty){const url=new URL(window.location.href);url.hash='';url.searchParams.set(PLAYTEST_RETURN_PARAM,attemptId);url.searchParams.set(PLAYTEST_RETURN_SLOT_PARAM,slotKey);url.searchParams.set(PLAYTEST_RETURN_DIFFICULTY_PARAM,difficulty);return url.href;}
   function readPlaytestReturnContext(){
     const params=new URLSearchParams(window.location.search);
@@ -2074,7 +2248,47 @@
   function readEditorView(){try{const view=JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'null');return view&&typeof view==='object'?view:null;}catch(error){return null;}}
   function restoreEditorView(view){if(!view||view.slotKey!==state.slotKey||view.difficulty!==state.difficulty)return false;state.zoom=clamp(Number(view.zoom)||1,.25,2);if(view.selectedId&&state.level.objects.some(object=>object.id===view.selectedId))state.selectedId=view.selectedId;renderCanvas();requestAnimationFrame(()=>{viewport.scrollLeft=Math.max(0,Number(view.scrollLeft)||0);viewport.scrollTop=Math.max(0,Number(view.scrollTop)||0);refreshInspector();});return true;}
 
-  async function playLevel(options={}){const exam=options?.exam===true,issues=validateLevel(false),errors=issues.filter(issue=>issue.severity==='error');updatePlayAvailability(issues);if(errors.length){const details=errors.slice(0,3).map(issue=>issue.message).join(' · ');showHintText('Уровень пока не запускается',details+(errors.length>3?` · Ещё ошибок: ${errors.length-3}.`:''));return null;}const attemptId=`attempt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const embedded=window.parent!==window;if(!embedded){setEditorReady(false);const veil=$('editorLoadingVeil');if(veil?.querySelector('b'))veil.querySelector('b').textContent='Готовлю проверку…';}try{await saveNow({revision:true});if(state.dirty)throw new Error('Последняя версия карты ещё не сохранена.');persistEditorView();const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:playtestReturnUrl(attemptId,state.slotKey,state.difficulty)};try{localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));localStorage.removeItem(RESULT_KEY);if(exam)localStorage.setItem(EXAM_PENDING_KEY,JSON.stringify({slotKey:payload.slotKey,difficulty:payload.difficulty,attemptId:payload.attemptId,levelHash:payload.levelHash}));else localStorage.removeItem(EXAM_PENDING_KEY);}catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}if(embedded){window.parent.postMessage({type:'nubu:start-editor-playtest',url:gamePlaytestUrl().href,payload:deepClone(payload)},window.location.origin);showHintText('Входим в уровень','Редактор остаётся открытым под игрой — возврат будет мгновенным.');return payload;}state.pageSuspended=true;window.location.assign(gamePlaytestUrl().href);return payload;}catch(error){try{const pending=JSON.parse(localStorage.getItem(EXAM_PENDING_KEY)||'null');if(pending?.attemptId===attemptId)localStorage.removeItem(EXAM_PENDING_KEY);}catch(storageError){}state.pageSuspended=false;setEditorReady(true);toast(`Не удалось начать проверку: ${error.message}`,'error');return null;}}
+  async function playLevel(options={}){
+    if(state.playInFlight)return null;
+    setPlayInFlight(true);
+    const exam=options?.exam===true,issues=validateLevel(false),errors=issues.filter(issue=>issue.severity==='error');
+    updatePlayAvailability(issues);
+    if(errors.length){
+      const details=errors.slice(0,3).map(issue=>issue.message).join(' · ');
+      showHintText('Уровень пока не запускается',details+(errors.length>3?` · Ещё ошибок: ${errors.length-3}.`:''));
+      setPlayInFlight(false);
+      return null;
+    }
+    const attemptId=`attempt-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,embedded=window.parent!==window;
+    if(!embedded){setEditorReady(false);const veil=$('editorLoadingVeil');if(veil?.querySelector('b'))veil.querySelector('b').textContent='Готовлю проверку…';}
+    try{
+      await saveNow({revision:true});
+      if(state.dirty)throw new Error('Последняя версия карты ещё не сохранена.');
+      persistEditorView();
+      const payload={kind:'nubu.editor.playtest',version:1,slotKey:state.slotKey,difficulty:state.difficulty,attemptId,level:deepClone(state.level),levelHash:stableHash(state.level),testSpawn:state.testSpawn?deepClone(state.testSpawn):null,clearCheck:!state.testSpawn,returnUrl:playtestReturnUrl(attemptId,state.slotKey,state.difficulty)};
+      try{
+        localStorage.setItem(PLAYTEST_KEY,JSON.stringify(payload));
+        localStorage.removeItem(RESULT_KEY);
+        if(exam)localStorage.setItem(EXAM_PENDING_KEY,JSON.stringify({slotKey:payload.slotKey,difficulty:payload.difficulty,attemptId:payload.attemptId,levelHash:payload.levelHash}));
+        else localStorage.removeItem(EXAM_PENDING_KEY);
+      }catch(error){throw new Error('Браузер не дал сохранить запрос Play.');}
+      if(embedded){
+        window.parent.postMessage({type:'nubu:start-editor-playtest',url:gamePlaytestUrl().href,payload:deepClone(payload)},window.location.origin);
+        showHintText('Входим в уровень','Редактор остаётся открытым под игрой — возврат будет мгновенным.');
+        return payload;
+      }
+      state.pageSuspended=true;
+      window.location.assign(gamePlaytestUrl().href);
+      return payload;
+    }catch(error){
+      try{const pending=JSON.parse(localStorage.getItem(EXAM_PENDING_KEY)||'null');if(pending?.attemptId===attemptId)localStorage.removeItem(EXAM_PENDING_KEY);}catch(storageError){}
+      state.pageSuspended=false;
+      setEditorReady(true);
+      setPlayInFlight(false);
+      toast(`Не удалось начать проверку: ${error.message}`,'error');
+      return null;
+    }
+  }
 
   function activePlaytestResultChanged(result){return state.slotKey===result.slotKey&&state.difficulty===result.difficulty&&(!state.level||state.dirty||stableHash(state.level)!==result.levelHash);}
   async function restoreActiveDraftAfterStaleResult(result){if(state.slotKey!==result.slotKey||state.difficulty!==result.difficulty||!state.slot||!state.level)return;state.slot.difficulties[state.difficulty]=state.level;invalidateSlotVerification(state.slot,state.difficulty);state.dirty=true;await saveNow({revision:true,allowDuringResult:true});scheduleLibraryMirror();}
@@ -2180,9 +2394,9 @@
   async function openSelectedLibraryLevel(){const selected=state.librarySelectedSlot;if(!selected)return;const key=selected.key,difficulty=selected.kind==='campaign'?state.libraryDifficulty:'easy';await state.libraryWriteQueue;closeLibrary();await loadSlot(key,difficulty);}
   function syncActiveSlotAfterLibraryWrite(slot,difficulty,label){if(state.slotKey!==slot.key)return false;clearTimeout(state.saveTimer);const visibleLevel=state.level;state.slot=deepClone(slot);state.dirty=false;if(state.difficulty!==difficulty){state.slot.difficulties[state.difficulty]=visibleLevel;refreshSelectors();refreshAll();return false;}state.level=normalizeLevel(deepClone(state.slot.difficulties[difficulty]),{episode:slot.episode||1,sequence:slot.sequence||1,difficulty});state.slot.difficulties[difficulty]=state.level;state.selectedId=null;state.selectedWire=null;state.linkSourceId=null;state.testSpawn=null;state.issues=[];state.activePaletteId=null;state.tool='select';resetHistory(label);refreshSelectors();refreshAll();requestAnimationFrame(fitLevel);return true;}
   async function copySelectedLibraryMap(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key),level=slot?.difficulties?.[difficulty]||slot?.difficulties?.easy;if(!level)return;const payload={kind:'nubu.map-clipboard',version:1,copiedAt:Date.now(),level:deepClone(level)};state.mapClipboard=payload;try{localStorage.setItem(MAP_CLIPBOARD_KEY,JSON.stringify(payload));}catch(error){}toast(`Карта ${level.size.width}×${level.size.height} скопирована.`,'ok');});}
-  async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
+  async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
   function exportSelectedCampaignLevel(){const slot=state.librarySelectedSlot,level=libraryLevelFor(slot);if(slot?.kind!=='campaign'||!level)return;const blob=new Blob([`${JSON.stringify(level,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`ep${slot.episode}-${String(slot.sequence).padStart(2,'0')}-${state.libraryDifficulty}.level.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан ${anchor.download}. Сохраните его в iCloud.`,'ok');}
-  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
+  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
 
   async function renameSelectedLibraryLevel(event){const selected=state.librarySelectedSlot;if(selected?.kind!=='user')return;if(playerSlotStatus(selected).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');return;}const key=selected.key,title=String(event.target.value).trim().slice(0,48)||'Без названия';return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key);if(!slot)return;if(playerSlotStatus(slot).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');await renderLibrary();return;}slot.title=title;for(const difficulty of DIFFICULTIES)if(slot.difficulties?.[difficulty])slot.difficulties[difficulty].title=title;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();if(state.slotKey===key)syncActiveSlotAfterLibraryWrite(slot,state.difficulty,'Название изменено в библиотеке');state.librarySelectedKey=key;await refreshUserSlots();await renderLibrary();});}
 
@@ -2237,54 +2451,70 @@
     document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
     window.addEventListener('pointermove',updatePanelControlTouch,{passive:false});window.addEventListener('pointerup',endPanelControlTouch,{passive:false});window.addEventListener('pointercancel',cancelPanelControlTouch,{passive:false});window.addEventListener('pointermove',updateMobilePaletteGesture,{passive:false});window.addEventListener('pointerup',endMobilePaletteGesture,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteGesture,{passive:false});window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
     window.addEventListener('blur',()=>{clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
-    window.addEventListener('message',async event=>{if(event.origin!==window.location.origin||event.data?.type!=='nubu:resume-after-playtest')return;state.pageSuspended=false;await consumePlaytestResult();validateLevel(false);showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');requestAnimationFrame(()=>{viewport.focus({preventScroll:true});if(window.parent!==window)window.parent.postMessage({type:'nubu:editor-resumed'},window.location.origin);});});window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});window.addEventListener('resize',()=>{const mode=window.innerWidth>window.innerHeight?'landscape':'portrait';if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}else renderCanvas();});window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
+    window.addEventListener('message',async event=>{if(event.origin!==window.location.origin||!event.data?.type)return;if(event.data.type==='nubu:set-background-work-paused'){state.backgroundWorkPaused=!!event.data.paused;document.documentElement.dataset.backgroundWorkPaused=state.backgroundWorkPaused?'true':'false';return;}if(event.data.type!=='nubu:resume-after-playtest')return;state.pageSuspended=false;setPlayInFlight(false);await consumePlaytestResult();validateLevel(false);showHintText('Редактор','Проверка завершена. Вы вернулись в ту же карту без повторной загрузки.');requestAnimationFrame(()=>{viewport.focus({preventScroll:true});if(window.parent!==window)window.parent.postMessage({type:'nubu:editor-resumed'},window.location.origin);});});window.addEventListener('blur',()=>{state.spaceHeld=false;state.pan=null;state.drag=null;state.pinch=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.wireDrag=null;state.domResize=null;state.hoverPoint=null;state.pointers.clear();canvas.classList.remove('will-delete');viewport.classList.remove('dragging');const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}renderCanvas();persistEditorView();saveNow().catch(()=>{});});document.addEventListener('visibilitychange',()=>{if(document.hidden){persistEditorView();saveNow().catch(()=>{});}});window.addEventListener('resize',()=>{const mode=window.innerWidth>window.innerHeight?'landscape':'portrait';if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}else renderCanvas();});window.addEventListener('pagehide',()=>{state.pageSuspended=true;persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}try{state.db?.close();}catch(error){}});window.addEventListener('pageshow',event=>{if(event.persisted||state.pageSuspended)window.location.reload();});window.addEventListener('beforeunload',()=>{persistEditorView();if(state.slot&&state.dirty)try{localStorage.setItem(EMERGENCY_DRAFT_KEY,JSON.stringify({slotKey:state.slotKey,difficulty:state.difficulty,savedAt:Date.now(),hash:stableHash(state.level),level:state.level}));}catch(error){}});
   }
 
   async function initialize() {
     bindUi();
+    setPlayInFlight(false);
+    document.documentElement.dataset.backgroundWorkPaused='false';
     setEditorReady(false);
+    updateCampaignSeedStatus('idle',{total:0,processed:0,loaded:0,failed:0});
     updateSaveState();
     try {
       state.db = await openDatabase();
       const mirrorRecoveryCount = await recoverLibraryMirror();
-      await seedCampaign();
       await importLegacyDraftOnce();
-      const recovery = await recoverEmergencyDraft();
-      await refreshUserSlots();
       const returnContext = readPlaytestReturnContext();
+      const emergencyTarget = readEmergencyDraftTarget();
       let key = 'campaign-ep1-01';
       let difficulty = 'easy';
       const view = readEditorView();
       try {
         const stored = localStorage.getItem(LAST_SLOT_KEY);
-        if (stored && await dbGet(stored)) key = stored;
+        if (stored && await canOpenInitialSlot(stored)) key = stored;
         const storedDifficulty = localStorage.getItem(LAST_DIFFICULTY_KEY);
         if (DIFFICULTIES.includes(storedDifficulty)) difficulty = storedDifficulty;
-        if (view?.slotKey && await dbGet(view.slotKey)) {
+        if (view?.slotKey && await canOpenInitialSlot(view.slotKey)) {
           key = view.slotKey;
           if (DIFFICULTIES.includes(view.difficulty)) difficulty = view.difficulty;
         }
       } catch (error) {}
-      if (recovery) {
-        key = recovery.slotKey;
-        difficulty = recovery.difficulty;
+      if(emergencyTarget&&await canOpenInitialSlot(emergencyTarget.slotKey)){
+        key=emergencyTarget.slotKey;
+        difficulty=emergencyTarget.difficulty;
       }
       if (returnContext?.slotKey) {
-        if (await dbGet(returnContext.slotKey)) {
+        if (await canOpenInitialSlot(returnContext.slotKey)) {
           key = returnContext.slotKey;
           difficulty = returnContext.difficulty;
         } else {
           returnContext.warning = 'Проверенный уровень больше нет в библиотеке. Открыта последняя сохранённая карта.';
         }
       }
+      const campaignKeysToEnsure=new Set([key,emergencyTarget?.slotKey].filter(candidate=>campaignSequenceFromKey(candidate)));
+      if(campaignKeysToEnsure.size){
+        const veil=$('editorLoadingVeil'),sequences=[...campaignKeysToEnsure].map(campaignSequenceFromKey).join(', ');
+        if(veil?.querySelector('b'))veil.querySelector('b').textContent=`Загружаю карту ${sequences}…`;
+        await Promise.all([...campaignKeysToEnsure].map(candidate=>ensureCampaignSlot(candidate)));
+      }
+      const recovery = await recoverEmergencyDraft();
+      if (recovery) {
+        key = recovery.slotKey;
+        difficulty = recovery.difficulty;
+      }
+      await refreshUserSlots();
       await loadSlot(key, difficulty);
+      seedCampaignInBackground();
       await requestStoragePersistence();
       scheduleLibraryMirror();
       await consumePlaytestResult();
       clearPlaytestReturnContext(returnContext);
       validateLevel(false);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (!restoreEditorView(view)) fitLevel(); }));
-      toast(recovery ? 'Аварийная копия черновика восстановлена.' : mirrorRecoveryCount ? `Из зеркальной копии восстановлено наборов: ${mirrorRecoveryCount}.` : 'Библиотека готова: 24 карты × 3 сложности.', 'ok');
+      if(recovery)toast('Аварийная копия черновика восстановлена.','ok');
+      else if(mirrorRecoveryCount)toast(`Из зеркальной копии восстановлено наборов: ${mirrorRecoveryCount}.`,'ok');
+      else if(state.campaignSeedStatus==='complete')toast('Библиотека готова: 24 карты × 3 сложности.','ok');
       if(returnContext?.warning)toast(returnContext.warning,returnContext.recoveredFrom==='url'?'ok':'error');
     } catch (error) {
       console.error(error);
