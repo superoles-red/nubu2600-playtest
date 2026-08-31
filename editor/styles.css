@@ -152,10 +152,11 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .context-toolbar .context-danger { --context-color: #ff7b84; }
 .context-toolbar .context-variant { --context-color: #8fdfff; }
 .context-glyph { display: grid; width: 100%; height: 100%; place-items: center; pointer-events: none; }
-.context-bulb { position: relative; width: 17px; height: 20px; border: 2px solid currentColor; border-radius: 50% 50% 43% 43%; }
+.context-bulb { position: relative; width: 17px; height: 20px; border: 2px solid currentColor; border-radius: 50% 50% 43% 43%; color: color-mix(in srgb,var(--context-color,#ffd868) 42%,#4b5149); }
 .context-bulb::before { content: ''; position: absolute; left: 3px; right: 3px; bottom: -6px; height: 4px; border-block: 2px solid currentColor; }
-.context-bulb::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: currentColor; opacity: .18; }
-.context-icon-button.is-active .context-bulb { box-shadow: 0 0 12px currentColor; }
+.context-bulb::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: currentColor; opacity: .08; }
+.context-icon-button.is-active .context-bulb { color: #fff7b2; filter: drop-shadow(0 0 3px #ffd868); box-shadow: 0 0 12px #ffd868; }
+.context-icon-button.is-active .context-bulb::after { opacity: .88; }
 .context-plug { position: relative; width: 18px; height: 13px; border: 2px solid currentColor; border-radius: 3px; }
 .context-plug::before { content: ''; position: absolute; left: 3px; top: -8px; width: 2px; height: 7px; border-radius: 2px; background: currentColor; box-shadow: 7px 0 currentColor; }
 .context-plug::after { content: ''; position: absolute; left: 6px; bottom: -8px; width: 2px; height: 7px; border-radius: 2px; background: currentColor; }

@@ -1614,11 +1614,16 @@
     let testSpawn=null;if(state.testSpawn){const shiftedSpawn={x:state.testSpawn.x+topology.shiftX,y:state.testSpawn.y+topology.shiftY},position=firstShapePosition(next,1,2,shiftedSpawn,objects);if(position)testSpawn=position;}
     return{level:next,testSpawn,removedIds:invalidIds,splitSolids,shiftX:topology.shiftX,shiftY:topology.shiftY};
   }
+  function panelRemovalAffectsContent(preview){
+    const expectedObjects=state.level.objects.map(object=>shiftObjectGeometry(deepClone(object),preview.shiftX,preview.shiftY));
+    const expectedTestSpawn=state.testSpawn?{x:state.testSpawn.x+preview.shiftX,y:state.testSpawn.y+preview.shiftY}:null;
+    return JSON.stringify(preview.level.objects)!==JSON.stringify(expectedObjects)||JSON.stringify(preview.testSpawn)!==JSON.stringify(expectedTestSpawn);
+  }
   async function removeLevelPanel(x,y){
     const panel=editablePanelLayout()?.panels?.find(candidate=>candidate.x===x&&candidate.y===y),removal=panel&&panelRemovalContract(panel);if(!panel||!removal?.ok){toast(removal?.message||'Поле не найдено.','error');return false;}
     let preview;try{preview=buildPanelRemoval(panel);}catch(error){toast(error.message,'error');return false;}
-    const affected=preview.removedIds.size+preview.splitSolids,detail=affected?` Будут удалены или обрезаны связанные предметы: ${affected}.`:' Внутри удаляемой панели нет затронутых предметов.';
-    const ok=await confirmAction('Удалить поле 20×20?',`${detail} Вход и выход при необходимости переместятся в ближайшее свободное место. Действие можно отменить.`);if(!ok)return false;
+    const affectsContent=panelRemovalAffectsContent(preview),affected=preview.removedIds.size+preview.splitSolids;
+    if(affectsContent){const detail=affected?` Будут удалены или обрезаны связанные предметы: ${affected}.`:' Предмет, вход, выход или точка теста будут перемещены.';const ok=await confirmAction('Удалить поле 20×20?',`${detail} Действие можно отменить.`);if(!ok)return false;}
     const changed=mutate('Удалено поле 20×20',()=>{state.level=preview.level;state.slot.difficulties[state.difficulty]=state.level;state.testSpawn=preview.testSpawn;if(!state.level.objects.some(object=>object.id===state.selectedId))state.selectedId=null;requirePanelContract(state.level);}, {preserveTestSpawn:true});
     if(changed)requestAnimationFrame(fitLevel);return changed;
   }
@@ -1884,6 +1889,7 @@
 
   function contextIconButton(icon,label,action,className='',active=false,actionId=''){
     const button=document.createElement('button');button.type='button';button.className=`context-icon-button ${className}${active?' is-active':''}`.trim();button.title=label;button.setAttribute('aria-label',label);if(actionId)button.dataset.contextAction=actionId;
+    if(icon==='bulb')button.setAttribute('aria-pressed',String(active));
     const special=['bulb','plug','socket'].includes(icon)||icon.startsWith('door-'),glyph=document.createElement('span');glyph.className=`context-glyph${special?` context-${icon}`:''}${icon.startsWith('door-')?' context-door':''}`;if(!special)glyph.textContent=icon;glyph.setAttribute('aria-hidden','true');button.append(glyph);
     let touchStart=null;
     button.addEventListener('pointerdown',event=>{if(event.pointerType!=='touch')return;touchStart={pointerId:event.pointerId,x:event.clientX,y:event.clientY,gestureVersion:state.touchGestureVersion};state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});safelyCapturePointer(button,event.pointerId);});

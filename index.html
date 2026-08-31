@@ -2167,6 +2167,10 @@ function roomCellInShape(room, tx, ty) {
   const panelSize = room.panelSize || EDITOR_PANEL_SIZE;
   return !!room.panelShape[`${Math.floor(tx / panelSize)},${Math.floor(ty / panelSize)}`];
 }
+function missingShapeBoundaryCell(room, tx, ty) {
+  if (roomCellInShape(room, tx, ty)) return false;
+  return roomCellInShape(room, tx - 1, ty) || roomCellInShape(room, tx + 1, ty) || roomCellInShape(room, tx, ty - 1) || roomCellInShape(room, tx, ty + 1);
+}
 function roomTileAt(room, tx, ty) {
   if (tx < -1 || tx > room.innerW || ty < -1 || ty > room.innerH) return 1;
   if (tx >= 0 && ty >= 0 && tx < room.innerW && ty < room.innerH && !roomCellInShape(room, tx, ty)) return 1;
@@ -12898,7 +12902,7 @@ function drawTiles() {
   for (let ty = viewMinTileY; ty <= viewMaxTileY; ty++) {
     for (let tx = viewMinTileX; tx <= viewMaxTileX; tx++) {
       if (room.schemaVersion !== 2 || tx < 0 || ty < 0 || tx >= room.innerW || ty >= room.innerH || roomCellInShape(room, tx, ty)) continue;
-      drawMonolithCell(tx, ty, true);
+      drawMonolithCell(tx, ty, !missingShapeBoundaryCell(room, tx, ty));
     }
   }
 
