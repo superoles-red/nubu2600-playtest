@@ -1299,3 +1299,460 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   .command-bar { grid-template-columns:112px 128px minmax(0,1fr) 164px !important; }
   .interaction-hint { padding-inline:4px !important; }
 }
+
+/* 2026-09-01: readable player editor controls. Safe-area belongs to the dock,
+   never to each category button, so icons keep their geometric centre. */
+:root {
+  --editor-eraser-size:60px;
+  --editor-history-size:52px;
+  --editor-category-label-size:14px;
+}
+
+#headerEraserButton .eraser-icon { display:block; width:32px; height:32px; overflow:visible; }
+#headerEraserButton .eraser-icon-body { fill:#e7ff72; stroke:#1a241c; stroke-width:1.35; }
+#headerEraserButton .eraser-icon-tip { fill:#ff9aa9; stroke:#1a241c; stroke-width:1.2; }
+#headerEraserButton .eraser-icon-line { fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
+#headerEraserButton.active .eraser-icon-body { fill:#182116; }
+#headerEraserButton.active .eraser-icon-tip { fill:#8b2638; }
+
+.player-level-button strong { font-size:16px !important; }
+.player-level-button small { font-size:14px !important; }
+.zoom-controls output { font-size:14px !important; line-height:14px !important; }
+.interaction-hint { min-height:60px !important; padding:6px 10px !important; }
+.interaction-hint strong { font-size:16px !important; line-height:1.12 !important; }
+.interaction-hint span {
+  display:-webkit-box !important;
+  overflow:hidden !important;
+  max-height:2.5em !important;
+  font-size:14px !important;
+  line-height:1.18 !important;
+  text-overflow:clip !important;
+  white-space:normal !important;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+
+.mobile-category-sheet > header { min-height:64px !important; padding:8px 12px !important; }
+.mobile-category-sheet > header small { font-size:16px !important; line-height:1.1; }
+.mobile-category-sheet > header strong { font-size:20px !important; }
+.mobile-category-sheet > header button { width:44px !important; min-width:44px !important; min-height:44px !important; }
+.mobile-variant-button small { min-height:36px !important; padding:7px 3px !important; font-size:16px !important; line-height:1.08 !important; }
+.mobile-drag-ghost small { font-size:14px !important; }
+
+#libraryModal .library-hint { min-height:64px !important; padding:8px 13px !important; }
+.library-hint strong { font-size:20px !important; }
+.library-hint span { font-size:18px !important; }
+.library-selected-copy p { font-size:18px !important; line-height:1.3 !important; }
+.library-preview-open-label { font-size:18px !important; }
+.level-card-wrap.current::after { font-size:14px !important; }
+
+@media (orientation:portrait) {
+  .app-shell {
+    grid-template-rows:140px minmax(0,1fr) calc(116px + env(safe-area-inset-bottom)) !important;
+  }
+  .command-bar {
+    grid-template-rows:56px 66px !important;
+    min-height:140px !important;
+    column-gap:7px !important;
+    row-gap:6px !important;
+  }
+  .player-level-button { height:54px !important; }
+  .zoom-controls { grid-template-rows:34px 16px !important; }
+  .zoom-controls button { min-height:42px !important; }
+  .command-actions #playButton { height:54px !important; min-height:54px !important; }
+  .interaction-hint {
+    grid-column:2 / 5 !important;
+    grid-row:2 !important;
+    width:100% !important;
+    height:62px !important;
+    min-height:62px !important;
+    padding:5px 8px !important;
+  }
+  .command-actions #headerEraserButton {
+    grid-column:1 !important;
+    grid-row:2 !important;
+    width:var(--editor-eraser-size) !important;
+    min-width:var(--editor-eraser-size) !important;
+    height:var(--editor-eraser-size) !important;
+    min-height:var(--editor-eraser-size) !important;
+    padding:8px !important;
+    justify-self:center !important;
+  }
+  .history-actions {
+    grid-column:5 / 7 !important;
+    grid-row:2 !important;
+    justify-content:flex-end !important;
+    gap:7px !important;
+    box-sizing:border-box !important;
+    padding-right:max(0px,calc((100% - 127px) / 2)) !important;
+    transform:translateX(2px);
+  }
+  .command-actions #undoButton,
+  .command-actions #redoButton {
+    width:var(--editor-history-size) !important;
+    min-width:var(--editor-history-size) !important;
+    height:var(--editor-history-size) !important;
+    min-height:var(--editor-history-size) !important;
+    padding:3px !important;
+    font-size:29px !important;
+  }
+  .mobile-palette-shell {
+    padding:4px max(5px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left)) !important;
+  }
+  .mobile-carousel-rail {
+    justify-content:flex-start !important;
+    gap:5px !important;
+  }
+  .mobile-category-button {
+    position:relative !important;
+    width:74px !important;
+    min-width:74px !important;
+    height:108px !important;
+    min-height:108px !important;
+    flex:0 0 74px !important;
+    padding:6px !important;
+  }
+  .mobile-category-button span {
+    position:absolute !important;
+    top:50% !important;
+    left:50% !important;
+    width:auto !important;
+    font-size:32px !important;
+    line-height:1 !important;
+    transform:translate(-50%,-50%) !important;
+  }
+  .mobile-category-button small {
+    position:absolute !important;
+    right:3px !important;
+    bottom:7px !important;
+    left:3px !important;
+    overflow:hidden;
+    font-size:var(--editor-category-label-size) !important;
+    line-height:1.05 !important;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .mobile-category-sheet {
+    bottom:calc(116px + env(safe-area-inset-bottom)) !important;
+    max-height:calc(100dvh - 140px - 116px - env(safe-area-inset-bottom) - 10px) !important;
+  }
+  .mobile-category-items {
+    grid-template-columns:repeat(var(--portrait-palette-columns,1),124px) !important;
+    grid-template-rows:repeat(2,124px) !important;
+    gap:8px !important;
+  }
+  .inspector-panel { top:max(148px,env(safe-area-inset-top)) !important; bottom:calc(124px + env(safe-area-inset-bottom)) !important; }
+  .toast-region { top:148px !important; }
+}
+
+@media (orientation:landscape) {
+  .app-shell { grid-template-columns:164px minmax(0,1fr) !important; grid-template-rows:72px minmax(0,1fr) !important; }
+  .command-bar {
+    grid-template-columns:minmax(108px,136px) minmax(124px,150px) minmax(0,1fr) auto !important;
+    grid-template-rows:62px !important;
+    min-height:72px !important;
+    gap:7px !important;
+  }
+  .player-level-button { height:60px !important; }
+  .zoom-controls { grid-template-rows:34px 16px !important; }
+  .zoom-controls button { min-height:42px !important; }
+  .interaction-hint { height:60px !important; min-height:60px !important; }
+  .interaction-hint strong { font-size:20px !important; }
+  .interaction-hint span { font-size:18px !important; }
+  .command-actions { gap:7px !important; }
+  .command-actions #headerEraserButton {
+    position:static !important;
+    width:var(--editor-eraser-size) !important;
+    min-width:var(--editor-eraser-size) !important;
+    height:var(--editor-eraser-size) !important;
+    min-height:var(--editor-eraser-size) !important;
+    padding:8px !important;
+  }
+  .command-actions #undoButton,
+  .command-actions #redoButton {
+    width:var(--editor-history-size) !important;
+    min-width:var(--editor-history-size) !important;
+    height:var(--editor-history-size) !important;
+    min-height:var(--editor-history-size) !important;
+    padding:3px !important;
+    font-size:29px !important;
+  }
+  .command-actions #playButton { height:60px !important; min-height:60px !important; }
+  .workspace { grid-column:2 !important; grid-row:2 !important; }
+  .mobile-palette-shell { grid-column:1 !important; grid-row:2 !important; }
+  .mobile-category-button {
+    position:relative !important;
+    min-height:76px !important;
+    padding:5px !important;
+  }
+  .mobile-category-button span {
+    position:absolute !important;
+    top:50% !important;
+    left:50% !important;
+    width:auto !important;
+    font-size:28px !important;
+    line-height:1 !important;
+    transform:translate(-50%,-50%) !important;
+  }
+  .mobile-category-button small {
+    position:absolute !important;
+    right:3px !important;
+    bottom:4px !important;
+    left:3px !important;
+    overflow:hidden;
+    font-size:var(--editor-category-label-size) !important;
+    line-height:1 !important;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .mobile-category-sheet { top:72px !important; left:164px !important; width:min(248px,calc(100vw - 164px)) !important; max-height:calc(100dvh - 72px - env(safe-area-inset-bottom)) !important; }
+  .mobile-category-items { grid-template-columns:repeat(2,minmax(0,108px)) !important; }
+  .inspector-panel { top:max(80px,env(safe-area-inset-top)) !important; left:auto !important; }
+  .toast-region { top:80px !important; left:172px !important; }
+}
+
+@media (max-width:760px) and (orientation:landscape) and (pointer:coarse) {
+  .command-bar { grid-template-columns:112px 128px minmax(0,1fr) auto !important; }
+  .interaction-hint {
+    position:fixed !important;
+    top:calc(80px + env(safe-area-inset-top)) !important;
+    right:8px !important;
+    left:172px !important;
+    width:auto !important;
+    height:64px !important;
+    min-height:64px !important;
+    transform:none !important;
+  }
+}
+
+/* 2026-09-01 follow-up: keep the enlarged UI readable at iPhone safe areas
+   and reserve real room for the labels instead of clipping larger type. */
+.mobile-category-items .mobile-variant-button {
+  padding:4px 4px 52px !important;
+  justify-content:flex-start !important;
+}
+.mobile-variant-button canvas {
+  width:88% !important;
+  max-width:88px !important;
+  max-height:100% !important;
+}
+.mobile-variant-button small {
+  display:flex !important;
+  min-height:48px !important;
+  max-height:50px !important;
+  align-items:center;
+  justify-content:center;
+  padding:5px 4px !important;
+  overflow:hidden !important;
+  font-size:16px !important;
+  line-height:1.05 !important;
+  overflow-wrap:anywhere;
+  white-space:normal !important;
+}
+
+/* Important inspection and library copy used 8–11 px type. These surfaces
+   scroll, so larger text can grow the cards without stealing canvas space. */
+.inspector-tabs button { min-height:52px; font-size:20px; }
+.section-card > strong { font-size:24px; }
+.section-card p,
+.property-row > span,
+.issue { font-size:20px; }
+.button-grid button,
+.issue button,
+.link-chip { min-height:44px; font-size:18px; }
+.empty-state,
+.checks-summary { font-size:22px; }
+.object-heading strong { font-size:24px; }
+.object-heading small,
+.budget-chip,
+.budget-chip b { font-size:18px; }
+.budget-chip b { font-family:var(--mono); }
+.modal-panel header p,
+.library-actions span { font-size:22px; }
+.template-size-row,
+.template-size-row button { font-size:20px; }
+.template-size-row button { min-height:48px; }
+.library-list { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.library-list > .level-card-wrap.selected { grid-column:1 / -1; }
+.level-card { grid-template-columns:96px minmax(0,1fr); min-height:118px; }
+.level-card canvas { width:96px; height:96px; }
+.level-card strong { font-size:22px; white-space:normal; }
+.level-card small,
+.level-card-delete { font-size:18px; }
+.level-card-delete { min-width:52px; }
+.level-status,
+.player-status-legend span { font-size:16px !important; }
+.local-warning { font-size:20px; }
+.library-selected-copy > small { font-size:18px; }
+.library-selected-actions > button,
+.library-selected-actions > label { min-height:52px; font-size:18px !important; }
+.library-selected-actions:has(> .compact-library-action:not([hidden])) { padding-right:0 !important; }
+.library-selected-actions > .compact-library-action:not([hidden]) {
+  position:static !important;
+  width:auto !important;
+  min-width:96px !important;
+  max-width:none !important;
+  min-height:52px !important;
+  flex:0 0 auto !important;
+  margin-left:auto !important;
+  font-size:18px !important;
+}
+
+@media (orientation:portrait) {
+  .app-shell {
+    --editor-portrait-header-height:calc(134px + max(6px,env(safe-area-inset-top)));
+    grid-template-rows:var(--editor-portrait-header-height) minmax(0,1fr) calc(116px + env(safe-area-inset-bottom)) !important;
+  }
+  .command-bar { min-height:var(--editor-portrait-header-height) !important; }
+  .player-level-button { gap:0 !important; padding-inline:8px !important; }
+  .player-level-button > .player-level-gear { display:none !important; }
+  .mobile-category-button {
+    width:112px !important;
+    min-width:112px !important;
+    flex-basis:112px !important;
+  }
+  .mobile-category-button small { overflow:visible; text-overflow:clip; }
+  .mobile-category-sheet {
+    max-height:calc(100dvh - var(--editor-portrait-header-height) - 116px - env(safe-area-inset-bottom) - 10px) !important;
+  }
+  .mobile-category-items {
+    grid-template-columns:repeat(var(--portrait-palette-columns,1),136px) !important;
+    grid-template-rows:repeat(2,136px) !important;
+  }
+  .inspector-panel { top:calc(var(--editor-portrait-header-height) + 8px) !important; }
+  .toast-region { top:calc(var(--editor-portrait-header-height) + 8px) !important; }
+  .library-selected-actions > button,
+  .library-selected-actions > label { font-size:18px !important; }
+}
+
+@media (max-width:1024px) and (orientation:landscape) and (pointer:coarse) {
+  .interaction-hint {
+    position:fixed !important;
+    top:calc(80px + env(safe-area-inset-top)) !important;
+    right:max(8px,env(safe-area-inset-right)) !important;
+    left:max(172px,calc(env(safe-area-inset-left) + 172px)) !important;
+    width:auto !important;
+    height:88px !important;
+    min-height:88px !important;
+    padding:7px 12px !important;
+    transform:none !important;
+  }
+  .interaction-hint span {
+    display:-webkit-box !important;
+    max-height:3.6em !important;
+    white-space:normal !important;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:3;
+  }
+  .mobile-category-sheet { width:min(304px,calc(100vw - 164px)) !important; }
+  .mobile-category-items { grid-template-columns:repeat(2,minmax(0,136px)) !important; gap:8px !important; }
+}
+
+@media (orientation:landscape) {
+  .mobile-category-sheet { width:min(304px,calc(100vw - 164px)) !important; }
+  .mobile-category-items { grid-template-columns:repeat(2,minmax(0,136px)) !important; gap:8px !important; }
+}
+
+@media (max-width:620px) and (orientation:landscape) and (pointer:coarse) {
+  .command-bar { grid-template-columns:minmax(80px,1fr) auto !important; }
+  .player-level-button { grid-column:1 !important; }
+  .zoom-controls { display:none !important; }
+  .command-actions { grid-column:2 !important; }
+  .interaction-hint {
+    top:calc(80px + env(safe-area-inset-top)) !important;
+    right:max(8px,env(safe-area-inset-right)) !important;
+    left:172px !important;
+    height:130px !important;
+    min-height:130px !important;
+  }
+  .interaction-hint strong { font-size:16px !important; }
+  .interaction-hint span {
+    max-height:7.2em !important;
+    font-size:14px !important;
+    -webkit-line-clamp:6;
+  }
+  .mobile-category-sheet > header { padding-right:max(12px,env(safe-area-inset-right)) !important; }
+  .mobile-category-items {
+    gap:6px !important;
+    padding-right:max(4px,env(safe-area-inset-right)) !important;
+    padding-left:4px !important;
+  }
+}
+
+/* The library hint has large, readable type now. Reserve a real band for it
+   instead of letting wrapped copy cover the fixed library header. */
+#libraryModal {
+  padding-top:max(80px,calc(env(safe-area-inset-top) + 72px)) !important;
+}
+#libraryModal .library-hint {
+  box-sizing:border-box;
+  height:64px;
+  max-height:64px;
+  overflow:hidden;
+}
+#libraryModal .library-hint span {
+  display:-webkit-box;
+  min-width:0;
+  max-height:2.6em;
+  overflow:hidden;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+
+@media (max-width:640px) and (orientation:portrait) {
+  #libraryModal {
+    padding-top:max(104px,calc(env(safe-area-inset-top) + 96px)) !important;
+  }
+  #libraryModal .library-hint {
+    left:max(8px,env(safe-area-inset-left)) !important;
+    width:calc(100vw - 74px) !important;
+    height:88px;
+    max-height:88px;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    gap:2px;
+    padding:7px 13px !important;
+    transform:none !important;
+  }
+  #libraryModal .library-hint span { width:100%; max-height:none !important; }
+}
+
+@media (max-width:620px) and (orientation:landscape) and (pointer:coarse) {
+  #libraryModal {
+    padding-top:max(104px,calc(env(safe-area-inset-top) + 96px)) !important;
+    padding-right:max(8px,env(safe-area-inset-right)) !important;
+    padding-left:max(8px,env(safe-area-inset-left)) !important;
+  }
+  #libraryModal .library-hint {
+    top:max(8px,env(safe-area-inset-top)) !important;
+    right:calc(max(8px,env(safe-area-inset-right)) + 56px) !important;
+    left:max(8px,env(safe-area-inset-left)) !important;
+    width:auto !important;
+    height:88px;
+    max-height:88px;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    gap:2px;
+    padding:7px 13px !important;
+    transform:none !important;
+  }
+  #libraryModal .library-hint span { width:100%; max-height:none !important; }
+  #libraryModal .library-panel {
+    display:block !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+  }
+  #libraryModal .library-scroll {
+    overflow-x:hidden !important;
+    overflow-y:visible !important;
+  }
+  #libraryModal .library-selected {
+    grid-template-columns:minmax(112px,38%) minmax(0,1fr) !important;
+    gap:9px !important;
+    padding:9px !important;
+  }
+  #libraryModal .library-selected canvas { min-height:96px; }
+  #libraryModal .library-selected-actions { padding-right:0; }
+}

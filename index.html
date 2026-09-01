@@ -52,6 +52,13 @@
   .control-right{flex:1 1 auto;height:100%;position:relative;min-width:min(36vw,320px)}
   .jump-zone{position:absolute;right:0;bottom:0;width:var(--move-btn-w);height:var(--move-btn-h);border-radius:22px;background:linear-gradient(180deg, rgba(60,72,108,.27), rgba(18,22,36,.27));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(0,0,0,.20);pointer-events:none}
   .jump-label{position:absolute;right:0;bottom:0;display:grid;width:var(--move-btn-w);height:var(--move-btn-h);place-items:center;color:rgba(255,255,255,.78);font-weight:900;font-size:12px;letter-spacing:.06em;pointer-events:none}
+  .controls,.control-left,.control-right,.move-btn,.jump-zone,.jump-label{
+    touch-action:none;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+  }
 
   @media (orientation:landscape) and (pointer:coarse){
     :root{--move-btn-h:min(12.4vw,65px);--move-btn-w:calc(var(--move-btn-h) * 1.5);--move-cluster-w:calc(var(--move-btn-w) * 2 + 12px)}
@@ -114,7 +121,7 @@
   @media (hover:hover) and (pointer:fine){.controls{display:none}}
   .editor-playtest-bar{position:fixed;z-index:70;top:max(8px,env(safe-area-inset-top));left:50%;display:grid;width:min(620px,calc(100vw - max(16px,env(safe-area-inset-left)) - max(16px,env(safe-area-inset-right))));grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:6px;padding:6px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(8,14,28,.92);box-shadow:0 12px 32px rgba(0,0,0,.34);backdrop-filter:blur(8px);transform:translateX(-50%)}
   .editor-playtest-bar span{display:none}
-  .editor-playtest-bar button{min-width:0;min-height:44px;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:7px 5px;background:#24324d;color:#fff;font:800 clamp(10px,2.9vw,14px)/1 system-ui;text-overflow:ellipsis;white-space:nowrap}
+  .editor-playtest-bar button{min-width:0;min-height:44px;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:7px 5px;background:#24324d;color:#fff;font:800 clamp(10px,2.9vw,14px)/1 system-ui;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   body.editor-playtest .hud-card,body.editor-playtest #menuBtn{display:none}
   html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
   img,canvas{-webkit-user-drag:none}
@@ -2659,6 +2666,12 @@ function editorSpikeDirection(value) {
   const direction = editorDirection(value, 'u');
   return direction === 'b' ? 'd' : direction;
 }
+function editorPortalRuntimeAnchor(x, y, w, h, orientation, side) {
+  return {
+    x: x + (orientation === 'v' && side === 'l' ? w : 0),
+    y: y + (orientation === 'h' && side === 'u' ? h : 0),
+  };
+}
 function editorLevelObjectOptions(object) {
   return object && object.props && typeof object.props === 'object' ? object.props : {};
 }
@@ -2849,7 +2862,13 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       }
       case 'door': addDoor(room, id, x, y, props.orientation === 'horizontal' ? w : h, props.orientation === 'horizontal' ? 'h' : 'v', !!props.open); break;
       case 'button': addButton(room, props.buttonType || 'T', editorButtonSides(props.sides), x, y, Array.isArray(props.targets) ? props.targets : [], { startOn:!!props.startOn }); break;
-      case 'portal': addPortal(room, props.pairId || id, props.color || 'purple', x, y, props.orientation === 'horizontal' ? 'h' : 'v', editorDirection(props.side, props.orientation === 'horizontal' ? 'u' : 'r'), Number(props.length) || (props.orientation === 'horizontal' ? w : h)); break;
+      case 'portal': {
+        const orientation=props.orientation === 'horizontal' ? 'h' : 'v';
+        const side=editorDirection(props.side, orientation === 'h' ? 'u' : 'r');
+        const anchor=editorPortalRuntimeAnchor(x,y,w,h,orientation,side);
+        addPortal(room, props.pairId || id, props.color || 'purple', anchor.x, anchor.y, orientation, side, Number(props.length) || (orientation === 'h' ? w : h));
+        break;
+      }
       case 'driftField': addDriftField(room, id, x, y, w, h, props); break;
       case 'playerCannon': addPlayerCannon(room, id, x, y, { ...props, w, h }); break;
       case 'flyerSpawner': addFlyerSpawner(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, w, h }); break;
@@ -14708,6 +14727,7 @@ function isJumpTouchPoint(clientX, clientY) {
 }
 function bindMoveButton(el, dir) {
   el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' && e.cancelable) e.preventDefault();
     moveTouch.ids.set(e.pointerId, dir);
     refreshMoveTouchState();
     el.setPointerCapture(e.pointerId);
@@ -14734,6 +14754,7 @@ bindMoveButton(moveRightBtn, 'right');
 const jumpArea = document.getElementById('jumpArea');
 jumpArea.addEventListener('pointerdown', (e) => {
   if (!isJumpTouchPoint(e.clientX, e.clientY)) return;
+  if (e.pointerType !== 'mouse' && e.cancelable) e.preventDefault();
   jumpTouch.held = true;
   jumpTouch.id = e.pointerId;
   state.jumpPressQueued = true;
@@ -14894,6 +14915,12 @@ document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.
 for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
 document.addEventListener('touchstart', event => {const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"]');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();}, { passive:false, capture:true });
 document.addEventListener('touchmove', event => {
+  if ((event.touches?.length || 0) > 1) {
+    event.preventDefault();
+    return;
+  }
+  const interactive = event.target?.closest?.('button,label,a,[role="button"],input,textarea,select');
+  if (interactive) return;
   const pausePanel = event.target?.closest?.('#pauseOverlay .panel');
   if (pausePanel && pausePanel.scrollHeight > pausePanel.clientHeight + 1) return;
   event.preventDefault();
