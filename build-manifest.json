@@ -7,7 +7,7 @@
   "editorPath": "./editor/",
   "campaignVersion": "b6387548d0976e55",
   "pwa": {
-    "version": "8b42e656ae81f11b",
+    "version": "31658e9a6819c55b",
     "scope": "./",
     "display": "standalone",
     "offline": true

@@ -3003,6 +3003,14 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   }
 }
 
+@media (orientation:landscape) and (min-width:761px) {
+  .interaction-hint {
+    height:68px !important;
+    min-height:68px !important;
+    max-height:68px !important;
+  }
+}
+
 .mobile-category-scroll-cue.vertical { top:34px; }
 
 .mobile-category-items .mobile-variant-button small {
