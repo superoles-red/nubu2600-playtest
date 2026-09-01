@@ -29,6 +29,7 @@
   const MAP_CLIPBOARD_KEY = 'nubu2600.editor.map-clipboard.v1';
   const EXAM_PENDING_KEY = 'nubu2600.editor.exam.v1';
   const AUTHOR_NAME_KEY = 'nubu2600.editor.author-name.v1';
+  const HINT_VISIBILITY_KEY = 'nubu2600.editor.hints-hidden.v1';
   const LIBRARY_MIRROR_FILE = 'nubu2600-authoring-backup-v1.json';
   const DELETED_SLOT_TOMBSTONES_KEY = 'nubu2600.editor.deleted-slots.v1';
   const STORAGE_TIMEOUT_MS = 6000;
@@ -48,8 +49,10 @@
   const TRAM_BEND_COLOR = '#67d7ff';
   const TRAM_INSERTION_COLOR = '#ffd56b';
   const INVALID_PREVIEW_COLOR = '#ff3348';
-  const MOBILE_PALETTE_LONG_PRESS_MS = 100;
-  const MOBILE_PALETTE_GESTURE_SLOP = 12;
+  const MOBILE_PALETTE_LONG_PRESS_MS = 240;
+  const MOBILE_PALETTE_GESTURE_SLOP = 6;
+  const MOBILE_PALETTE_OUTWARD_DRAG_SLOP = 11;
+  const MOBILE_PALETTE_OUTWARD_DOMINANCE = 1.15;
   const MOBILE_PALETTE_FADE_DELAY_MS = 120;
   const TOUCH_OBJECT_HOLD_MS = 110;
   const TOUCH_OBJECT_GESTURE_SLOP = 12;
@@ -137,12 +140,12 @@
 
   const PALETTE_BY_ID = new Map(PALETTE_ITEMS.map(item => [item.id, item]));
   const FAVORITE_IDS = ['solid', 'oneWay', 'fallingPlatform', 'movingPlatform', 'spike', 'coin', 'enemyGoomba'];
+  const MOBILE_FORMER_SPECIAL_IDS = ['collectible','unlockSwitch','pickup-abilities','heartVendor','developerNote'];
   const MOBILE_PALETTE_CATEGORIES = [
-    { id:'base', label:'Основа', icon:'▦', items:['solid','coin','label','pickup-gravity'] },
+    { id:'base', label:'Основа', icon:'▦', items:['solid','coin','label','pickup-gravity',...MOBILE_FORMER_SPECIAL_IDS] },
     { id:'platforms', label:'Платформы', icon:'═', items:['oneWay','fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','bouncePad'] },
     { id:'hazards', label:'Опасности', icon:'▲', items:['spike','pushBlock','enemyGoomba','enemyFlyer','enemyLeech'] },
     { id:'mechanisms', label:'Механизмы', icon:'⚙', items:['button-toggle','conveyor','driftField','crusherWall','door','portal','playerCannon','generator'] },
-    { id:'other', label:'Особые', icon:'⋯', items:['collectible','unlockSwitch','pickup-abilities','heartVendor','developerNote'] },
   ];
 
   const PROPERTY_DEFS = {
@@ -289,6 +292,7 @@
     libraryUserFilter: 'draft',
     libraryNeedsScroll: false,
     libraryDifficulty: 'easy',
+    hintsHidden: false,
     activeTramInsertion: null,
     campaignSlotLoads: new Map(),
     campaignSeedPromise: null,
@@ -898,14 +902,9 @@
   function refreshPlayerHeader() {
     const title = $('playerLevelTitle');
     const status = $('playerLevelStatus');
-    if (!title || !status || !state.slot) return;
-    const stateStatus = playerSlotStatus(state.slot);
-    const number = Number(state.slot.sequence || state.level?.sequence || 1);
-    const levelName = state.level?.title || state.slot.title || 'Без названия';
-    title.textContent = state.slot.kind === 'campaign' ? `Эпизод ${state.slot.episode || 1} · уровень ${number}` : 'Мои уровни';
-    status.textContent = levelName;
-    status.dataset.status = stateStatus.key;
-    $('mobileLevelButton')?.setAttribute('aria-label', `Открыть список уровней. Сейчас уровень ${number}: ${levelName}. ${stateStatus.label}.`);
+    if (title) title.textContent = 'Библиотека';
+    if (status) { status.textContent = ''; status.hidden = true; }
+    $('mobileLevelButton')?.setAttribute('aria-label', 'Открыть библиотеку уровней');
   }
 
   function scheduleSave() {
@@ -1009,8 +1008,10 @@
   }
   function syncEditorViewportLayout(){
     const vv=window.visualViewport,width=vv?.width||window.innerWidth,height=vv?.height||window.innerHeight,mode=width>height?'landscape':'portrait';
+    updateInteractionHintHeight(mode);
     if(mode!==state.layoutMode){state.layoutMode=mode;renderMobilePalette();requestAnimationFrame(fitLevel);}
     else renderCanvas();
+    requestAnimationFrame(()=>{updateMobileCategoryScrollCue();updateLibraryScrollCue();});
   }
 
   function setEditorReady(ready) {
@@ -1613,6 +1614,41 @@
     updateToolButtons();
   }
 
+  function updateScrollCue(scroller,cue,axis='vertical'){
+    if(!scroller||!cue)return;
+    const vertical=axis==='vertical',client=vertical?scroller.clientHeight:scroller.clientWidth,scrollSize=vertical?scroller.scrollHeight:scroller.scrollWidth,position=vertical?scroller.scrollTop:scroller.scrollLeft,overflow=scrollSize-client;
+    cue.classList.toggle('vertical',vertical);
+    cue.classList.toggle('horizontal',!vertical);
+    cue.hidden=overflow<=2||client<=0;
+    if(cue.hidden)return;
+    requestAnimationFrame(()=>{
+      if(cue.hidden)return;
+      const track=vertical?cue.clientHeight:cue.clientWidth,thumb=Math.min(track,Math.max(28,track*client/scrollSize)),offset=overflow>0?(track-thumb)*clamp(position/overflow,0,1):0,handle=cue.querySelector('span');
+      if(!handle)return;
+      if(vertical){handle.style.height=`${thumb}px`;handle.style.width='';handle.style.transform=`translateY(${offset}px)`;}
+      else{handle.style.width=`${thumb}px`;handle.style.height='';handle.style.transform=`translateX(${offset}px)`;}
+    });
+  }
+
+  function updateMobileCategoryScrollCue(){updateScrollCue($('mobileCategoryItems'),$('mobileCategoryScrollCue'),state.layoutMode==='portrait'?'horizontal':'vertical');}
+  function updateLibraryScrollCue(){const scroller=$('libraryScroll'),cue=$('libraryScrollCue');if(scroller&&cue){cue.style.top=`${scroller.offsetTop+8}px`;cue.style.height=`${Math.max(0,scroller.clientHeight-16)}px`;}updateScrollCue(scroller,cue,'vertical');}
+  function resetMobileCategoryHint(category){
+    const help=$('mobileCategoryHelp');
+    $('mobileCategoryInstruction').textContent='Смахните список · предмет тяните на поле';
+    $('mobileCategoryTitle').textContent=category?.label||'Предметы';
+    if(help){help.hidden=true;help.textContent='';}
+  }
+  function showMobileCategoryHint(item){
+    const def=TYPE_DEFS[item?.type],help=$('mobileCategoryHelp');
+    if(!def||!help)return;
+    const label=item.label||def.label,copy=TYPE_HELP[item.type]||'Предмет игрового уровня.';
+    $('mobileCategoryInstruction').textContent='Что делает предмет';
+    $('mobileCategoryTitle').textContent=label;
+    help.textContent=copy;
+    help.hidden=false;
+    showHintText(label,copy);
+  }
+
   function renderMobilePalette() {
     const root = $('mobileCarouselRail');
     const sheet = $('mobileCategorySheet');
@@ -1633,10 +1669,11 @@
     if(!state.mobilePaletteDrag)sheet.classList.remove('drag-hidden');
     sheet.classList.toggle('open', state.mobilePaletteExpanded);
     sheet.setAttribute('aria-hidden', String(!state.mobilePaletteExpanded));
+    document.documentElement.classList.toggle('mobile-category-open',state.mobilePaletteExpanded);
     itemsRoot.innerHTML = '';
-    if (!state.mobilePaletteExpanded) { updateToolButtons();return; }
+    if (!state.mobilePaletteExpanded) { $('mobileCategoryScrollCue').hidden=true;resetMobileCategoryHint();updateToolButtons();return; }
     const category = MOBILE_PALETTE_CATEGORIES.find(candidate => candidate.id === state.mobileCategory) || MOBILE_PALETTE_CATEGORIES[0];
-    $('mobileCategoryTitle').textContent = category.label;
+    resetMobileCategoryHint(category);
     let visibleItemCount=0;
     for (const id of category.items) {
       const item = PALETTE_BY_ID.get(id);
@@ -1646,6 +1683,7 @@
       const variant = document.createElement('button');
       variant.type = 'button';
       variant.className = 'mobile-variant-button';
+      variant.classList.toggle('mobile-former-special',MOBILE_FORMER_SPECIAL_IDS.includes(id));
       variant.dataset.paletteId = id;
       variant.dataset.toolSize = (def.fixedSize || def.defaultSize || [1,1]).join('x');
       variant.style.setProperty('--tool-color', item.color || def.color);
@@ -1657,11 +1695,10 @@
       text.textContent = item.label || def.label;
       variant.append(icon, text);
       if(item.type==='coin'){const badge=document.createElement('span');badge.className='coin-cap';badge.textContent=`${state.level?.objects.filter(object=>object.type==='coin').length||0}/${state.level?coinLimit():5}`;variant.append(badge);}
-      variant.addEventListener('pointerenter',()=>showInteractionHint(item));
+      variant.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showMobileCategoryHint(item);});
       variant.addEventListener('click', () => {
         if (Date.now() < (state.mobileIgnoreClickUntil || 0)) return;
-        showInteractionHint(item);
-        toast(`${item.label || def.label}: ${TYPE_HELP[item.type] || 'Предмет игрового уровня.'}`);
+        showMobileCategoryHint(item);
       });
       variant.addEventListener('pointerdown', event => {
         if (event.button !== undefined && event.button !== 0) return;
@@ -1671,6 +1708,7 @@
       requestAnimationFrame(() => drawToolIcon(icon, item));
     }
     itemsRoot.style.setProperty('--portrait-palette-columns',String(Math.max(1,Math.ceil(visibleItemCount/2))));
+    requestAnimationFrame(updateMobileCategoryScrollCue);
     updateToolButtons();
   }
 
@@ -1925,9 +1963,9 @@
   function captureTouchSelectionSnapshot(){if(state.touchSelectionSnapshot)return;state.touchSelectionSnapshot={selectedId:state.selectedId,selectedWire:state.selectedWire?deepClone(state.selectedWire):null};}
   function discardTouchSelectionSnapshot(){state.touchSelectionSnapshot=null;}
   function restoreTouchSelectionSnapshot(){const snapshot=state.touchSelectionSnapshot;if(!snapshot)return false;state.touchSelectionSnapshot=null;state.selectedId=snapshot.selectedId&&state.level?.objects.some(object=>object.id===snapshot.selectedId)?snapshot.selectedId:null;state.selectedWire=snapshot.selectedWire&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.sourceId)&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.targetId)?snapshot.selectedWire:null;showInteractionHint(selectedObject());refreshInspector();renderContextToolbar();return true;}
-  function beginFieldTapCandidate(event){state.fieldTapCandidate=state.mobilePaletteExpanded&&event.pointerType==='touch'?{pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,gestureVersion:state.touchGestureVersion}:null;}
+  function beginFieldTapCandidate(event){state.fieldTapCandidate=state.mobilePaletteExpanded&&event.pointerType==='touch'?{pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startedAt:performance.now(),gestureVersion:state.touchGestureVersion}:null;}
   function updateFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId===event.pointerId&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)>TOUCH_OBJECT_GESTURE_SLOP)state.fieldTapCandidate=null;}
-  function finishFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId!==event.pointerId)return false;state.fieldTapCandidate=null;const tap=candidate.gestureVersion===state.touchGestureVersion&&!state.pinch&&!state.drag&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)<=TOUCH_OBJECT_GESTURE_SLOP;if(tap)closeMobileCategorySheet();return tap;}
+  function finishFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId!==event.pointerId)return false;state.fieldTapCandidate=null;const tap=candidate.gestureVersion===state.touchGestureVersion&&!state.pinch&&!state.drag&&performance.now()-candidate.startedAt<=320&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)<=TOUCH_OBJECT_GESTURE_SLOP;if(tap)closeMobileCategorySheet();return tap;}
   function resetCanvasGestureState({restoreSelection=false}={}){const hadWireDrag=!!state.wireDrag;clearTouchObjectIntent();if(restoreSelection)restoreTouchSelectionSnapshot();else discardTouchSelectionSnapshot();clearMobilePaletteGesture();restoreMobilePaletteDragSheet();state.touchGestureVersion++;state.fieldTapCandidate=null;state.pointers.clear();state.panelControlPointers.clear();state.panelControlTouch=null;state.pinch=null;state.nativeGesture=null;state.drag=null;state.pan=null;state.domResize=null;state.wireDrag=null;if(hadWireDrag)state.linkSourceId=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.activeTramInsertion=null;state.hoverPoint=null;canvas.classList.remove('will-delete');viewport.classList.remove('dragging');canvas.style.cursor=state.tool==='select'?'grab':'';const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}if(state.level)renderCanvas();}
   function beginTouchCanvasIntent(event,activate){clearTouchObjectIntent();const intent={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop,activate,timer:null};intent.timer=setTimeout(()=>{if(state.touchObjectIntent!==intent||state.pinch)return;state.touchObjectIntent=null;state.fieldTapCandidate=null;intent.activate?.();},TOUCH_OBJECT_HOLD_MS);state.touchObjectIntent=intent;return intent;}
   function beginTouchObjectIntent(event,point,object){beginTouchCanvasIntent(event,()=>{const current=state.level.objects.find(candidate=>candidate.id===object.id);if(!current)return;state.drag={kind:'move',pointerId:event.pointerId,pointerType:'touch',object:deepClone(current),start:point,current:point,offsetX:point.rawX-current.x,offsetY:point.rawY-current.y};canvas.style.cursor='grabbing';renderCanvas();});}
@@ -1942,8 +1980,9 @@
     return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
   }
 
-  function activateMobilePaletteDrag(pointerId,paletteId,clientX,clientY) {
+  function activateMobilePaletteDrag(pointerId,paletteId,clientX,clientY,target=null) {
     setTool('select');
+    safelyCapturePointer(target,pointerId);
     state.mobilePaletteDrag = { pointerId, paletteId, startX:clientX, startY:clientY, clientX, clientY, moved:false, sheetFadeTimer:null, sheetFaded:false };
     const item=PALETTE_BY_ID.get(paletteId),ghost=$('mobileDragGhost');
     if(item&&ghost){ghost.hidden=false;ghost.style.left=`${clientX}px`;ghost.style.top=`${clientY}px`;ghost.style.setProperty('--tool-color',item.color||TYPE_DEFS[item.type].color);ghost.querySelector('small').textContent=item.label||TYPE_DEFS[item.type].label;drawToolIcon(ghost.querySelector('canvas'),item);}
@@ -1961,14 +2000,13 @@
   function beginMobilePaletteDrag(event, paletteId) {
     if(state.drag||state.pan||state.pinch||state.domResize||state.wireDrag||state.mobilePaletteDrag||state.mobilePaletteGesture)return;
     event.stopPropagation();
-    safelyCapturePointer(event.currentTarget,event.pointerId);
     if(event.pointerType!=='touch'){
       event.preventDefault();
-      activateMobilePaletteDrag(event.pointerId,paletteId,event.clientX,event.clientY);
+      activateMobilePaletteDrag(event.pointerId,paletteId,event.clientX,event.clientY,event.currentTarget);
       return;
     }
     const gesture={pointerId:event.pointerId,paletteId,target:event.currentTarget,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,mode:'pending',timer:null};
-    gesture.timer=setTimeout(()=>{if(state.mobilePaletteGesture!==gesture||gesture.mode!=='pending')return;gesture.mode='drag';gesture.timer=null;activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,gesture.lastX,gesture.lastY);},MOBILE_PALETTE_LONG_PRESS_MS);
+    gesture.timer=setTimeout(()=>{if(state.mobilePaletteGesture!==gesture||gesture.mode!=='pending')return;gesture.mode='drag';gesture.timer=null;activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,gesture.lastX,gesture.lastY,gesture.target);},MOBILE_PALETTE_LONG_PRESS_MS);
     state.mobilePaletteGesture=gesture;
   }
 
@@ -1976,16 +2014,9 @@
     const gesture=state.mobilePaletteGesture;
     if(!gesture||gesture.pointerId!==event.pointerId||gesture.mode==='drag')return;
     const deltaX=event.clientX-gesture.startX,deltaY=event.clientY-gesture.startY;
-    if(gesture.mode==='pending'&&Math.hypot(deltaX,deltaY)>MOBILE_PALETTE_GESTURE_SLOP){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='scroll';state.mobileIgnoreClickUntil=Date.now()+450;}
-    if(gesture.mode==='scroll'){
-      event.preventDefault();
-      const items=$('mobileCategoryItems');
-      if(items){
-        const portrait=window.matchMedia?.('(orientation: portrait)')?.matches ?? innerHeight>=innerWidth;
-        if(portrait)items.scrollLeft-=event.clientX-gesture.lastX;
-        else items.scrollTop-=event.clientY-gesture.lastY;
-      }
-    }
+    const portrait=state.layoutMode==='portrait',primary=Math.abs(portrait?deltaX:deltaY),outward=portrait?-deltaY:deltaX,cross=Math.abs(portrait?deltaY:deltaX),outwardDrag=outward>MOBILE_PALETTE_OUTWARD_DRAG_SLOP&&cross>primary*MOBILE_PALETTE_OUTWARD_DOMINANCE;
+    if(gesture.mode==='pending'&&outwardDrag){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='drag';event.preventDefault();activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,event.clientX,event.clientY,gesture.target);}
+    else if(gesture.mode==='pending'&&(primary>MOBILE_PALETTE_GESTURE_SLOP||Math.hypot(deltaX,deltaY)>MOBILE_PALETTE_OUTWARD_DRAG_SLOP)){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='scroll';state.mobileIgnoreClickUntil=Date.now()+450;}
     gesture.lastX=event.clientX;gesture.lastY=event.clientY;
   }
 
@@ -1994,13 +2025,12 @@
     if(!gesture||gesture.pointerId!==event.pointerId)return;
     const mode=gesture.mode;
     clearMobilePaletteGesture();
-    if(mode==='scroll'){event.preventDefault();state.mobileIgnoreClickUntil=Date.now()+450;}
+    if(mode==='scroll')state.mobileIgnoreClickUntil=Date.now()+450;
   }
 
   function cancelMobilePaletteGesture(event) {
     const gesture=state.mobilePaletteGesture;
     if(!gesture||gesture.pointerId!==event.pointerId)return;
-    if(gesture.mode!=='pending')event.preventDefault();
     state.mobileIgnoreClickUntil=Date.now()+450;
     clearMobilePaletteGesture();
   }
@@ -2061,11 +2091,11 @@
     safelyCapturePointer(viewport,event.pointerId);
     if(state.pointers.size>=2){if(!state.pinch)beginPinch();return;}
     viewport.focus({preventScroll:true});
+    beginFieldTapCandidate(event);
     if(!pointInsideCanvas(event.clientX,event.clientY)){
       if(event.button===0||event.button===undefined){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       return;
     }
-    beginFieldTapCandidate(event);
     const point=pointerGridPoint(event),wireHit=state.tool==='select'?wireAtPoint(point,event.pointerType):null;
     if(wireHit?.edge==='target'||wireHit?.edge==='source'){
       const startsNewWire=wireHit.edge==='source',title=startsNewWire?'Новый провод':'Провод выбран',message=startsNewWire?'Потяните вилку к новой розетке. Уже подключённые провода останутся на месте.':`Потяните край к другой розетке или отпустите в стороне, чтобы отключить: ${TYPE_DEFS[wireHit.source.type].label} → ${TYPE_DEFS[wireHit.target.type].label}.`;
@@ -2435,7 +2465,15 @@
     }
   }
 
-  function showHintText(label,help,attention=false){for(const root of [$('interactionHint'),$('libraryHint')]){if(!root)continue;root.querySelector('strong').textContent=label;root.querySelector('span').textContent=help;if(attention){root.classList.remove('attention');void root.offsetWidth;root.classList.add('attention');}}}
+  function updateInteractionHintHeight(mode=((window.visualViewport?.width||innerWidth)>(window.visualViewport?.height||innerHeight)?'landscape':'portrait')){
+    const shell=$('appShell'),root=$('interactionHint');if(!shell||!root)return;
+    if(mode!=='portrait'){shell.style.removeProperty('--editor-portrait-hint-height');return;}
+    if(state.hintsHidden)return;
+    const strong=root.querySelector('strong'),copy=root.querySelector('span'),style=getComputedStyle(root),numeric=value=>Number.parseFloat(value)||0,contentHeight=Math.ceil((strong?.scrollHeight||0)+(copy?.scrollHeight||0)+numeric(style.paddingTop)+numeric(style.paddingBottom)+numeric(style.borderTopWidth)+numeric(style.borderBottomWidth));
+    shell.style.setProperty('--editor-portrait-hint-height',`${clamp(contentHeight,88,164)}px`);
+  }
+  function setHintsHidden(hidden,{persist=true}={}){state.hintsHidden=!!hidden;document.documentElement.classList.toggle('hints-hidden',state.hintsHidden);const button=$('toggleHintsButton');if(button){button.textContent='Подсказки';button.setAttribute('aria-pressed',String(!state.hintsHidden));}if(persist)try{localStorage.setItem(HINT_VISIBILITY_KEY,state.hintsHidden?'1':'0');}catch(error){}requestAnimationFrame(syncEditorViewportLayout);}
+  function showHintText(label,help,attention=false){const root=$('interactionHint');if(!root)return;root.querySelector('strong').textContent=label;root.querySelector('span').textContent=help;updateInteractionHintHeight();requestAnimationFrame(syncEditorViewportLayout);if(attention){root.classList.remove('attention');void root.offsetWidth;root.classList.add('attention');}}
   function showInteractionHint(objectOrItem){const type=objectOrItem?.type,def=TYPE_DEFS[type],label=objectOrItem?.label||def?.label||'Поле уровня';let help=TYPE_HELP[type]||'Тяните пустое место, чтобы двигать карту.';if(type==='label'&&String(objectOrItem?.props?.text||'').trim())help=`${help} Текст: «${String(objectOrItem.props.text).trim()}»`;showHintText(label,help);}
   function openDeveloperNote(object=selectedObject()){if(object?.type!=='developerNote')return;state.developerNoteId=object.id;$('developerNoteInput').value=String(object.props?.comment||'');$('developerNoteModal').classList.add('open');$('developerNoteModal').setAttribute('aria-hidden','false');requestAnimationFrame(()=>$('developerNoteInput').focus());}
   function closeDeveloperNote(save=false){const object=state.level?.objects.find(candidate=>candidate.id===state.developerNoteId);if(save&&object)mutate('Комментарий изменён',()=>{object.props.comment=String($('developerNoteInput').value||'').slice(0,1200);});state.developerNoteId=null;$('developerNoteModal').classList.remove('open');$('developerNoteModal').setAttribute('aria-hidden','true');}
@@ -2445,8 +2483,8 @@
   async function shareCurrentLevel(){await saveNow({revision:true});const payload=makeLevelTransferPayload();const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'}),fileName=`${slug(state.level.title)}.nubu-level.json`;if(navigator.share&&typeof File==='function'){const file=new File([blob],fileName,{type:'application/json'});if(navigator.canShare?.({files:[file]})){await navigator.share({title:state.level.title,files:[file]});toast('Уровень передан через системное меню.','ok');return;}}const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileName;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Файл уровня скачан. Его можно открыть на другом устройстве.','ok');}
   async function receiveSharedLevel(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{const payload=JSON.parse(await file.text());await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='draft').length>=MAX_DRAFT_LEVELS)throw new Error(`В работе уже ${MAX_DRAFT_LEVELS} уровней.`);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,sequence=Math.max(0,...state.userSlots.map(item=>Number(item.sequence)||0))+1,slot=normalizeLevelTransferPayload(payload,key,sequence);await dbPut(slot);closeLibrary();await loadSlot(key,'easy');toast('Уровень получен и сохранён как новый черновик.','ok');}catch(error){toast(`Не удалось получить уровень: ${error.message}`,'error');}}
 
-  async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?`campaign-${state.slot.episode||1}`:'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;showHintText('Библиотека','Нажмите уровень — действия под ним.');await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');}
-  function closeLibrary(){$('libraryModal').classList.remove('open');$('libraryModal').setAttribute('aria-hidden','true');}
+  async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?`campaign-${state.slot.episode||1}`:'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');requestAnimationFrame(updateLibraryScrollCue);}
+  function closeLibrary(){$('libraryModal').classList.remove('open');$('libraryModal').setAttribute('aria-hidden','true');$('libraryScrollCue').hidden=true;}
   function libraryLevelFor(slot){return slot?.difficulties?.[slot.kind==='campaign'?state.libraryDifficulty:'easy']||slot?.difficulties?.easy;}
   function makeLibraryCard(slot,{campaign=false}={}){
     const status=campaign?{key:'campaign',label:'Кампания'}:playerSlotStatus(slot),level=libraryLevelFor(slot),displayTitle=campaign?(level?.title||slot.title):slot.title;
@@ -2458,7 +2496,7 @@
     meta.textContent=`${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${level.size.width}×${level.size.height}${isPanelLevel(level)?` · ${level.panels.length} пан.`:''} · ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})}`;
     statusChip.className='level-status';statusChip.dataset.status=status.key;statusChip.hidden=true;statusChip.textContent='';statusChip.setAttribute('aria-label',status.label);
     info.append(title,meta,statusChip);select.append(thumb,info);
-    select.addEventListener('click',()=>{state.librarySelectedKey=state.librarySelectedKey===slot.key?null:slot.key;state.librarySelectedSlot=state.librarySelectedKey?slot:null;renderLibrary();showHintText(state.librarySelectedKey?'Уровень выбран':'Карточка закрыта',state.librarySelectedKey?'Действия открыты прямо под этой картой.':'Выберите другой уровень.');});
+    select.addEventListener('click',()=>{state.librarySelectedKey=state.librarySelectedKey===slot.key?null:slot.key;state.librarySelectedSlot=state.librarySelectedKey?slot:null;renderLibrary();});
     card.append(select);drawLevelThumbnail(thumb,level);return card;
   }
   function renderLibrarySelection(slot,showUsers,card){
@@ -2479,7 +2517,7 @@
     const drafts=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft'),published=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='submitted');
     $('libraryHeading').textContent=showUsers?'Мои уровни':`Эпизод ${episode}`;$('libraryDescription').textContent=showUsers?'Черновики и опубликованные уровни на этом устройстве.':`Уровни эпизода ${episode}; выберите сложность и карту.`;
     $('draftSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS}`;$('publishedSlotCount').textContent=`${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('userSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS} · ${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('publicationLimitBeacon').hidden=published.length<MAX_PUBLISHED_LEVELS;
-    $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('randomStarterCheckbox').closest('label').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;
+    $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;
     document.querySelectorAll('[data-library-filter]').forEach(button=>button.classList.toggle('active',button.dataset.libraryFilter===state.libraryUserFilter));
     let slots,container;
     if(showUsers){slots=state.libraryUserFilter==='submitted'?published:drafts;container=root;}else{slots=all.filter(slot=>slot.kind==='campaign'&&Number(slot.episode||1)===episode).sort((a,b)=>a.sequence-b.sequence);container=campaignRoot;$('libraryEpisodeSelect').value=String(episode);}
@@ -2488,7 +2526,8 @@
     let selectedCard=null,selectedSlot=null;
     for(const slot of slots){const card=makeLibraryCard(slot,{campaign:!showUsers});container.append(card);if(slot.key===state.librarySelectedKey){selectedCard=card;selectedSlot=slot;}}
     renderLibrarySelection(selectedSlot,showUsers,selectedCard);
-    if(state.libraryNeedsScroll){state.libraryNeedsScroll=false;requestAnimationFrame(()=>container.querySelector('.current,.selected')?.scrollIntoView({block:'center',behavior:'auto'}));}
+    if(state.libraryNeedsScroll){state.libraryNeedsScroll=false;requestAnimationFrame(()=>{container.querySelector('.current,.selected')?.scrollIntoView({block:'center',behavior:'auto'});updateLibraryScrollCue();});}
+    else requestAnimationFrame(updateLibraryScrollCue);
   }
 
   async function withdrawSelectedLevel(){const selected=state.librarySelectedSlot;if(selected?.kind!=='user'||playerSlotStatus(selected).key!=='submitted')return;const key=selected.key,ok=await confirmAction('Отозвать опубликованный уровень?',`«${selected.title}» вернётся в раздел «В работе». После отзыва его снова можно редактировать или удалить.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot||slot.kind!=='user')return;slot.publicationStatus='draft';slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();if(state.slotKey===slot.key){state.slot=deepClone(slot);state.slot.difficulties[state.difficulty]=state.level;}state.libraryUserFilter='draft';state.librarySelectedKey=slot.key;await renderLibrary();refreshPlayerHeader();toast('Уровень отозван и снова находится в работе.','ok');});}
@@ -2545,9 +2584,9 @@
     document.querySelectorAll('[data-close-drawer]').forEach(button=>button.addEventListener('click',()=>closeDrawer(button.dataset.closeDrawer)));
     document.querySelectorAll('[data-inspector-tab]').forEach(button=>button.addEventListener('click',()=>selectInspectorTab(button.dataset.inspectorTab)));
     document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>switchDifficulty(button.dataset.difficulty)));
-    $('openPaletteButton').addEventListener('click',()=>openDrawer('palettePanel'));$('rotateButton').addEventListener('click',rotateSelected);$('rotateObjectButton').addEventListener('click',rotateSelected);$('testHereButton').addEventListener('click',()=>setTool('testSpawn'));$('undoButton').addEventListener('click',undo);$('redoButton').addEventListener('click',redo);$('fitButton').addEventListener('click',fitLevel);$('playButton').addEventListener('click',()=>playLevel());$('mobilePlayButton').addEventListener('click',()=>playLevel());$('issuesButton').addEventListener('click',()=>{validateLevel(true);openDrawer('inspectorPanel');});$('closeMobileCategorySheet').addEventListener('pointerup',closeMobileCategoryFromPointerUp);$('closeMobileCategorySheet').addEventListener('click',closeMobileCategoryFromClick);
+    $('openPaletteButton').addEventListener('click',()=>openDrawer('palettePanel'));$('rotateButton').addEventListener('click',rotateSelected);$('rotateObjectButton').addEventListener('click',rotateSelected);$('testHereButton').addEventListener('click',()=>setTool('testSpawn'));$('undoButton').addEventListener('click',undo);$('redoButton').addEventListener('click',redo);$('fitButton').addEventListener('click',fitLevel);$('playButton').addEventListener('click',()=>playLevel());$('mobilePlayButton').addEventListener('click',()=>playLevel());$('issuesButton').addEventListener('click',()=>{validateLevel(true);openDrawer('inspectorPanel');});$('closeMobileCategorySheet').addEventListener('pointerup',closeMobileCategoryFromPointerUp);$('closeMobileCategorySheet').addEventListener('click',closeMobileCategoryFromClick);$('mobileCategoryItems').addEventListener('scroll',()=>{const category=MOBILE_PALETTE_CATEGORIES.find(candidate=>candidate.id===state.mobileCategory);if(!$('mobileCategoryHelp').hidden)resetMobileCategoryHint(category);updateMobileCategoryScrollCue();},{passive:true});$('libraryScroll').addEventListener('scroll',updateLibraryScrollCue,{passive:true});
     const openLibrarySafely=()=>openLibrary().catch(error=>toast(error.message,'error'));
-    $('libraryButton').addEventListener('click',openLibrarySafely);$('mobileLevelButton').addEventListener('click',openLibrarySafely);$('closeLibraryButton').addEventListener('click',closeLibrary);$('newUserLevelButton').addEventListener('click',()=>confirmCreateUserSlot($('randomStarterCheckbox').checked).catch(error=>toast(error.message,'error')));$('randomStarterButton').addEventListener('click',()=>confirmCreateUserSlot(true).catch(error=>toast(error.message,'error')));$('manualSaveButton').addEventListener('click',()=>shareCurrentLevel().catch(error=>toast(error.message,'error')));$('libraryOpenButton').addEventListener('click',()=>openSelectedLibraryLevel().catch(error=>toast(error.message,'error')));
+    $('libraryButton').addEventListener('click',openLibrarySafely);$('mobileLevelButton').addEventListener('click',openLibrarySafely);$('closeLibraryButton').addEventListener('click',closeLibrary);$('newUserLevelButton').addEventListener('click',()=>confirmCreateUserSlot(false).catch(error=>toast(error.message,'error')));$('toggleHintsButton').addEventListener('click',()=>setHintsHidden(!state.hintsHidden));$('manualSaveButton').addEventListener('click',()=>shareCurrentLevel().catch(error=>toast(error.message,'error')));$('libraryOpenButton').addEventListener('click',()=>openSelectedLibraryLevel().catch(error=>toast(error.message,'error')));
     $('libraryLevelTitleInput').addEventListener('change',event=>renameSelectedLibraryLevel(event).catch(error=>toast(error.message,'error')));$('libraryCopyMapButton').addEventListener('click',()=>copySelectedLibraryMap().catch(error=>toast(error.message,'error')));$('libraryPasteMapButton').addEventListener('click',()=>replaceSelectedMapFromClipboard().catch(error=>toast(error.message,'error')));$('libraryExportLevelButton').addEventListener('click',exportSelectedCampaignLevel);$('libraryImportLevelInput').addEventListener('change',importSelectedCampaignLevel);$('libraryDeleteButton').addEventListener('click',()=>{if(state.librarySelectedSlot?.kind==='user')deleteUserSlot(state.librarySelectedSlot.key).catch(error=>toast(error.message,'error'));});$('withdrawLevelButton').addEventListener('click',()=>withdrawSelectedLevel().catch(error=>toast(error.message,'error')));
     document.querySelectorAll('[data-library-filter]').forEach(button=>button.addEventListener('click',()=>{state.libraryUserFilter=button.dataset.libraryFilter;state.librarySelectedKey=null;renderLibrary();}));$('librarySourceSelect').addEventListener('change',()=>{state.librarySelectedKey=null;renderLibrary();});$('libraryLobbyButton').addEventListener('click',async()=>{const ok=await confirmAction('Выйти в лобби?','Текущая карта будет сохранена, затем редактор закроется.');if(!ok)return;await saveNow({revision:true});closeLibrary();if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else window.location.assign(gameLobbyUrl().href);});$('libraryEpisodeSelect').addEventListener('change',()=>{$('librarySourceSelect').value=`campaign-${$('libraryEpisodeSelect').value}`;state.librarySelectedKey=null;renderLibrary();});$('libraryDifficultySelect').addEventListener('change',event=>{state.libraryDifficulty=event.target.value;renderLibrary();});$('examLevelButton').addEventListener('click',async()=>{const slot=state.librarySelectedSlot;if(slot?.kind!=='user'){toast('Экзамен доступен только для уровней игрока.','error');return;}await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='submitted').length>=MAX_PUBLISHED_LEVELS){toast(`Опубликовано уже ${MAX_PUBLISHED_LEVELS} уровней. Для следующего нужен дополнительный объём.`,'error');return;}const ok=await confirmAction('Экзамен уровня','Уровень запустится с обычного входа. Чтобы получить статус «Опубликован», нужно дойти до выхода без смерти.');if(!ok)return;closeLibrary();await loadSlot(slot.key,'easy');await playLevel({exam:true});});document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-size]').forEach(item=>item.classList.toggle('active',item===button));state.chosenSize=button.dataset.size.split('x').map(Number);}));const updateChosenSize=()=>{state.chosenSize=[Number($('newLevelWidth').value),Number($('newLevelHeight').value)];};$('newLevelWidth').addEventListener('change',updateChosenSize);$('newLevelHeight').addEventListener('change',updateChosenSize);
     $('episodeSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;refreshSelectors(event.target.value);const first=$('levelSelect').value;if(first)loadSlot(first,'easy').catch(error=>toast(error.message,'error'));});$('levelSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;loadSlot(event.target.value,state.difficulty).catch(error=>toast(error.message,'error'));});
@@ -2597,7 +2636,9 @@
   }
 
   async function initialize() {
+    try{state.hintsHidden=localStorage.getItem(HINT_VISIBILITY_KEY)==='1';}catch(error){}
     bindUi();
+    setHintsHidden(state.hintsHidden,{persist:false});
     setPlayInFlight(false);
     document.documentElement.dataset.backgroundWorkPaused='false';
     setEditorReady(false);
