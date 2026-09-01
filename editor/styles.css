@@ -16,6 +16,14 @@
   --shadow: 0 20px 64px rgba(0, 0, 0, .42);
   --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --ui-type-meta: 12px;
+  --ui-type-body: 14px;
+  --ui-type-subtitle: 16px;
+  --ui-type-heading: 20px;
+  --ui-weight-body: 600;
+  --ui-weight-strong: 800;
+  --ui-weight-control: 900;
+  --ui-control-safe-inline: 10px;
 }
 
 * { box-sizing: border-box; }
@@ -1869,7 +1877,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 }
 #libraryModal .library-source-line {
   grid-template-columns:minmax(0,1fr) auto auto;
-  padding-inline-end:max(56px,calc(env(safe-area-inset-right) + 50px));
+  padding-inline-end:56px;
 }
 #toggleHintsButton {
   display:inline-flex;
@@ -2053,31 +2061,43 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   #libraryModal .library-source-line {
     grid-column:1 / -1 !important;
   }
-  #libraryModal #userLibraryActions,
-  #libraryModal #userLibraryFilters { display:contents !important; }
+  #libraryModal #userLibraryActions { display:contents !important; }
+  #libraryModal #userLibraryFilters {
+    display:grid !important;
+    grid-column:3 / 5 !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    align-items:stretch !important;
+    gap:0 !important;
+  }
   #newUserLevelButton { grid-column:1 !important; }
-  #userLibraryActions .check-option { grid-column:2 !important; }
-  #libraryDraftFilterButton { grid-column:3 !important; }
-  #libraryPublishedFilterButton { grid-column:4 !important; }
-  #publicationLimitBeacon { grid-column:1 / -1 !important; margin-left:0 !important; }
+  #libraryDraftFilterButton,
+  #libraryPublishedFilterButton { grid-column:auto !important; }
+  #libraryDraftFilterButton {
+    border-radius:11px 0 0 11px !important;
+  }
+  #libraryPublishedFilterButton {
+    margin-left:-1px !important;
+    border-radius:0 11px 11px 0 !important;
+  }
+  #publicationLimitBeacon { grid-column:1 / -1 !important; margin:4px 0 0 !important; }
   #newUserLevelButton,
-  #userLibraryActions .check-option,
   #libraryDraftFilterButton,
   #libraryPublishedFilterButton {
     min-width:0 !important;
-    min-height:50px !important;
+    height:44px !important;
+    min-height:44px !important;
+    max-height:44px !important;
     margin:0 !important;
-    padding:5px 6px !important;
+    padding:4px 6px !important;
     justify-content:center;
     overflow:hidden;
     font-size:14px !important;
     line-height:1.1 !important;
     text-align:center;
-    white-space:normal !important;
-    overflow-wrap:anywhere;
+    white-space:nowrap !important;
+    overflow-wrap:normal;
+    word-break:normal;
   }
-  #userLibraryActions .check-option { flex-direction:row !important; gap:5px !important; }
-  #userLibraryActions .check-option input { flex:0 0 18px; }
   .library-filter-row button b { display:block; margin:2px 0 0 !important; font-size:11px !important; }
   #libraryModal .library-campaign-head { grid-column:1 / -1 !important; }
 }
@@ -2086,25 +2106,33 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   #libraryModal .library-static-head { grid-template-columns:minmax(0,1fr) !important; }
   #libraryModal .library-source-title select {
     padding-inline:8px 24px;
-    font-size:16px !important;
+    font-size:15px !important;
   }
   #libraryModal .library-source-line {
-    grid-template-columns:minmax(94px,1fr) 112px 64px !important;
-    gap:6px !important;
+    grid-template-columns:minmax(0,1fr) 108px 34px !important;
+    gap:4px !important;
   }
   #toggleHintsButton {
-    width:112px;
+    width:108px;
     min-width:0;
-    padding-inline:3px;
+    gap:2px;
+    padding-inline:1px;
+    font-size:13px;
     line-height:1.05;
     white-space:normal;
   }
-  #libraryLobbyButton {
-    min-width:0;
-    padding-inline:4px;
-    gap:2px;
-    font-size:11px;
+  #toggleHintsButton::before {
+    width:16px;
+    height:16px;
+    flex-basis:16px;
+    font-size:12px;
   }
+  #libraryLobbyButton {
+    width:34px !important;
+    min-width:34px !important;
+    padding:2px !important;
+  }
+  #libraryLobbyButton > span:last-child { display:none; }
   #libraryModal .library-actions { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; }
   #libraryModal .library-filter-row { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; }
 }
@@ -2131,21 +2159,43 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 }
 
 @media (max-width:620px) and (orientation:landscape) {
+  #libraryModal .library-static-head {
+    grid-template-columns:minmax(132px,1.28fr) 0 minmax(100px,1fr) minmax(100px,1fr) !important;
+  }
+  #libraryModal .library-source-line { padding-inline-end:56px !important; }
+  #toggleHintsButton {
+    width:108px !important;
+    min-width:108px !important;
+    gap:2px !important;
+    padding-inline:3px !important;
+    font-size:var(--ui-type-meta) !important;
+  }
+  #toggleHintsButton::before {
+    width:14px !important;
+    height:14px !important;
+    flex-basis:14px !important;
+    font-size:11px !important;
+  }
+  #libraryLobbyButton {
+    width:34px !important;
+    min-width:34px !important;
+    padding:2px !important;
+  }
+  #libraryLobbyButton > span:last-child { display:none !important; }
   #newUserLevelButton,
-  #userLibraryActions .check-option,
   #libraryDraftFilterButton,
   #libraryPublishedFilterButton {
-    height:64px !important;
-    min-height:64px !important;
-    max-height:64px !important;
-    padding-inline:3px !important;
-    font-size:12px !important;
+    height:44px !important;
+    min-height:44px !important;
+    max-height:44px !important;
+    padding-inline:2px !important;
+    font-size:var(--ui-type-meta) !important;
+    letter-spacing:0 !important;
+    text-transform:none !important;
     overflow-wrap:normal !important;
     word-break:normal !important;
     hyphens:none !important;
   }
-  #userLibraryActions .check-option { flex-direction:column !important; gap:2px !important; }
-  #userLibraryActions .check-option input { width:15px !important; min-height:15px !important; flex-basis:15px; }
   .library-filter-row button b { font-size:9px !important; }
 }
 
@@ -2165,80 +2215,132 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 .player-level-button strong { font-size:13px !important; }
 #playerLevelStatus { display:none !important; }
 
-/* A selected user level must still read as one compact row in a scrollable
-   list. The preview occupies only the first row; actions stay small below it. */
+/* A selected user level stays one compact row: the preview fills the left side
+   while metadata and actions share the right side without an empty action row. */
 #libraryList .library-selected {
-  grid-template-rows:auto auto !important;
-  gap:8px !important;
+  grid-template-rows:minmax(64px,auto) 44px !important;
+  gap:7px !important;
   padding:8px !important;
 }
 #libraryList .library-selected > .library-preview-open {
-  grid-row:1 !important;
-  height:112px !important;
-  min-height:112px !important;
-  max-height:112px !important;
-  align-self:start !important;
+  grid-column:1 !important;
+  grid-row:1 / 3 !important;
+  height:auto !important;
+  min-height:116px !important;
+  max-height:none !important;
+  align-self:stretch !important;
 }
 #libraryList .library-preview-open-label {
-  right:6px !important;
-  bottom:6px !important;
-  left:auto !important;
+  top:50% !important;
+  right:auto !important;
+  bottom:auto !important;
+  left:50% !important;
   display:grid;
   width:34px;
   height:24px;
   place-items:center;
   padding:0 !important;
+  border:0 !important;
   border-radius:6px;
+  background:rgba(231,255,114,.68) !important;
+  box-shadow:0 3px 10px rgba(0,0,0,.24);
   font-size:14px !important;
   line-height:1;
+  transform:translate(-50%,-50%) !important;
+}
+#libraryList .library-selected-copy {
+  grid-column:2 !important;
+  grid-row:1 !important;
+  align-self:center;
 }
 #libraryList .library-selected-copy p {
   margin-bottom:0;
-  font-size:16px !important;
-  line-height:1.25 !important;
+  font-size:var(--ui-type-body) !important;
+  font-weight:var(--ui-weight-body);
+  line-height:1.3 !important;
 }
 #libraryList .library-selected-actions {
-  grid-column:1 / -1 !important;
+  display:grid !important;
+  grid-column:2 !important;
   grid-row:2 !important;
-  min-height:48px !important;
-  flex-wrap:nowrap !important;
+  grid-template-columns:minmax(80px,1fr) 46px !important;
+  width:100%;
+  min-height:44px !important;
+  align-self:end;
+  align-items:stretch;
   gap:6px !important;
   padding:0 !important;
 }
 #libraryList .library-selected-actions > .exam-button {
-  width:104px !important;
-  min-width:104px !important;
-  max-width:104px !important;
-  height:48px !important;
-  min-height:48px !important;
-  max-height:48px !important;
-  flex:0 0 104px !important;
+  grid-column:1 !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:44px !important;
+  min-height:44px !important;
+  max-height:44px !important;
+  flex:none !important;
   padding:4px 6px !important;
-  font-size:14px !important;
+  font-size:var(--ui-type-body) !important;
+  line-height:1 !important;
+  text-transform:uppercase;
+  white-space:nowrap !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+  hyphens:none !important;
 }
 #libraryList .library-selected-actions > .compact-library-action:not([hidden]) {
   position:static !important;
-  width:88px !important;
-  min-width:88px !important;
-  max-width:88px !important;
-  height:48px !important;
-  min-height:48px !important;
-  max-height:48px !important;
-  flex:0 0 88px !important;
-  margin:0 0 0 auto !important;
-  padding:4px 6px !important;
-  font-size:14px !important;
+  height:44px !important;
+  min-height:44px !important;
+  max-height:44px !important;
+  flex:none !important;
+  margin:0 !important;
+  padding:4px !important;
+  font-size:var(--ui-type-body) !important;
+}
+#libraryList #withdrawLevelButton:not([hidden]) {
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:none !important;
+  text-transform:uppercase;
+}
+#libraryList #libraryDeleteButton:not([hidden]) {
+  grid-column:2 !important;
+  width:46px !important;
+  min-width:46px !important;
+  max-width:46px !important;
+}
+.library-delete-icon {
+  display:block;
+  width:27px;
+  height:27px;
+  margin:auto;
+  overflow:visible;
+}
+.library-delete-icon path:first-child {
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linejoin:round;
+}
+.library-delete-icon path:last-child {
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.6;
+  stroke-linecap:round;
 }
 
 @media (orientation:portrait) {
   #libraryList .library-selected {
-    grid-template-columns:minmax(104px,32%) minmax(0,1fr) !important;
+    grid-template-columns:minmax(96px,34%) minmax(0,1fr) !important;
   }
 }
 
 @media (orientation:landscape) {
   #libraryList .library-selected {
-    grid-template-columns:minmax(132px,190px) minmax(0,1fr) !important;
+    grid-template-columns:minmax(132px,178px) minmax(0,1fr) !important;
   }
 }
 
@@ -2268,13 +2370,15 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     touch-action:manipulation !important;
   }
   .mobile-category-button small {
+    right:2px !important;
+    left:2px !important;
     max-height:2.15em;
     overflow:hidden !important;
-    font-size:clamp(11px,3.2vw,13px) !important;
+    font-size:clamp(10px,3.1vw,12.5px) !important;
     line-height:1.05 !important;
     text-overflow:clip !important;
-    white-space:normal !important;
-    overflow-wrap:anywhere;
+    white-space:nowrap !important;
+    overflow-wrap:normal;
   }
 }
 
@@ -2293,6 +2397,31 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 }
 
 @media (max-width:350px) and (orientation:portrait) {
+  #libraryModal .library-source-line {
+    grid-template-columns:minmax(0,1fr) 108px 32px !important;
+    gap:3px !important;
+    padding-inline-end:41px;
+  }
+  #libraryModal .library-source-title select {
+    padding-inline:4px 18px;
+    font-size:13px !important;
+  }
+  #toggleHintsButton {
+    width:108px;
+    gap:2px;
+    font-size:12px;
+  }
+  #toggleHintsButton::before {
+    width:14px;
+    height:14px;
+    flex-basis:14px;
+    font-size:11px;
+  }
+  #libraryLobbyButton {
+    width:32px !important;
+    min-width:32px !important;
+  }
+  .mobile-category-button small { font-size:9.5px !important; }
   .player-level-button { padding-inline:3px !important; }
   .player-level-button > .player-level-gear {
     width:17px !important;
@@ -2386,7 +2515,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 
 @media (orientation:landscape) {
   .command-bar {
-    grid-template-columns:60px minmax(124px,166px) minmax(0,1fr) auto !important;
+    grid-template-columns:60px minmax(124px,140px) minmax(0,1fr) auto !important;
   }
   .player-level-button {
     grid-column:1 !important;
@@ -2410,5 +2539,511 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     width:auto !important;
     max-width:100% !important;
     justify-self:end !important;
+  }
+}
+
+/* Player-facing typography uses four sizes only. Interface headings and
+   controls are uppercase; authored titles, hints, dates and descriptions keep
+   natural mixed case. */
+.drawer-heading h2,
+.mobile-category-sheet > header strong {
+  font-size:var(--ui-type-heading) !important;
+  font-weight:var(--ui-weight-control) !important;
+  line-height:1.15 !important;
+  letter-spacing:.035em;
+  text-transform:uppercase;
+}
+.command-bar button,
+.mobile-category-button small,
+.mobile-variant-button small,
+#libraryModal .library-static-head button,
+#libraryModal .library-campaign-head button,
+#libraryModal .library-selected-actions button {
+  font-weight:var(--ui-weight-control) !important;
+  letter-spacing:.025em;
+  text-transform:uppercase;
+}
+.interaction-hint strong,
+#libraryModal .library-source-title select,
+#libraryModal .library-title-edit input,
+#libraryModal .level-card strong {
+  font-size:var(--ui-type-subtitle) !important;
+  font-weight:var(--ui-weight-strong) !important;
+}
+.interaction-hint span,
+.mobile-category-sheet > header small,
+.mobile-category-help,
+.mobile-variant-button small,
+#libraryModal .level-card small,
+#libraryModal .library-selected-copy p {
+  font-size:var(--ui-type-body) !important;
+  font-weight:var(--ui-weight-body) !important;
+  line-height:1.3 !important;
+}
+.mobile-category-button small {
+  display:none !important;
+  font-size:var(--ui-type-body) !important;
+  line-height:1.05 !important;
+  max-height:2.1em !important;
+  white-space:normal !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+  hyphens:none !important;
+}
+.mobile-category-button {
+  align-items:center !important;
+  justify-content:center !important;
+  padding:5px !important;
+}
+.mobile-category-button span {
+  position:absolute !important;
+  top:50% !important;
+  left:50% !important;
+  width:auto !important;
+  line-height:1 !important;
+  transform:translate(-50%,-50%) !important;
+}
+@media (orientation:portrait) {
+  .mobile-carousel-rail {
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    align-items:center !important;
+    gap:5px !important;
+  }
+  .mobile-category-button {
+    width:100% !important;
+    min-width:0 !important;
+    height:auto !important;
+    min-height:0 !important;
+    aspect-ratio:1 !important;
+    justify-self:stretch;
+    align-self:center;
+  }
+  .mobile-category-button span { font-size:42px !important; }
+}
+@media (orientation:landscape) {
+  .mobile-carousel-rail {
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    grid-template-rows:repeat(4,minmax(0,1fr)) !important;
+    align-items:center !important;
+    gap:5px !important;
+  }
+  .mobile-category-button {
+    width:var(--editor-landscape-category-square) !important;
+    min-width:var(--editor-landscape-category-square) !important;
+    max-width:var(--editor-landscape-category-square) !important;
+    height:var(--editor-landscape-category-square) !important;
+    min-height:var(--editor-landscape-category-square) !important;
+    max-height:var(--editor-landscape-category-square) !important;
+    aspect-ratio:1 !important;
+    justify-self:center;
+    align-self:center;
+  }
+  .mobile-category-button span { top:50% !important; font-size:36px !important; }
+}
+.mobile-variant-button small {
+  font-size:var(--ui-type-meta) !important;
+  letter-spacing:normal !important;
+  line-height:1.05 !important;
+  overflow-wrap:normal !important;
+  text-transform:none !important;
+  word-break:normal !important;
+  hyphens:none !important;
+  white-space:normal !important;
+}
+#libraryModal .library-source-title select { text-transform:uppercase; }
+#libraryModal .library-source-title select { font-size:var(--ui-type-body) !important; }
+#libraryModal .library-title-edit input,
+#libraryModal .level-card strong,
+#libraryModal .level-card small,
+.interaction-hint,
+.mobile-category-help { letter-spacing:normal; text-transform:none; }
+
+/* The three primary library commands share one compact touch height. Draft and
+   Published form a joined pair while New Level keeps the intentional spacer. */
+#newUserLevelButton,
+#libraryDraftFilterButton,
+#libraryPublishedFilterButton {
+  height:44px !important;
+  min-height:44px !important;
+  max-height:44px !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:4px 6px !important;
+  font-size:var(--ui-type-body) !important;
+  line-height:1.05 !important;
+  white-space:nowrap !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+}
+#newUserLevelButton { padding-inline:var(--ui-control-safe-inline) !important; }
+#libraryDraftFilterButton { border-radius:11px 0 0 11px !important; }
+#libraryModal #userLibraryFilters { gap:0 !important; }
+#libraryPublishedFilterButton {
+  margin-left:-1px !important;
+  border-radius:0 11px 11px 0 !important;
+}
+.library-filter-row button b {
+  display:block;
+  margin:2px 0 0 !important;
+  font-size:var(--ui-type-meta) !important;
+  line-height:1 !important;
+}
+
+@media (max-width:350px) and (orientation:portrait) {
+  #libraryModal .library-source-title select {
+    font-size:var(--ui-type-meta) !important;
+    text-transform:none;
+  }
+  #toggleHintsButton {
+    padding-inline:4px !important;
+    font-size:var(--ui-type-meta) !important;
+    letter-spacing:-.04em !important;
+  }
+  #toggleHintsButton::before {
+    width:12px !important;
+    height:12px !important;
+    flex-basis:12px !important;
+    font-size:10px !important;
+  }
+  #newUserLevelButton {
+    padding-inline:var(--ui-control-safe-inline) !important;
+    font-size:var(--ui-type-meta) !important;
+    letter-spacing:0 !important;
+  }
+  #libraryModal .level-card small,
+  #libraryModal .library-selected-copy p { font-size:12px !important; }
+}
+
+@media (orientation:portrait) {
+  #libraryModal .library-actions {
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+  #newUserLevelButton {
+    grid-column:1 !important;
+    width:100% !important;
+  }
+  #toggleHintsButton {
+    align-items:center;
+    justify-content:center;
+    padding-inline:4px;
+  }
+  #libraryModal:has(#newUserLevelButton:not([hidden])) .library-source-line {
+    grid-template-columns:minmax(0,1fr) 108px !important;
+  }
+  #libraryModal:has(#newUserLevelButton:not([hidden])) .library-actions {
+    padding-right:42px !important;
+  }
+  #libraryModal:has(#newUserLevelButton:not([hidden])) #libraryLobbyButton {
+    position:absolute !important;
+    top:68px;
+    right:8px;
+    width:34px !important;
+    min-width:34px !important;
+    height:44px !important;
+    min-height:44px !important;
+    padding:2px !important;
+  }
+}
+
+@media (max-width:350px) and (orientation:portrait) {
+  #libraryModal:has(#newUserLevelButton:not([hidden])) .library-source-line {
+    grid-template-columns:minmax(0,1fr) 108px !important;
+  }
+  #libraryModal:has(#newUserLevelButton:not([hidden])) #libraryLobbyButton {
+    width:32px !important;
+    min-width:32px !important;
+  }
+}
+
+/* On common landscape phones the hint becomes the actual middle header cell:
+   zoom | hint | eraser/history/play. This keeps the editor canvas fully free. */
+@media (min-width:621px) and (orientation:landscape) {
+  .interaction-hint {
+    position:static !important;
+    inset:auto !important;
+    grid-column:3 !important;
+    grid-row:1 !important;
+    width:100% !important;
+    height:60px !important;
+    min-height:60px !important;
+    max-height:60px !important;
+    align-self:center !important;
+    padding:4px 8px !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    pointer-events:auto;
+    touch-action:pan-y !important;
+    transform:none !important;
+  }
+  .interaction-hint strong {
+    display:none !important;
+    flex:0 0 auto;
+    overflow:hidden !important;
+    font-size:var(--ui-type-body) !important;
+    line-height:1.1 !important;
+    text-overflow:ellipsis;
+    white-space:nowrap !important;
+  }
+  .interaction-hint span {
+    display:block !important;
+    margin:auto 0;
+    overflow:visible !important;
+    max-height:none !important;
+    font-size:var(--ui-type-body) !important;
+    line-height:1.2 !important;
+    white-space:normal !important;
+    -webkit-line-clamp:unset;
+  }
+}
+
+@media (min-width:621px) and (max-width:760px) and (orientation:landscape) {
+  .command-bar {
+    grid-template-columns:60px 124px minmax(0,1fr) auto !important;
+    column-gap:4px !important;
+    padding-inline:6px !important;
+  }
+  .command-actions,
+  .history-actions { gap:4px !important; }
+  .command-actions #headerEraserButton {
+    width:50px !important;
+    min-width:50px !important;
+    max-width:50px !important;
+    height:50px !important;
+    min-height:50px !important;
+    max-height:50px !important;
+  }
+  .command-actions .history-actions > #undoButton,
+  .command-actions .history-actions > #redoButton {
+    width:44px !important;
+    min-width:44px !important;
+    max-width:44px !important;
+    height:44px !important;
+    min-height:44px !important;
+    max-height:44px !important;
+    padding:2px !important;
+  }
+  .command-actions #playButton {
+    width:64px !important;
+    min-width:64px !important;
+    max-width:64px !important;
+    height:50px !important;
+    min-height:50px !important;
+    max-height:50px !important;
+    padding:3px !important;
+    font-size:var(--ui-type-meta) !important;
+  }
+  .interaction-hint {
+    height:62px !important;
+    min-height:62px !important;
+    max-height:62px !important;
+    padding:3px 6px !important;
+  }
+  .interaction-hint strong { display:none !important; }
+  .interaction-hint span {
+    font-size:var(--ui-type-meta) !important;
+    line-height:1.1 !important;
+  }
+}
+
+@media (min-width:621px) and (max-width:880px) and (orientation:landscape) {
+  .interaction-hint span {
+    font-size:var(--ui-type-meta) !important;
+    line-height:1.1 !important;
+  }
+}
+
+/* The category container follows the actual square controls. It keeps one
+   compact padding band instead of reserving the dimensions of the old labels. */
+@media (orientation:portrait) {
+  .app-shell {
+    --editor-portrait-category-square:min(97px,calc((100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 25px) / 4));
+    --editor-portrait-item-square:clamp(80px,var(--editor-portrait-category-square),90px);
+    --editor-portrait-category-bottom-gap:max(8px,env(safe-area-inset-bottom));
+    --editor-portrait-category-dock-height:calc(var(--editor-portrait-category-square) + 5px + var(--editor-portrait-category-bottom-gap));
+    grid-template-rows:var(--editor-portrait-header-height) minmax(0,1fr) var(--editor-portrait-category-dock-height) !important;
+  }
+  .mobile-palette-shell {
+    padding-bottom:var(--editor-portrait-category-bottom-gap) !important;
+  }
+  .mobile-category-sheet {
+    bottom:var(--editor-portrait-category-dock-height) !important;
+    height:auto !important;
+    max-height:calc(100dvh - var(--editor-portrait-header-height) - var(--editor-portrait-category-dock-height) - 8px) !important;
+  }
+  .mobile-category-items {
+    grid-template-columns:repeat(var(--portrait-palette-columns,1),var(--editor-portrait-item-square)) !important;
+    grid-template-rows:repeat(2,var(--editor-portrait-item-square)) !important;
+    grid-auto-flow:row !important;
+    grid-auto-columns:var(--editor-portrait-item-square) !important;
+    grid-auto-rows:var(--editor-portrait-item-square) !important;
+    justify-content:start !important;
+    justify-content:safe center !important;
+    gap:6px !important;
+    padding:7px 7px 8px !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    touch-action:pan-x !important;
+  }
+  .mobile-category-items .mobile-variant-button {
+    width:var(--editor-portrait-item-square) !important;
+    min-width:var(--editor-portrait-item-square) !important;
+    max-width:var(--editor-portrait-item-square) !important;
+    height:var(--editor-portrait-item-square) !important;
+    min-height:var(--editor-portrait-item-square) !important;
+    max-height:var(--editor-portrait-item-square) !important;
+    aspect-ratio:1 !important;
+    touch-action:pan-x !important;
+  }
+  .mobile-category-items .mobile-variant-button canvas {
+    position:absolute;
+    top:4px;
+    left:50%;
+    width:64% !important;
+    max-width:58px !important;
+    height:calc(var(--editor-portrait-item-square) - 42px) !important;
+    transform:translateX(-50%);
+  }
+}
+
+/* The item sheet header carries navigation context only. Detailed help belongs
+   to the editor hint, so the sheet keeps one compact title row. */
+#mobileCategoryInstruction { display:none !important; }
+.mobile-category-sheet > header {
+  position:relative;
+  min-height:28px !important;
+  justify-content:center !important;
+  padding:2px 36px !important;
+}
+.mobile-category-sheet > header > div {
+  display:flex;
+  width:100%;
+  min-width:0;
+  align-items:center;
+  justify-content:center;
+}
+.mobile-category-sheet > header strong {
+  display:block;
+  width:100%;
+  overflow:hidden;
+  font-size:var(--ui-type-subtitle) !important;
+  line-height:1.1 !important;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mobile-category-sheet > header button {
+  position:absolute;
+  top:2px;
+  right:6px;
+  width:24px !important;
+  min-width:24px !important;
+  height:24px !important;
+  min-height:24px !important;
+  padding:0 !important;
+  font-size:18px !important;
+}
+.mobile-category-sheet > header button::before {
+  position:absolute;
+  content:'';
+  inset:-2px -8px;
+}
+
+@media (orientation:landscape) {
+  .app-shell {
+    --editor-landscape-category-square:min(90px,calc((100dvh - 96px - env(safe-area-inset-bottom)) / 4));
+    --editor-landscape-item-square:clamp(80px,calc(var(--editor-landscape-category-square) + 12px),90px);
+    --editor-landscape-category-rail-width:calc(var(--editor-landscape-category-square) + 10px + env(safe-area-inset-left));
+    --editor-landscape-category-shell-height:calc(var(--editor-landscape-category-square) + var(--editor-landscape-category-square) + var(--editor-landscape-category-square) + var(--editor-landscape-category-square) + 19px + max(4px,env(safe-area-inset-bottom)));
+    grid-template-columns:var(--editor-landscape-category-rail-width) minmax(0,1fr) !important;
+  }
+  .mobile-palette-shell {
+    height:var(--editor-landscape-category-shell-height) !important;
+    min-height:var(--editor-landscape-category-shell-height) !important;
+    max-height:var(--editor-landscape-category-shell-height) !important;
+    align-self:start !important;
+  }
+  .mobile-carousel-rail {
+    height:auto !important;
+    grid-template-rows:repeat(4,var(--editor-landscape-category-square)) !important;
+    align-content:start !important;
+  }
+  .mobile-category-sheet {
+    left:var(--editor-landscape-category-rail-width) !important;
+    width:min(calc(var(--editor-landscape-item-square) + var(--editor-landscape-item-square) + 25px),calc(100vw - var(--editor-landscape-category-rail-width))) !important;
+  }
+  .mobile-category-items {
+    grid-template-columns:repeat(2,var(--editor-landscape-item-square)) !important;
+    grid-auto-rows:var(--editor-landscape-item-square) !important;
+    gap:6px !important;
+    padding:7px 10px 9px 7px !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    touch-action:pan-y !important;
+  }
+  .mobile-category-items .mobile-variant-button {
+    width:var(--editor-landscape-item-square) !important;
+    min-width:var(--editor-landscape-item-square) !important;
+    max-width:var(--editor-landscape-item-square) !important;
+    height:var(--editor-landscape-item-square) !important;
+    min-height:var(--editor-landscape-item-square) !important;
+    max-height:var(--editor-landscape-item-square) !important;
+    aspect-ratio:1 !important;
+    touch-action:pan-y !important;
+  }
+  .mobile-category-items .mobile-variant-button canvas {
+    position:absolute;
+    top:4px;
+    left:50%;
+    width:64% !important;
+    max-width:58px !important;
+    height:calc(var(--editor-landscape-item-square) - 42px) !important;
+    transform:translateX(-50%);
+  }
+}
+
+.mobile-category-scroll-cue.vertical { top:34px; }
+
+.mobile-category-items .mobile-variant-button small {
+  right:2px !important;
+  bottom:2px !important;
+  left:2px !important;
+  display:flex !important;
+  min-height:34px !important;
+  max-height:34px !important;
+  align-items:center;
+  justify-content:center;
+  padding:2px 1px !important;
+  text-align:center;
+}
+
+/* A 460px landscape viewport with 44px side safe areas leaves 372px for the
+   library. Keep the requested New / spacer / Draft / Published row readable
+   without shrinking below the 12px typography token. */
+@media (max-width:620px) and (orientation:landscape) {
+  #libraryModal .library-static-head {
+    grid-template-columns:minmax(132px,1.28fr) 0 minmax(100px,1fr) minmax(100px,1fr) !important;
+  }
+  #libraryModal .library-source-line { padding-inline-end:56px !important; }
+  #toggleHintsButton {
+    width:108px !important;
+    min-width:108px !important;
+    padding-inline:3px !important;
+    font-size:var(--ui-type-meta) !important;
+  }
+  #libraryLobbyButton {
+    width:34px !important;
+    min-width:34px !important;
+    padding:2px !important;
+  }
+  #libraryLobbyButton > span:last-child { display:none !important; }
+  #newUserLevelButton,
+  #libraryDraftFilterButton,
+  #libraryPublishedFilterButton {
+    padding-inline:2px !important;
+    font-size:var(--ui-type-meta) !important;
+    letter-spacing:0 !important;
+    text-transform:none !important;
   }
 }

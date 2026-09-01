@@ -85,12 +85,12 @@
 
   const TYPE_DEFS = {
     solid: { label: 'Монолит', color: '#7185be', layer: 'terrain', group: 'Геометрия', resize: 'xy', defaultSize: [1, 1] },
-    oneWay: { label: 'Простая платформа', color: '#72d9e5', layer: 'terrain', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
-    fragilePlatform: { label: 'Хрупкая платформа', color: '#e1c076', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
-    blinkPlatform: { label: 'Мигающая платформа', color: '#80efd0', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
+    oneWay: { label: 'Простая', color: '#72d9e5', layer: 'terrain', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
+    fragilePlatform: { label: 'Хрупкая', color: '#e1c076', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
+    blinkPlatform: { label: 'Мигающая', color: '#80efd0', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
     movingPlatform: { label: 'Лифт', color: '#b49cff', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
     smartPlatform: { label: 'Трамвай', color: '#e196ff', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [3, 1] },
-    fallingPlatform: { label: 'Падающая платформа', color: '#f3a853', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
+    fallingPlatform: { label: 'Падающая', color: '#f3a853', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [4, 1] },
     conveyor: { label: 'Конвейер', color: '#4db5ff', layer: 'gameplay', group: 'Механизмы', resize: 'x', defaultSize: [5, 1] },
     bouncePad: { label: 'Батут', color: '#a7ef6d', layer: 'gameplay', group: 'Платформы', resize: 'x', defaultSize: [3, 1] },
     driftField: { label: 'Поле', color: '#85eaff', layer: 'gameplay', group: 'Механизмы', resize: 'xy', defaultSize: [5, 6] },
@@ -108,13 +108,13 @@
     enemyFlyer: { label: 'Шарик', color: '#78cdec', layer: 'entity', group: 'Враги', fixedSize: [2, 2], rotate: true },
     enemyLeech: { label: 'Пиявка', color: '#d381a8', layer: 'entity', group: 'Враги', fixedSize: [1, 1] },
     enemySpikeCube: { label: 'Шипастый куб', color: '#e55f79', layer: 'entity', group: 'Враги', resize: 'xy', defaultSize: [2, 2], rotate: true },
-    pushBlock: { label: 'Падающий куб', color: '#ff5d66', layer: 'hazard', group: 'Опасности', fixedSize: [2, 2] },
+    pushBlock: { label: 'Гиря', color: '#ff5d66', layer: 'hazard', group: 'Опасности', fixedSize: [2, 2] },
     coin: { label: 'Монета', color: '#ffc94a', layer: 'entity', group: 'Предметы', fixedSize: [1, 1] },
     collectible: { label: 'Коллекционный значок', color: '#8be8ff', layer: 'entity', group: 'Предметы', fixedSize: [2, 2] },
     pickup: { label: 'Способность', color: '#cb9dff', layer: 'entity', group: 'Предметы', fixedSize: [2, 2] },
     unlockSwitch: { label: 'Переключатель предмета', color: '#b7ffd7', layer: 'gameplay', group: 'Предметы', fixedSize: [2, 2] },
     heartVendor: { label: 'Автомат сердечек', color: '#ff9f9f', layer: 'meta', group: 'Мета', fixedSize: [2, 2] },
-    label: { label: 'Бегущая строка', color: '#d8e2ff', layer: 'decor', group: 'Мета', resize: 'label', defaultSize: [8, 2] },
+    label: { label: 'Баннер', color: '#d8e2ff', layer: 'decor', group: 'Мета', resize: 'label', defaultSize: [8, 2] },
     spawn: { label: 'Вход', color: '#55e39e', layer: 'meta', group: 'Мета', fixedSize: [1, 2], protected: true },
     exit: { label: 'Выход', color: '#ff84cd', layer: 'meta', group: 'Мета', fixedSize: [2, 3], protected: true },
     developerNote: { label: 'Комментарий', color: '#ffcb62', layer: 'decor', group: 'Разработчик', resize: 'xy', defaultSize: [4, 3] },
@@ -127,7 +127,7 @@
     { id: 'playerCannon', type: 'playerCannon' },
     { id: 'generator', type: 'flyerSpawner', label: 'Генератор' },
     ...['enemyGoomba', 'enemyFlyer', 'enemyLeech'].map(type => ({ id: type, type })),
-    { id: 'pushBlock', type: 'pushBlock', label: 'Падающий куб' },
+    { id: 'pushBlock', type: 'pushBlock', label: 'Гиря' },
     { id: 'coin', type: 'coin' },
     { id: 'collectible', type: 'collectible', campaignOnly:true },
     { id: 'pickup-abilities', type: 'pickup', label: 'Способности', preset: { pickupType: 'GR' }, color: '#9fe7ff', campaignOnly:true },
@@ -141,6 +141,7 @@
   const PALETTE_BY_ID = new Map(PALETTE_ITEMS.map(item => [item.id, item]));
   const FAVORITE_IDS = ['solid', 'oneWay', 'fallingPlatform', 'movingPlatform', 'spike', 'coin', 'enemyGoomba'];
   const MOBILE_FORMER_SPECIAL_IDS = ['collectible','unlockSwitch','pickup-abilities','heartVendor','developerNote'];
+  const MOBILE_COMPACT_LABELS = { collectible:'Значок', 'pickup-abilities':'Навыки', developerNote:'Заметка' };
   const MOBILE_PALETTE_CATEGORIES = [
     { id:'base', label:'Основа', icon:'▦', items:['solid','coin','label','pickup-gravity',...MOBILE_FORMER_SPECIAL_IDS] },
     { id:'platforms', label:'Платформы', icon:'═', items:['oneWay','fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','bouncePad'] },
@@ -1662,7 +1663,8 @@
       button.className = `mobile-category-button${active ? ' active' : ''}`;
       button.dataset.mobileCategory = category.id;
       button.setAttribute('aria-pressed', String(active));
-      button.innerHTML = `<span aria-hidden="true">${category.icon}</span><small>${category.label}</small>`;
+      button.setAttribute('aria-label',category.label);
+      button.innerHTML = `<span aria-hidden="true">${category.icon}</span>`;
       button.addEventListener('click', () => { state.mobilePaletteExpanded = !active;state.mobileCategory = category.id;renderMobilePalette(); });
       root.append(button);
     }
@@ -1687,12 +1689,15 @@
       variant.dataset.paletteId = id;
       variant.dataset.toolSize = (def.fixedSize || def.defaultSize || [1,1]).join('x');
       variant.style.setProperty('--tool-color', item.color || def.color);
-      variant.title = `${item.label || def.label}: ${TYPE_HELP[item.type] || ''}`;
+      const fullLabel=item.label||def.label;
+      variant.title = `${fullLabel}: ${TYPE_HELP[item.type] || ''}`;
+      const visibleLabel=MOBILE_COMPACT_LABELS[id]||fullLabel;
+      variant.setAttribute('aria-label',visibleLabel===fullLabel?fullLabel:`${visibleLabel} — ${fullLabel}`);
       const icon = document.createElement('canvas');
       icon.width = 54;
       icon.height = 42;
       const text = document.createElement('small');
-      text.textContent = item.label || def.label;
+      text.textContent = visibleLabel;
       variant.append(icon, text);
       if(item.type==='coin'){const badge=document.createElement('span');badge.className='coin-cap';badge.textContent=`${state.level?.objects.filter(object=>object.type==='coin').length||0}/${state.level?coinLimit():5}`;variant.append(badge);}
       variant.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showMobileCategoryHint(item);});
@@ -2486,6 +2491,16 @@
   async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?`campaign-${state.slot.episode||1}`:'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');requestAnimationFrame(updateLibraryScrollCue);}
   function closeLibrary(){$('libraryModal').classList.remove('open');$('libraryModal').setAttribute('aria-hidden','true');$('libraryScrollCue').hidden=true;}
   function libraryLevelFor(slot){return slot?.difficulties?.[slot.kind==='campaign'?state.libraryDifficulty:'easy']||slot?.difficulties?.easy;}
+  function levelFieldCount(level){
+    if(isPanelLevel(level)&&Array.isArray(level.panels))return Math.max(1,level.panels.length);
+    const width=Math.max(LEVEL_PANEL_SIZE,Number(level?.size?.width)||LEVEL_PANEL_SIZE),height=Math.max(LEVEL_PANEL_SIZE,Number(level?.size?.height)||LEVEL_PANEL_SIZE);
+    return Math.max(1,Math.ceil((width*height)/(LEVEL_PANEL_SIZE*LEVEL_PANEL_SIZE)));
+  }
+  function levelSizeLabel(level){const fields=levelFieldCount(level);return fields<=2?'маленький':fields<=5?'средний':'большой';}
+  function libraryMetaText(slot,{campaign=false,dateStyle='short'}={}){
+    const level=libraryLevelFor(slot),status=campaign?{key:'campaign'}:playerSlotStatus(slot),verb=status.key==='submitted'?'опубликован':'изменён',date=new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle,timeStyle:'short'});
+    return `${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${levelSizeLabel(level)} · ${verb} ${date}`;
+  }
   function makeLibraryCard(slot,{campaign=false}={}){
     const status=campaign?{key:'campaign',label:'Кампания'}:playerSlotStatus(slot),level=libraryLevelFor(slot),displayTitle=campaign?(level?.title||slot.title):slot.title;
     const card=document.createElement('article');card.className='level-card-wrap';card.dataset.key=slot.key;card.dataset.status=status.key;card.classList.toggle('selected',slot.key===state.librarySelectedKey);card.classList.toggle('current',slot.key===state.slotKey);
@@ -2493,7 +2508,7 @@
     const thumb=document.createElement('canvas');thumb.width=96;thumb.height=72;
     const info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small'),statusChip=document.createElement('small');
     title.textContent=displayTitle;
-    meta.textContent=`${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${level.size.width}×${level.size.height}${isPanelLevel(level)?` · ${level.panels.length} пан.`:''} · ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})}`;
+    meta.textContent=libraryMetaText(slot,{campaign,dateStyle:'short'});
     statusChip.className='level-status';statusChip.dataset.status=status.key;statusChip.hidden=true;statusChip.textContent='';statusChip.setAttribute('aria-label',status.label);
     info.append(title,meta,statusChip);select.append(thumb,info);
     select.addEventListener('click',()=>{state.librarySelectedKey=state.librarySelectedKey===slot.key?null:slot.key;state.librarySelectedSlot=state.librarySelectedKey?slot:null;renderLibrary();});
@@ -2504,7 +2519,7 @@
     state.librarySelectedSlot=slot;panel.hidden=false;card.querySelector('.level-card')?.setAttribute('hidden','');card.append(panel);
     const level=libraryLevelFor(slot),status=showUsers?playerSlotStatus(slot):{key:'campaign',label:'Кампания'},displayTitle=showUsers?slot.title:(level?.title||slot.title),published=status.key==='submitted';
     $('librarySelectedTitle').textContent=showUsers?'':displayTitle;$('librarySelectedTitle').hidden=showUsers;
-    $('librarySelectedMeta').textContent=`${showUsers?'':`${difficultyTitle(state.libraryDifficulty)} · `}${level.size.width}×${level.size.height}${isPanelLevel(level)?` · ${level.panels.length} пан.`:''} · изменён ${new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle:'medium',timeStyle:'short'})}`;
+    $('librarySelectedMeta').textContent=libraryMetaText(slot,{campaign:!showUsers,dateStyle:'medium'});
     $('libraryLevelTitleInput').value=displayTitle||'';$('libraryLevelTitleInput').disabled=showUsers&&published;$('librarySelectedTitleField').hidden=!showUsers;
     $('examLevelButton').hidden=!showUsers||published;$('withdrawLevelButton').hidden=!showUsers||!published;$('libraryDeleteButton').hidden=!showUsers||published;
     $('libraryCopyMapButton').hidden=showUsers;$('libraryPasteMapButton').hidden=showUsers;$('libraryPasteMapButton').disabled=false;$('libraryPasteMapButton').title='Заменить выбранную карту копией';for(const id of ['libraryExportLevelButton','libraryImportLevelLabel'])$(id).hidden=showUsers;
@@ -2518,7 +2533,7 @@
     $('libraryHeading').textContent=showUsers?'Мои уровни':`Эпизод ${episode}`;$('libraryDescription').textContent=showUsers?'Черновики и опубликованные уровни на этом устройстве.':`Уровни эпизода ${episode}; выберите сложность и карту.`;
     $('draftSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS}`;$('publishedSlotCount').textContent=`${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('userSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS} · ${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('publicationLimitBeacon').hidden=published.length<MAX_PUBLISHED_LEVELS;
     $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;
-    document.querySelectorAll('[data-library-filter]').forEach(button=>button.classList.toggle('active',button.dataset.libraryFilter===state.libraryUserFilter));
+    document.querySelectorAll('[data-library-filter]').forEach(button=>{const active=button.dataset.libraryFilter===state.libraryUserFilter;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
     let slots,container;
     if(showUsers){slots=state.libraryUserFilter==='submitted'?published:drafts;container=root;}else{slots=all.filter(slot=>slot.kind==='campaign'&&Number(slot.episode||1)===episode).sort((a,b)=>a.sequence-b.sequence);container=campaignRoot;$('libraryEpisodeSelect').value=String(episode);}
     if(!slots.some(slot=>slot.key===state.librarySelectedKey))state.librarySelectedKey=slots.find(slot=>slot.key===state.slotKey)?.key||null;
