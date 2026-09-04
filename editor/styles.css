@@ -2715,6 +2715,11 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     font-size:var(--ui-type-meta) !important;
     letter-spacing:0 !important;
   }
+  #libraryDraftFilterButton,
+  #libraryPublishedFilterButton {
+    font-size:var(--ui-type-meta) !important;
+    letter-spacing:normal !important;
+  }
   #libraryModal .level-card small,
   #libraryModal .library-selected-copy p { font-size:12px !important; }
 }
