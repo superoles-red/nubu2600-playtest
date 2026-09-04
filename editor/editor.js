@@ -726,11 +726,13 @@
   }
 
   async function backgroundTurn() {
-    while(state.playInFlight||state.backgroundWorkPaused)await new Promise(resolve=>setTimeout(resolve,120));
-    return new Promise(resolve=>{
-      if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:500});
-      else setTimeout(resolve,0);
-    });
+    do {
+      while(state.playInFlight||state.backgroundWorkPaused)await new Promise(resolve=>setTimeout(resolve,120));
+      await new Promise(resolve=>{
+        if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:500});
+        else setTimeout(resolve,0);
+      });
+    } while(state.playInFlight||state.backgroundWorkPaused);
   }
 
   function seedCampaignInBackground() {
@@ -1542,8 +1544,12 @@
   function handlePanelControlClick(event){const button=panelControlButton(event);if(!button)return;event.stopPropagation();const point=state.panelTouchIgnoreClickPoint,nearLastTouch=point&&Math.hypot(event.clientX-point.x,event.clientY-point.y)<=32,pointerType=event.pointerType||'',fromTouch=pointerType==='touch'||event.sourceCapabilities?.firesTouchEvents===true,touchCompatibilityClick=fromTouch||(!pointerType&&event.detail>0&&nearLastTouch);if(fromTouch||(performance.now()<state.panelTouchIgnoreClickUntil&&touchCompatibilityClick)){event.preventDefault();event.stopImmediatePropagation();return;}if(!button.disabled)performPanelControlAction(panelControlDescriptor(button));}
 
   function renderPanelTopologyControls(cell){
-    const root=$('panelTopologyControls'),layout=editablePanelLayout();if(!root)return;root.replaceChildren();root.hidden=!layout;if(root.hidden)return;
-    const canvasLeft=canvas.offsetLeft,canvasTop=canvas.offsetTop,panelPixels=LEVEL_PANEL_SIZE*cell,set=layout.panelSet,directions=[
+    const root=$('panelTopologyControls'),layout=editablePanelLayout();if(!root)return;root.hidden=!layout;if(root.hidden){root.replaceChildren();delete root.dataset.renderKey;return;}
+    const canvasLeft=canvas.offsetLeft,canvasTop=canvas.offsetTop,renderKey=JSON.stringify([cell,canvasLeft,canvasTop,state.ready,layout.panels]);
+    // Hint/hover redraws must not detach a button between mouse down and click.
+    if(root.dataset.renderKey===renderKey)return;
+    root.dataset.renderKey=renderKey;root.replaceChildren();
+    const panelPixels=LEVEL_PANEL_SIZE*cell,set=layout.panelSet,directions=[
       {name:'top',dx:0,dy:-1,px:.5,py:0,ox:0,oy:-30,tx:1,ty:0},
       {name:'right',dx:1,dy:0,px:1,py:.5,ox:30,oy:0,tx:0,ty:1},
       {name:'bottom',dx:0,dy:1,px:.5,py:1,ox:0,oy:30,tx:1,ty:0},
@@ -1641,12 +1647,9 @@
   }
   function showMobileCategoryHint(item){
     const def=TYPE_DEFS[item?.type],help=$('mobileCategoryHelp');
-    if(!def||!help)return;
+    if(!def)return;
     const label=item.label||def.label,copy=TYPE_HELP[item.type]||'Предмет игрового уровня.';
-    $('mobileCategoryInstruction').textContent='Что делает предмет';
-    $('mobileCategoryTitle').textContent=label;
-    help.textContent=copy;
-    help.hidden=false;
+    if(help){help.textContent='';help.hidden=true;}
     showHintText(label,copy);
   }
 
@@ -1968,9 +1971,14 @@
   function captureTouchSelectionSnapshot(){if(state.touchSelectionSnapshot)return;state.touchSelectionSnapshot={selectedId:state.selectedId,selectedWire:state.selectedWire?deepClone(state.selectedWire):null};}
   function discardTouchSelectionSnapshot(){state.touchSelectionSnapshot=null;}
   function restoreTouchSelectionSnapshot(){const snapshot=state.touchSelectionSnapshot;if(!snapshot)return false;state.touchSelectionSnapshot=null;state.selectedId=snapshot.selectedId&&state.level?.objects.some(object=>object.id===snapshot.selectedId)?snapshot.selectedId:null;state.selectedWire=snapshot.selectedWire&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.sourceId)&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.targetId)?snapshot.selectedWire:null;showInteractionHint(selectedObject());refreshInspector();renderContextToolbar();return true;}
-  function beginFieldTapCandidate(event){state.fieldTapCandidate=state.mobilePaletteExpanded&&event.pointerType==='touch'?{pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startedAt:performance.now(),gestureVersion:state.touchGestureVersion}:null;}
+  function beginFieldTapCandidate(event){state.fieldTapCandidate=state.mobilePaletteExpanded&&(event.button===0||event.button===undefined)?{pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startedAt:performance.now(),gestureVersion:state.touchGestureVersion}:null;}
   function updateFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId===event.pointerId&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)>TOUCH_OBJECT_GESTURE_SLOP)state.fieldTapCandidate=null;}
-  function finishFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId!==event.pointerId)return false;state.fieldTapCandidate=null;const tap=candidate.gestureVersion===state.touchGestureVersion&&!state.pinch&&!state.drag&&performance.now()-candidate.startedAt<=320&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)<=TOUCH_OBJECT_GESTURE_SLOP;if(tap)closeMobileCategorySheet();return tap;}
+  function finishFieldTapCandidate(event){
+    const candidate=state.fieldTapCandidate;if(candidate?.pointerId!==event.pointerId)return false;state.fieldTapCandidate=null;
+    const drag=state.drag,selection=event.pointerType==='mouse'&&drag?.kind==='move'&&drag.pointerId===event.pointerId&&!drag.deleteCandidate?moveCandidateFromDrag(drag):null,stationarySelection=selection&&selection.x===drag.object.x&&selection.y===drag.object.y;
+    const tap=candidate.gestureVersion===state.touchGestureVersion&&!state.pinch&&(!drag||stationarySelection)&&performance.now()-candidate.startedAt<=320&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)<=TOUCH_OBJECT_GESTURE_SLOP;
+    if(tap)closeMobileCategorySheet();return tap;
+  }
   function resetCanvasGestureState({restoreSelection=false}={}){const hadWireDrag=!!state.wireDrag;clearTouchObjectIntent();if(restoreSelection)restoreTouchSelectionSnapshot();else discardTouchSelectionSnapshot();clearMobilePaletteGesture();restoreMobilePaletteDragSheet();state.touchGestureVersion++;state.fieldTapCandidate=null;state.pointers.clear();state.panelControlPointers.clear();state.panelControlTouch=null;state.pinch=null;state.nativeGesture=null;state.drag=null;state.pan=null;state.domResize=null;state.wireDrag=null;if(hadWireDrag)state.linkSourceId=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.activeTramInsertion=null;state.hoverPoint=null;canvas.classList.remove('will-delete');viewport.classList.remove('dragging');canvas.style.cursor=state.tool==='select'?'grab':'';const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}if(state.level)renderCanvas();}
   function beginTouchCanvasIntent(event,activate){clearTouchObjectIntent();const intent={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop,activate,timer:null};intent.timer=setTimeout(()=>{if(state.touchObjectIntent!==intent||state.pinch)return;state.touchObjectIntent=null;state.fieldTapCandidate=null;intent.activate?.();},TOUCH_OBJECT_HOLD_MS);state.touchObjectIntent=intent;return intent;}
   function beginTouchObjectIntent(event,point,object){beginTouchCanvasIntent(event,()=>{const current=state.level.objects.find(candidate=>candidate.id===object.id);if(!current)return;state.drag={kind:'move',pointerId:event.pointerId,pointerType:'touch',object:deepClone(current),start:point,current:point,offsetX:point.rawX-current.x,offsetY:point.rawY-current.y};canvas.style.cursor='grabbing';renderCanvas();});}

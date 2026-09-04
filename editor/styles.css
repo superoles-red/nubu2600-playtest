@@ -1881,8 +1881,8 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 }
 #toggleHintsButton {
   display:inline-flex;
-  width:116px;
-  min-width:116px;
+  width:144px;
+  min-width:144px;
   min-height:44px;
   align-items:center;
   justify-content:center;
@@ -2033,7 +2033,8 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 }
 
 @media (orientation:landscape) {
-  .mobile-category-open .interaction-hint { visibility:hidden !important; }
+  .mobile-category-open .interaction-hint { visibility:visible !important; }
+  .mobile-category-help { display:none !important; }
   .app-shell { grid-template-columns:148px minmax(0,1fr) !important; }
   .workspace { grid-column:2 !important; }
   .mobile-palette-shell { grid-column:1 !important; }
@@ -2611,12 +2612,14 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     gap:5px !important;
   }
   .mobile-category-button {
-    width:100% !important;
-    min-width:0 !important;
-    height:auto !important;
-    min-height:0 !important;
+    width:var(--editor-portrait-category-square) !important;
+    min-width:var(--editor-portrait-category-square) !important;
+    max-width:var(--editor-portrait-category-square) !important;
+    height:var(--editor-portrait-category-square) !important;
+    min-height:var(--editor-portrait-category-square) !important;
+    max-height:var(--editor-portrait-category-square) !important;
     aspect-ratio:1 !important;
-    justify-self:stretch;
+    justify-self:center;
     align-self:center;
   }
   .mobile-category-button span { font-size:42px !important; }
@@ -2730,7 +2733,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     padding-inline:4px;
   }
   #libraryModal:has(#newUserLevelButton:not([hidden])) .library-source-line {
-    grid-template-columns:minmax(0,1fr) 108px !important;
+    grid-template-columns:minmax(0,1fr) 144px !important;
   }
   #libraryModal:has(#newUserLevelButton:not([hidden])) .library-actions {
     padding-right:42px !important;
@@ -3053,5 +3056,64 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     font-size:var(--ui-type-meta) !important;
     letter-spacing:0 !important;
     text-transform:none !important;
+  }
+}
+
+/* Desktop keeps the same editor command order as landscape phones. Library
+   navigation uses one balanced row; the close control is outside the panel. */
+@media (min-width:1025px) and (orientation:landscape) {
+  #libraryModal .library-source-line {
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:7px !important;
+    padding-inline-end:0 !important;
+  }
+  #libraryModal .library-source-line #librarySourceSelect,
+  #libraryModal .library-source-line #toggleHintsButton,
+  #libraryModal .library-source-line #libraryLobbyButton {
+    width:100% !important;
+    min-width:0 !important;
+    height:44px !important;
+    min-height:44px !important;
+    max-height:44px !important;
+    padding-inline:var(--ui-control-safe-inline) !important;
+    font-size:var(--ui-type-body) !important;
+    line-height:1.1 !important;
+    white-space:nowrap !important;
+  }
+  #libraryModal .library-source-line #librarySourceSelect {
+    text-align:center;
+    text-align-last:center;
+  }
+  #libraryList .library-selected-actions {
+    grid-template-columns:136px 46px !important;
+    width:188px;
+    max-width:100%;
+    justify-self:start;
+  }
+  #libraryList .library-selected-actions > .exam-button {
+    width:136px !important;
+    max-width:136px !important;
+  }
+}
+
+/* The normal portrait control uses a typography token and a real text inset.
+   Keep the separately tuned 320px and short-landscape arrangements unchanged. */
+@media (min-width:351px) and (max-width:640px) and (orientation:portrait) {
+  #libraryModal .library-source-line {
+    grid-template-columns:minmax(0,1fr) 132px 34px !important;
+  }
+  #libraryModal:has(#newUserLevelButton:not([hidden])) .library-source-line {
+    grid-template-columns:minmax(0,1fr) 132px !important;
+  }
+  #toggleHintsButton {
+    width:132px !important;
+    min-width:132px !important;
+    padding-inline:calc(var(--ui-control-safe-inline) / 2) !important;
+    font-size:var(--ui-type-body) !important;
+  }
+  #toggleHintsButton::before {
+    width:var(--ui-type-body) !important;
+    height:var(--ui-type-body) !important;
+    flex-basis:var(--ui-type-body) !important;
   }
 }
