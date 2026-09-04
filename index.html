@@ -15104,11 +15104,12 @@ function step(ts) {
     if (!updateRoomTransition(dt)) updatePlayer(dt);
   }
   // The editor owns its canvas. Redrawing the covered game wastes battery;
-  // static menu previews need only a slow animation cadence. Keep simulation
-  // updates separate from drawing and limit canvas work to 60 Hz.
-  const renderInterval = state.mode === 'playing' || editorSurfaceTransitionBusy ? 1000 / 60 : 100;
+  // static menu previews need only a slow animation cadence. Active gameplay
+  // must draw on every display frame: a second 60 Hz timer can skip a whole
+  // refresh on small timing variations and undersample faster displays.
+  const activeFrame = state.mode === 'playing' || editorSurfaceTransitionBusy;
   const surfaceChanged = step.mode !== state.mode || step.width !== state.width || step.height !== state.height;
-  if (!document.hidden && !surfaceCovered && (surfaceChanged || ts - (step.lastRender || 0) >= renderInterval - 0.5)) {
+  if (!document.hidden && !surfaceCovered && (activeFrame || surfaceChanged || ts - (step.lastRender || 0) >= 99.5)) {
     render();
     step.lastRender = ts;
     step.mode = state.mode;
