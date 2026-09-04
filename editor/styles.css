@@ -2264,7 +2264,7 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
   display:grid !important;
   grid-column:2 !important;
   grid-row:2 !important;
-  grid-template-columns:minmax(80px,1fr) 46px !important;
+  grid-template-columns:minmax(108px,1fr) 46px !important;
   width:100%;
   min-height:44px !important;
   align-self:end;
@@ -2335,13 +2335,13 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
 
 @media (orientation:portrait) {
   #libraryList .library-selected {
-    grid-template-columns:minmax(96px,34%) minmax(0,1fr) !important;
+    grid-template-columns:minmax(90px,34%) minmax(160px,1fr) !important;
   }
 }
 
 @media (orientation:landscape) {
   #libraryList .library-selected {
-    grid-template-columns:minmax(132px,178px) minmax(0,1fr) !important;
+    grid-template-columns:minmax(96px,178px) minmax(160px,1fr) !important;
   }
 }
 
@@ -3040,14 +3040,17 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
    without shrinking below the 12px typography token. */
 @media (max-width:620px) and (orientation:landscape) {
   #libraryModal .library-static-head {
-    grid-template-columns:minmax(132px,1.28fr) 0 minmax(100px,1fr) minmax(100px,1fr) !important;
+    grid-template-columns:minmax(132px,1.2fr) 0 minmax(108px,1fr) minmax(108px,1fr) !important;
+    padding-inline:4px !important;
+    column-gap:4px !important;
   }
   #libraryModal .library-source-line { padding-inline-end:56px !important; }
   #toggleHintsButton {
-    width:108px !important;
-    min-width:108px !important;
+    width:116px !important;
+    min-width:116px !important;
     padding-inline:3px !important;
     font-size:var(--ui-type-meta) !important;
+    letter-spacing:normal !important;
   }
   #libraryLobbyButton {
     width:34px !important;
@@ -3063,6 +3066,17 @@ html, body { position:fixed; inset:0; touch-action:none; overscroll-behavior:non
     letter-spacing:0 !important;
     text-transform:none !important;
   }
+}
+
+/* Give the labelled landscape actions a text-safe minimum before assigning
+   leftover width to the spacer between New Level and the paired filters. */
+@media (min-width:621px) and (max-width:1024px) and (orientation:landscape) {
+  #libraryModal .library-static-head {
+    grid-template-columns:minmax(184px,1.2fr) minmax(0,1fr) minmax(154px,1fr) minmax(154px,1fr) !important;
+  }
+  #newUserLevelButton,
+  #libraryDraftFilterButton,
+  #libraryPublishedFilterButton { letter-spacing:normal !important; }
 }
 
 /* Desktop keeps the same editor command order as landscape phones. Library
