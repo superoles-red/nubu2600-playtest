@@ -159,6 +159,7 @@
         "heartVendor",
         "spawn",
         "exit",
+        "secretExit",
         "label",
         "developerNote"
       ]
@@ -190,8 +191,8 @@
           },
           "then": {
             "properties": {
-              "w": { "const": 1 },
-              "h": { "const": 2 },
+              "w": { "const": 3 },
+              "h": { "const": 3 },
               "props": {
                 "type": "object",
                 "required": ["semantics"],
@@ -199,6 +200,18 @@
                   "semantics": { "const": "playerBody" }
                 }
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "enum": ["exit", "secretExit"] } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "w": { "const": 3 },
+              "h": { "const": 3 }
             }
           }
         },

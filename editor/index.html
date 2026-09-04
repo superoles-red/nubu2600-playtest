@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#07100e">
   <title>NuBu2600 · Конструктор уровней</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=29ce0751bbef">
-<meta name="nubu-campaign-version" content="b6387548d0976e55">
+  <link rel="stylesheet" href="styles.css?v=47a144b99414">
+<meta name="nubu-campaign-version" content="21ce9451182faa5f">
 <link rel="manifest" href="../manifest.webmanifest?v=3e228b05a119">
 <meta name="theme-color" content="#111b18">
 <meta name="mobile-web-app-capable" content="yes">
@@ -65,6 +66,7 @@
             <path class="eraser-icon-line" d="M13.8 27h12.7"/>
           </svg>
         </button>
+        <button id="headerSelectButton" type="button" data-tool="boxSelect" class="select-tool" title="Выделить: протяните прямоугольник и перетаскивайте группу" aria-label="Выделить">▣</button>
         <div class="history-actions" role="group" aria-label="История изменений">
           <button id="undoButton" type="button" title="Отменить (⌘/Ctrl+Z)" aria-label="Отменить">↶</button>
           <button id="redoButton" type="button" title="Повторить (⌘/Ctrl+Shift+Z)" aria-label="Повторить">↷</button>
@@ -92,6 +94,7 @@
         </nav>
         <nav class="mobile-edit-controls" aria-label="Правка уровня">
           <button type="button" data-tool="erase" aria-label="Ластик"><span>⌫</span><small>Ластик</small></button>
+          <button type="button" data-tool="boxSelect" aria-label="Выделить"><span>▣</span><small>Выделить</small></button>
           <div>
             <button type="button" id="mobileUndoButton" aria-label="Отменить"><span>↶</span><small>Назад</small></button>
             <button type="button" id="mobileRedoButton" aria-label="Повторить"><span>↷</span><small>Вперёд</small></button>
@@ -215,7 +218,7 @@
     <button class="library-floating-close" id="closeLibraryButton" type="button" aria-label="Закрыть библиотеку">×</button>
     <div class="modal-panel library-panel">
       <header class="library-static-head">
-        <div class="library-source-line"><label class="library-source-title"><span class="sr-only">Раздел библиотеки</span><select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label><button id="toggleHintsButton" class="library-hints-toggle" type="button" aria-pressed="true">Подсказки</button><button id="libraryLobbyButton" class="library-lobby-button" type="button" aria-label="В лобби" title="В лобби"><span aria-hidden="true">🚪</span><span>В лобби</span></button></div>
+        <div class="library-source-line"><label class="library-source-title"><span class="sr-only">Раздел библиотеки</span><select id="librarySourceSelect"><option value="user">Мои уровни</option><option value="campaign-1">Эпизод 1</option></select></label><button id="gridMarkingButton" class="library-grid-marking" type="button" aria-label="Разметка сетки" title="Разметка сетки">Сетка 4×4</button><button id="toggleHintsButton" class="library-hints-toggle" type="button" aria-pressed="true">Подсказки</button><button id="libraryLobbyButton" class="library-lobby-button" type="button" aria-label="В лобби" title="В лобби"><span aria-hidden="true">🚪</span><span>В лобби</span></button></div>
         <h1 class="sr-only" id="libraryHeading">Мои уровни</h1><p class="sr-only" id="libraryDescription">Уровни игрока и кампании.</p>
         <div class="library-campaign-head" id="campaignLibrarySection" hidden>
           <label>Сложность <select id="libraryDifficultySelect"><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="hard">Сложная</option></select></label>
@@ -237,6 +240,10 @@
         <div class="campaign-library-list" id="campaignLibraryList"></div>
       </div>
       <div class="library-scroll-cue" id="libraryScrollCue" hidden aria-hidden="true"><span></span></div>
+      <footer class="library-recovery-actions">
+        <button id="restoreLibraryButton" type="button">Восстановить копию</button>
+        <button id="exportCampaignArchiveButton" type="button" hidden>Скачать архив прежних карт</button>
+      </footer>
       <section class="library-selected" id="librarySelected" hidden>
         <button id="libraryOpenButton" class="library-preview-open" type="button" aria-label="Открыть уровень">
           <canvas id="librarySelectedPreview" width="240" height="150" aria-hidden="true"></canvas>
@@ -285,6 +292,6 @@
     <button id="mobilePlayButton" type="button"></button><button id="deleteObjectButton" type="button"></button>
     <div id="favoriteTools"></div>
   </div>
-  <script src="editor.js?v=4ec991b21191"></script>
+  <script src="editor.js?v=0ed91b7ab1bc"></script>
 </body>
 </html>

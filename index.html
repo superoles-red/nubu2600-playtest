@@ -213,7 +213,7 @@
     </div>
     <div class="btns">
       <button class="action" id="startBtn">Начать игру</button>
-      <button class="action secondary hidden" id="startTestBtn">Начать тестовый уровень 1-8</button>
+      <button class="action secondary hidden" id="startTestBtn">Начать тестовый уровень С07 · 2-3</button>
       <button class="action secondary" id="openEditorBtn">Редактор</button>
       <button class="action secondary hidden" id="resetRoomItemsBtn">Сброс JP / FL / V</button>
     </div>
@@ -261,7 +261,7 @@
       <button class="action secondary" id="nextRoomBtn">Следующий уровень</button>
       <button class="action secondary hidden" id="restartRunBtn">Заново связку</button>
       <button class="action secondary hidden" id="restartEpisodeBtn">Заново эпизод</button>
-      <button class="action secondary hidden" id="restartTestLevelBtn">Заново тестовый уровень 1-8</button>
+      <button class="action secondary hidden" id="restartTestLevelBtn">Заново тестовый уровень С07 · 2-3</button>
       <button class="action secondary" id="pauseEditorBtn">В редактор</button>
       <button class="action secondary" id="pauseLobbyBtn">В лобби</button>
     </div>
@@ -284,7 +284,7 @@
     <h1 class="title">Попытки в комнате закончились</h1>
     <p class="subtitle">Забег начнётся сначала. Полных стартов можно делать сколько угодно.</p>
     <div class="btns">
-      <button class="action" id="restartAfterOverBtn">Начать заново</button>
+      <button class="action" id="restartAfterOverBtn">Повторить уровень</button>
     </div>
   </div>
 </div>
@@ -317,8 +317,8 @@ const MAJOR = 4;
 const PLAYER_W = CELL;
 const PLAYER_H = 2 * CELL;
 const COIN_SIZE = CELL;
-const EXIT_W = 2 * CELL;
-const EXIT_H = 2.5 * CELL;
+const EXIT_W = 3 * CELL;
+const EXIT_H = 3 * CELL;
 const VIEW_OFFSET = 0;
 
 const RUN_SPEED = 7 * CELL;
@@ -338,6 +338,7 @@ const JUMP_LOW_DECISION_TIME = 0.09;
 const ENEMY_BOUNCE_LOW_HEIGHT = 2.5 * CELL;
 const ENEMY_BOUNCE_HIGH_HEIGHT = 4.5 * CELL;
 const BOUNCE_PAD_HEIGHT = 11.5 * CELL;
+const BOUNCE_PAD_LOW_HEIGHT = 7.5 * CELL;
 const CANNON_ROTATE_INTERVAL = 0.5;
 const CANNON_PLAYER_SHIFT = 0.85 * CELL;
 const CANNON_REENTRY_COOLDOWN = 0.22;
@@ -399,6 +400,8 @@ const MOVE_PLATFORM_SPEED = 2.4 * CELL;
 const SMART_PLATFORM_SPEED = 2.6 * CELL;
 const CONVEYOR_SLOW_SPEED = MOVE_PLATFORM_SPEED;
 const CONVEYOR_FAST_SPEED = 4.4 * CELL;
+const DROP_PLATFORM_SLOW_ACCEL = GRAVITY * 0.35;
+const DROP_PLATFORM_FAST_ACCEL = GRAVITY * 0.75;
 const PUSH_CUBE_PUSH_SPEED = RUN_SPEED * 0.9;
 const PUSH_CUBE_TRIGGER_HEIGHT = 10 * CELL;
 const PUSH_CUBE_TRIGGER_DELAY = 0.5;
@@ -471,7 +474,7 @@ const EPISODE_CATALOG = {
 const DIFFICULTY_ORDER = ['easy','medium','hard'];
 const DIFFICULTY_LABELS = { easy:'ЛЁГКАЯ', medium:'СРЕДНЯЯ', hard:'СЛОЖНАЯ' };
 const DIFFICULTY_SHORT_LABELS = { easy:'ЛЕГК.', medium:'СРЕДН.', hard:'СЛОЖН.' };
-const TEST_LEVEL_CONFIG = { episodeId:'EP1', difficulty:'easy', roomIndex:11, label:'1-8', title:'Эпизод 1 · Лёгкая · Уровень 1-8' };
+const TEST_LEVEL_CONFIG = { episodeId:'EP1', difficulty:'easy', campaignSlot:7, roomIndex:11, label:'С07 · 2-3', title:'Эпизод 1 · Лёгкая · 2-3 · Патрульный проход' };
 function createDefaultEpisodeStars() {
   const stars = {};
   for (const id of Object.keys(EPISODE_CATALOG)) stars[id] = { easy:false, medium:false, hard:false };
@@ -934,7 +937,7 @@ function createRoom(innerW, innerH, visibleCode, title) {
     show: visFlags(visibleCode),
     w, h, tiles,
     spawn: { x: 2, y: innerH - 2 },
-    exit: { x: innerW - 3, y: 2, w: 2, h: 2 },
+    exit: { x: innerW - 4, y: 2, w: 3, h: 3 },
     coins: [], pickups: [], collections: [], spikes: [], portals: [], oneWays: [], fragile: [], blink: [], conveyors: [], movers: [], crusherWalls: [], smarts: [], dropPlatforms: [], doors: [], levelDoors: [], buttons: [], spawners: [], cannons: [], driftFields: [], enemies: [], pushBlocks: [], bullets: [], labels: [], heartVendors: [], unlockSwitches: [],
     roomBuffs: { jp:false, fl:false, vv:false },
     hudText: '', isHeartShop:false, worldId:'',
@@ -1017,7 +1020,7 @@ function addSpike(room, x, y, dir='u', w=1, h=1, opts={}) {
   const startActive = opts.startActive != null
     ? !!opts.startActive
     : (mode === 'cycle' ? ((((phase % cycle) + cycle) % cycle) < cycle * 0.5) : active);
-  room.spikes.push({ id:opts.id||null, x, y, dir, w, h, mode, cycle, phase, active, startActive, label:opts.label||'' });
+  room.spikes.push({ id:opts.id||null, x, y, dir, w, h, mode, cycle, phase, active:startActive, startActive, label:opts.label||'' });
 }
 function isSpikeActive(sp, time=getRoomLocalTime()) {
   if (!sp) return false;
@@ -1035,7 +1038,7 @@ function addBlink(room, x, y, w=1, opts={}) {
   const startActive = opts.startActive != null
     ? !!opts.startActive
     : ((((phase % cycle) + cycle) % cycle) < cycle * 0.5);
-  room.blink.push({ id:opts.id||null, x, y, w, h:1, timer:0, cycle, phase, active:opts.active!==false, startActive, controlledBy:opts.controlledBy||null, mode:opts.mode||'cycle' });
+  room.blink.push({ id:opts.id||null, x, y, w, h:1, timer:0, cycle, phase, active:startActive, startActive, controlledBy:opts.controlledBy||null, mode:opts.mode||'cycle' });
 }
 function addMover(room, id, x, y, w, h, axis, dir, dist, opts={}) {
   const sx = x, sy = y;
@@ -1130,6 +1133,7 @@ function addDropPlatform(room, id, x, y, w=3, opts={}) {
     w, h:0.5,
     triggerDelay: opts.triggerDelay ?? 0.5,
     respawnDelay: opts.respawnDelay ?? 2.0,
+    speed: opts.speed === 'fast' ? 'fast' : 'slow',
     state: 'idle',
     timer: 0,
     verticalSpeed: 0,
@@ -1413,24 +1417,10 @@ function addPushCube(room, x, y, w=2, h=2, opts={}) {
     portalBlockedTimer: 0,
   });
 }
-const RUNTIME_MARQUEE_MESSAGES = ['НЕ ОСТАНАВЛИВАЙСЯ','ИЩИ ДРУГОЙ ПУТЬ','ОСТОРОЖНО: ЛОВУШКА','ЗДЕСЬ НУЖЕН РАЗБЕГ','ПРОВЕРЬ, ЧТО НАВЕРХУ','МОНЕТЫ ПОКАЗЫВАЮТ МАРШРУТ'];
-const RUNTIME_MARQUEE_EMOJIS = ['🚀 💨 ✨','😸 🌟 🎉','👾 👾 👾','⚡ 🔥 ⚡','🌈 ☁️ 🌈'];
-function chooseRuntimeMarquee(mode, fallback) {
-  if (mode === 'player') {
-    try { return `ИГРОК: ${(localStorage.getItem('NuBu2600_player_name_v1')||'ИГРОК').trim().slice(0,24)||'ИГРОК'}`; } catch (error) { return 'ИГРОК'; }
-  }
-  const source=mode==='emoji'?RUNTIME_MARQUEE_EMOJIS:RUNTIME_MARQUEE_MESSAGES;
-  state.progress.marquee ||= { lastByMode:{}, weights:{} };
-  const store=state.progress.marquee,modeWeights=store.weights[mode]&&typeof store.weights[mode]==='object'?{...store.weights[mode]}:{};
-  if(source.every((text,index)=>(Number(modeWeights[index])||1)<=.0625))for(let index=0;index<source.length;index++)modeWeights[index]=1;
-  const last=store.lastByMode[mode],candidates=source.map((text,index)=>({text,index,weight:Number(modeWeights[index])||1})).filter(item=>item.text!==last);
-  const total=candidates.reduce((sum,item)=>sum+item.weight,0);let pick=Math.random()*total,chosen=candidates[0]||{text:fallback||source[0],index:0,weight:1};
-  for(const item of candidates){pick-=item.weight;if(pick<=0){chosen=item;break;}}
-  modeWeights[chosen.index]=Math.max(.0625,chosen.weight*.5);store.weights[mode]=modeWeights;store.lastByMode[mode]=chosen.text;savePersistentProgress();return chosen.text;
-}
 function addLabel(room, x, y, text, color='#d8e2ff', w=8, h=2, opts={}) {
-  const resolved=opts.mode?chooseRuntimeMarquee(opts.mode,text):text;
-  room.labels.push({ x, y, w:w <= 6 ? 4 : 8, h:2, text:resolved, color, decorative:true, marquee:true, mode:opts.mode||'fixed' });
+  const mode = opts.mode || 'fixed';
+  const resolved = String(text || '');
+  room.labels.push({ x, y, w:clamp(Number(w)||8,3,8), h:clamp(Number(h)||2,1,2), text:resolved, color, decorative:true, marquee:true, mode });
 }
 function addHeartVendor(room, x, y, opts={}) {
   room.isHeartShop = true;
@@ -1545,8 +1535,13 @@ function tryEnterLevelDoor() {
       return false;
     }
     if (door.targetRoomIndex != null) {
+      if (door.kind === 'secret') state.secretReturnRoomIndex = room.nextRoomIndex;
       loadRoom(door.targetRoomIndex, true, true);
       updateHUD();
+      return true;
+    }
+    if (door.kind === 'secret' && state.editorPlaytest && room.roomType === 'editor_playtest') {
+      finishEditorPlaytest();
       return true;
     }
     if (door.kind === 'difficulty' && door.episodeId && door.difficulty) {
@@ -2178,24 +2173,18 @@ function coinWorldRect(coin) {
   };
 }
 function getExitDoorWorldRect(exit) {
-  const blueprintW = exit && Number.isFinite(exit.w) ? exit.w : 2;
-  const blueprintH = exit && Number.isFinite(exit.h) ? exit.h : 2;
-  const actualHCells = EXIT_H / CELL;
-  const legacyOrReservedOffset = (blueprintH >= actualHCells)
-    ? ((blueprintH - actualHCells) * CELL)
-    : (-(actualHCells - blueprintH) * CELL);
   return {
     x: (exit.x || 0) * CELL,
-    y: (exit.y || 0) * CELL + legacyOrReservedOffset,
-    w: blueprintW * CELL,
-    h: EXIT_H,
+    y: (exit.y || 0) * CELL,
+    w: (Number.isFinite(exit?.w) ? exit.w : 3) * CELL,
+    h: (Number.isFinite(exit?.h) ? exit.h : 3) * CELL,
   };
 }
 function getSpawnDoorWorldRect(spawn) {
   if (spawn && spawn.editorPlayerBody) {
-    return { x:spawn.x * CELL, y:spawn.y * CELL, w:(spawn.w || 1) * CELL, h:(spawn.h || 2) * CELL };
+    return { x:spawn.x * CELL, y:spawn.y * CELL, w:(spawn.w || 3) * CELL, h:(spawn.h || 3) * CELL };
   }
-  return { x:(spawn.x || 0) * CELL, y:(spawn.y || 0) * CELL - CELL * 1.5, w:EXIT_W, h:EXIT_H };
+  return { x:(spawn.x || 0) * CELL, y:(spawn.y || 0) * CELL, w:EXIT_W, h:EXIT_H };
 }
 function roomCellInShape(room, tx, ty) {
   if (!room || tx < 0 || ty < 0 || tx >= room.innerW || ty >= room.innerH) return false;
@@ -2806,7 +2795,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
     const linked = linkedTargetIds.has(id);
     if(linked)props.controlledBy='button';
     if (object.type === 'blinkPlatform' || object.type === 'spike') props.mode = linked ? 'toggle' : (props.mode === 'cycle' ? 'cycle' : 'always');
-    if (object.type === 'conveyor') props.mode = linked ? 'toggle' : 'always';
+    if (!linked && (object.type === 'blinkPlatform' || object.type === 'spike') && props.mode === 'always') props.startActive = true;
+    if (object.type === 'conveyor') { props.mode = linked ? 'toggle' : 'always'; if (props.enabled != null) props.startActive = props.enabled !== false; }
     switch (object.type) {
       case 'solid':
         setSolid(room, Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
@@ -2828,7 +2818,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
         const dist = Math.max(0.5, Math.hypot(dx, dy));
         const repeatSpacing=Math.max(1,Number(props.repeatSpacing)||20),platformCount=Math.max(1,Math.ceil(dist/repeatSpacing));
-        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, motionEnabled:true, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:dist*index/platformCount, respawnDelay:2 });
+        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, motionEnabled:props.moving !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:dist*index/platformCount, respawnDelay:2 });
         break;
       }
       case 'smartPlatform': {
@@ -2860,7 +2850,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         });
         break;
       }
-      case 'door': addDoor(room, id, x, y, props.orientation === 'horizontal' ? w : h, props.orientation === 'horizontal' ? 'h' : 'v', !!props.open); break;
+      case 'door': addDoor(room, id, x, y, props.orientation === 'horizontal' ? w : h, props.orientation === 'horizontal' ? 'h' : 'v', linked && (props.open === true || props.enabled === false || props.startActive === false)); break;
       case 'button': addButton(room, props.buttonType || 'T', editorButtonSides(props.sides), x, y, Array.isArray(props.targets) ? props.targets : [], { startOn:!!props.startOn }); break;
       case 'portal': {
         const orientation=props.orientation === 'horizontal' ? 'h' : 'v';
@@ -2888,15 +2878,18 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'heartVendor': addHeartVendor(room, x, y, { ...props, id, price:30 }); break;
       case 'spawn':
         if (!spawnFound) {
-          room.spawn = { x, y, w, h, editorPlayerBody:true };
+          room.spawn = { x, y, w:3, h:3, editorPlayerBody:true };
           spawnFound = true;
         }
         break;
       case 'exit':
         if (!exitFound) {
-          room.exit = { x, y, w, h };
+          room.exit = { x, y, w:3, h:3 };
           exitFound = true;
         }
+        break;
+      case 'secretExit':
+        addLevelDoor(room, id, x, y, {w:3, h:3, label:'СЕКРЕТ', kind:'secret'});
         break;
       case 'label': addLabel(room, x, y, String(props.text || object.notes || ''), props.color || '#d8e2ff', w, h, props); break;
       default: room.editorWarnings.push(`Не поддержан объект ${object.type} (${id})`); break;
@@ -2906,11 +2899,41 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   if (!spawnFound) throw new Error('В уровне нет единственного входа.');
   if (!exitFound) throw new Error('В уровне нет единственного выхода.');
   if (testSpawn && Number.isFinite(testSpawn.x) && Number.isFinite(testSpawn.y)) {
-    room.spawn = { x:snapHalfCell(testSpawn.x), y:snapHalfCell(testSpawn.y), w:1, h:2, editorPlayerBody:true };
+    room.spawn = { x:snapHalfCell(testSpawn.x), y:snapHalfCell(testSpawn.y), w:1, h:2, editorPlayerBody:true, testPoint:true };
   }
   normalizeRoomGeometryToHalfGrid(room);
   normalizeRoomPortals(room);
   return room;
+}
+
+const RUNTIME_CAMPAIGN_LEVEL_COUNT = 24;
+async function fetchRuntimeCampaignLevel(sequence, difficulty='easy') {
+  const filename=`ep1-${String(sequence).padStart(2,'0')}-${difficulty}.level.json`;
+  const sourceGamePath=decodeURIComponent(window.location.pathname).includes('/02 Разработка/game/');
+  const bases=sourceGamePath?[new URL('../levels/campaign/ep1/',window.location.href)]:[new URL('campaign/ep1/',window.location.href)];
+  let lastError=null;
+  for(const base of bases){try{const response=await fetch(new URL(filename,base),{cache:'no-store'});if(response.ok)return response.json();lastError=new Error(`${response.status} ${response.statusText}`);}catch(error){lastError=error;}}
+  throw lastError||new Error(`Не удалось загрузить ${filename}`);
+}
+let runtimeCampaignLevels = null;
+let runtimeCampaignPromise = null;
+let campaignStartToken = 0;
+function loadRuntimeCampaign() {
+  if (!runtimeCampaignPromise) runtimeCampaignPromise = Promise.all(
+    Array.from({length:RUNTIME_CAMPAIGN_LEVEL_COUNT}, (_, index) => fetchRuntimeCampaignLevel(index + 1, 'easy'))
+  ).then(levels => { runtimeCampaignLevels = levels; return levels; }).catch(error => {
+    runtimeCampaignPromise = null;
+    throw error;
+  });
+  return runtimeCampaignPromise;
+}
+async function loadCampaignForStart() {
+  try { return await loadRuntimeCampaign(); }
+  catch (error) {
+    console.error('NuBu campaign loader:', error);
+    pushMsg(`Не удалось загрузить кампанию: ${error.message}`, '#ff9eaa', 2);
+    return null;
+  }
 }
 
 function stableEditorLevelHash(level) {
@@ -3158,6 +3181,7 @@ function revealEmbeddedEditor() {
   });
 }
 function openLevelEditor() {
+  campaignStartToken++;
   if (editorSurfaceTransitionBusy) return;
   if (window.parent !== window && state.editorPlaytest) {
     window.parent.postMessage({ type:'nubu:return-editor-playtest' }, window.location.origin);
@@ -5569,7 +5593,46 @@ function makeDocumentRoom2() {
   return r;
 }
 
-function buildRooms(worldId = WORLDS[0].id) {
+function createCampaignRooms(levels, worldId, startIndex) {
+  const bySlot = new Map(levels.map(level => [Number(level.metadata?.campaign?.slot || level.sequence), level]));
+  const route = [];
+  for (let bundle = 1; bundle <= 5; bundle++) {
+    for (let position = 1; position <= 4; position++) route.push({slot:(bundle - 1) * 4 + position, bundle, position});
+    route.push({slot:21, bundle, position:0});
+  }
+  route.push({slot:22, bundle:5, position:0}, {slot:23, bundle:5, position:0}, {slot:24, bundle:3, position:0});
+  const result = route.map((entry, index) => {
+    const level = bySlot.get(entry.slot);
+    if (!level) throw new Error(`Нет комнаты EP1 в слоте ${entry.slot}.`);
+    const room = makeRoomFromEditorLevel(level);
+    room.worldId = worldId;
+    room.roomType = 'episode';
+    room.episodeId = 'EP1';
+    room.infiniteLives = false;
+    room.difficulty = level.difficulty || level.metadata?.difficulty || 'easy';
+    room.campaignRole = level.metadata?.campaign?.kind || level.role;
+    room.campaignSlot = entry.slot;
+    room.bundleIndex = entry.bundle;
+    room.bundleLevel = entry.position;
+    room.levelCode = entry.position ? `${entry.bundle}-${entry.position}` : (entry.slot === 21 ? 'Магазин' : entry.slot === 22 ? 'Босс' : entry.slot === 23 ? 'Послебоссовая' : 'Секрет');
+    room.title = level.title;
+    room.isHeartShop = entry.slot === 21;
+    room.nextRoomIndex = startIndex + index + 1;
+    return room;
+  });
+  const secretIndex = result.findIndex(room => room.campaignSlot === 24);
+  const sourceIndex = result.findIndex(room => room.campaignSlot === 12);
+  for (const room of result) for (const door of room.levelDoors) if (door.kind === 'secret') {
+    door.targetRoomIndex = startIndex + secretIndex;
+  }
+  result[secretIndex].nextRoomIndex = result[sourceIndex].nextRoomIndex;
+  const postboss = result.find(room => room.campaignSlot === 23);
+  postboss.nextRoomIndex = null;
+  postboss.completeEpisode = {episodeId:'EP1', difficulty:'easy', returnRoomIndex:0};
+  return result;
+}
+
+function buildRooms(worldId = WORLDS[0].id, campaignLevels = runtimeCampaignLevels) {
   const rooms = [];
   const LOBBY_INDEX = 0;
   const EP1_SELECT_INDEX = 1;
@@ -5808,29 +5871,38 @@ function buildRooms(worldId = WORLDS[0].id) {
   r9.buttons = [];
   r9.hudText = 'Комната 12: общий тест порталов с врагами и бомбочками.';
 
-  const episodeRooms = [r1, r2, r3Excel, r4Excel, r5Excel, r6Excel, r7Excel, r8Excel, r9Excel, r10Excel, r4, r6, r7, r8, r10, r9];
-  episodeRooms.forEach((room, idx) => {
+  const hasCampaign = Array.isArray(campaignLevels) && campaignLevels.length;
+  const episodeRooms = hasCampaign
+    ? createCampaignRooms(campaignLevels, worldId, EP1_EASY_START_INDEX)
+    : [r1, r2, r3Excel, r4Excel, r5Excel, r6Excel, r7Excel, r8Excel, r9Excel, r10Excel, r4, r6, r7, r8, r10, r9];
+  if (!hasCampaign) episodeRooms.forEach((room, idx) => {
     room.worldId = worldId;
     room.roomType = 'episode';
     room.episodeId = 'EP1';
-    room.difficulty = 'easy';
+    room.difficulty = campaignLevels?.[idx]?.metadata?.difficulty || 'easy';
+    room.campaignRole = campaignLevels?.[idx]?.role || 'develop';
+    room.bundleIndex = Math.ceil((idx + 1) / 5);
+    room.bundleLevel = ((idx % 5) + 1);
     room.levelCode = `1-${idx + 1}`;
-    room.title = String(room.title || `Эпизод 1 · Лёгкая · Уровень 1-${idx + 1}`).replace(/Уровень\s+1-\d+/u, `Уровень 1-${idx + 1}`);
+    room.title = campaignLevels?.[idx]?.title || String(room.title || `Эпизод 1 · Лёгкая · Уровень 1-${idx + 1}`).replace(/Уровень\s+1-\d+/u, `Уровень 1-${idx + 1}`);
+    room.isHeartShop = room.campaignRole === 'shop' || room.isHeartShop;
     room.nextRoomIndex = EP1_EASY_START_INDEX + idx + 1;
   });
-  episodeRooms[episodeRooms.length - 1].nextRoomIndex = null;
-  episodeRooms[episodeRooms.length - 1].completeEpisode = { episodeId:'EP1', difficulty:'easy', returnRoomIndex:LOBBY_INDEX };
+  if (!hasCampaign) {
+    episodeRooms[episodeRooms.length - 1].nextRoomIndex = null;
+    episodeRooms[episodeRooms.length - 1].completeEpisode = { episodeId:'EP1', difficulty:'easy', returnRoomIndex:LOBBY_INDEX };
+  }
 
   rooms.push(...episodeRooms);
 
   for (const room of rooms) {
-    room.hudText = '';
-    room.labels = [];
+    room.hudText = room.hudText || '';
     normalizeRoomGeometryToHalfGrid(room);
     normalizeRoomPortals(room);
     auditRoomGeometryToHalfGrid(room);
   }
   state.rooms = rooms.map(cloneRoom);
+  state.secretReturnRoomIndex = null;
 }
 
 function makePlayer() {
@@ -5964,7 +6036,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
 
   if (!keepPlayer || !state.player) state.player = makePlayer();
   const p = state.player;
-  const targetSpawnX = state.room.spawn.x * CELL;
+  const targetSpawnX = (state.room.spawn.x + (state.room.spawn.testPoint ? 0 : Math.max(0, ((state.room.spawn.w || 3) - 1) * 0.5))) * CELL;
   const targetSpawnY = state.room.spawn.y * CELL;
   p.x = targetSpawnX;
   p.y = targetSpawnY;
@@ -5974,7 +6046,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   if (withSpawnTransition) {
     const spawnDoor = getSpawnDoorWorldRect(state.room.spawn);
     p.x = state.room.spawn.editorPlayerBody ? settledSpawnX : snapHalfPx(spawnDoor.x + (spawnDoor.w - p.w) * 0.5);
-    p.y = state.room.spawn.editorPlayerBody ? settledSpawnY : snapHalfPx(spawnDoor.y + (spawnDoor.h - p.h) * 0.5);
+    p.y = state.room.spawn.editorPlayerBody ? settledSpawnY : snapHalfPx(spawnDoor.y);
     p.spawnTargetX = settledSpawnX;
     p.spawnTargetY = settledSpawnY;
   } else {
@@ -6029,6 +6101,10 @@ function updateStartWorldUI() {
 }
 
 function getTestLevelLabel() { return TEST_LEVEL_CONFIG.label; }
+function getTestLevelRoomIndex() {
+  const campaignIndex=state.rooms.findIndex(room=>room.episodeId===TEST_LEVEL_CONFIG.episodeId&&room.difficulty===TEST_LEVEL_CONFIG.difficulty&&room.campaignSlot===TEST_LEVEL_CONFIG.campaignSlot);
+  return campaignIndex>=0?campaignIndex:TEST_LEVEL_CONFIG.roomIndex;
+}
 function updateTestLevelButtons() {
   const label = getTestLevelLabel();
   if (startTestBtn) startTestBtn.textContent = `Начать тестовый уровень ${label}`;
@@ -6210,13 +6286,17 @@ function updateRoomTransition(dt) {
   return false;
 }
 
-function startRun(worldIndex = 0) {
-  setEmbeddedEditorBackgroundPaused(true);
+async function startRun(worldIndex = 0) {
+  const requestToken = ++campaignStartToken;
   state.selectedWorldIndex = 0;
   const world = getSelectedWorld();
   state.currentWorldId = world.id;
   state.currentWorldName = world.name;
-  buildRooms(world.id);
+  const campaignLevels=await loadCampaignForStart();
+  if (!campaignLevels) return;
+  if (requestToken !== campaignStartToken || state.mode === 'editor' || embeddedEditorPendingOpen) return;
+  setEmbeddedEditorBackgroundPaused(true);
+  buildRooms(world.id,campaignLevels);
   state.coins = 0;
   state.lives = MAX_LIVES;
   loadRoom(0, false, true);
@@ -6226,16 +6306,20 @@ function startRun(worldIndex = 0) {
   showOverlay(null);
 }
 
-function startTestLevel() {
-  setEmbeddedEditorBackgroundPaused(true);
+async function startTestLevel() {
+  const requestToken = ++campaignStartToken;
   state.selectedWorldIndex = 0;
   const world = getSelectedWorld();
   state.currentWorldId = world.id;
   state.currentWorldName = world.name;
-  buildRooms(world.id);
+  const campaignLevels=await loadCampaignForStart();
+  if (!campaignLevels) return;
+  if (requestToken !== campaignStartToken || state.mode === 'editor' || embeddedEditorPendingOpen) return;
+  setEmbeddedEditorBackgroundPaused(true);
+  buildRooms(world.id,campaignLevels);
   state.coins = 0;
   state.lives = MAX_LIVES;
-  loadRoom(TEST_LEVEL_CONFIG.roomIndex, false, true);
+  loadRoom(getTestLevelRoomIndex(), false, true);
   state.mode = 'playing';
   state.messages = [];
   hideStartConfirm();
@@ -6246,7 +6330,7 @@ function startTestLevel() {
 function restartTestLevel() {
   if (!state.rooms || !state.rooms.length) buildRooms(getSelectedWorld().id);
   state.lives = MAX_LIVES;
-  loadRoom(TEST_LEVEL_CONFIG.roomIndex, true, true);
+  loadRoom(getTestLevelRoomIndex(), true, true);
   state.mode = 'playing';
   state.messages = [];
   showOverlay(null);
@@ -6257,6 +6341,9 @@ function restartRoom() { loadRoom(state.roomIndex, true, true); }
 function getBundleStartIndex() {
   const room = state.room;
   if (room && room.roomType === 'episode' && room.episodeId && room.difficulty) {
+    if (room.campaignSlot) return state.rooms.findIndex(candidate => candidate.roomType === 'episode'
+      && candidate.episodeId === room.episodeId && candidate.difficulty === room.difficulty
+      && candidate.bundleIndex === room.bundleIndex && candidate.bundleLevel === 1);
     const match = String(room.levelCode || '').match(/^(\d+)-(\d+)$/);
     if (match) {
       const episodeNum = Number(match[1]);
@@ -6335,7 +6422,14 @@ function restartEpisode() {
     pushMsg('ЭПИЗОД СНАЧАЛА', '#d7f0ff', 1.0);
   }
 }
-function fullRestart() { restartBundle(); }
+function fullRestart() {
+  state.lives = MAX_LIVES;
+  loadRoom(state.roomIndex, true, true);
+  state.mode = 'playing';
+  state.messages = [];
+  showOverlay(null);
+  updateHUD();
+}
 function loseLife() {
   if (state.roomTransition && state.roomTransition.kind === 'death') return;
   if (state.mode !== 'playing') return;
@@ -6351,12 +6445,15 @@ function loseLife() {
   beginPlayerDeathTransition();
 }
 function updateHUD() {
-  ui.hearts.textContent = '♥'.repeat(state.lives) + '♡'.repeat(Math.max(0, MAX_LIVES - state.lives));
-  ui.coins.textContent = '🪙 ' + state.coins;
-  const numbering = state.room && state.room.levelCode
-    ? `Уровень ${state.room.levelCode}`
+  const heartsText = '♥'.repeat(state.lives) + '♡'.repeat(Math.max(0, MAX_LIVES - state.lives));
+  const coinsText = '🪙 ' + state.coins;
+  if (ui.hearts.textContent !== heartsText) ui.hearts.textContent = heartsText;
+  if (ui.coins.textContent !== coinsText) ui.coins.textContent = coinsText;
+  const numbering = state.room?.campaignSlot
+    ? `С${String(state.room.campaignSlot).padStart(2,'0')} · ${state.room.levelCode}`
+    : state.room && state.room.levelCode ? `Уровень ${state.room.levelCode}`
     : `Комната ${state.roomIndex + 1} / ${state.rooms.length}`;
-  ui.roomInfo.textContent = numbering;
+  if (ui.roomInfo.textContent !== numbering) ui.roomInfo.textContent = numbering;
   updatePauseAbilityButtons();
 }
 
@@ -7430,6 +7527,10 @@ function moveHorizontal(p, dt, inputX) {
       p.crusherHeadBumpTimer = Math.max(p.crusherHeadBumpTimer || 0, 0.65);
       continue;
     }
+    const previousLeft=p.x,previousRight=p.x+p.w,nextLeft=nextX,nextRight=nextX+p.w,epsilon=Math.max(0.75,CELL*0.03);
+    const sweptAcrossRight=p.vx>0&&previousRight<=box.x+epsilon&&nextRight>=box.x;
+    const sweptAcrossLeft=p.vx<0&&previousLeft>=box.x+box.w-epsilon&&nextLeft<=box.x+box.w;
+    if (!sweptAcrossRight&&!sweptAcrossLeft) continue;
     const canWallInteract = isWallInteractiveDynamicKind(box.kind) && !(r.ref && r.ref.type === 'E3');
     const wallBandOverlap = wallJumpOverlapY(p, box);
     if (p.vx > 0) { nextX = box.x - p.w; p.vx = 0; if (canWallInteract && wallBandOverlap > 0) p.wallDir = 1; }
@@ -7726,8 +7827,11 @@ function moveVertical(p, dt, jumpHeldNow) {
         const xOverlap = Math.min(p.x + p.w, b.x + b.w) - Math.max(p.x, b.x);
         if (xOverlap <= CELL * 0.2) continue;
         if (prevBottom <= top + STOMP_TOLERANCE && nextBottom >= top) {
-          const launchScale = driftFieldLaunchScaleForRect(b);
-          nextY = top - p.h; p.vy = -Math.sqrt(2 * GRAVITY * BOUNCE_PAD_HEIGHT) * launchScale; p.onGround = false; landedRef = null; if (launchScale >= 0.999) p.extraJumpReady = hasDoubleJumpAbility(); break;
+          const launchScale = driftFieldLaunchScaleForRect(b),bounceHeight=jumpHeldNow?BOUNCE_PAD_HEIGHT:BOUNCE_PAD_LOW_HEIGHT;
+          nextY = top - p.h; p.vy = -(Math.sqrt(2 * GRAVITY * bounceHeight) * launchScale + gravity * dt * 0.5);
+          p.onGround = false; landedRef = null; p.coyote = 0; p.jumpBuffer = 0;
+          p.jumpActive = false; p.jumpCanReleaseLow = false; p.jumpQueuedLow = false;
+          if (launchScale >= 0.999) p.extraJumpReady = hasDoubleJumpAbility(); break;
         }
       }
     }
@@ -7745,7 +7849,10 @@ function moveVertical(p, dt, jumpHeldNow) {
       if (r.kind === 'enemy' || r.kind === 'cannonBullet') continue;
       const test = { x:p.x + COLLISION_SKIN, y:nextY, w:p.w - 2*COLLISION_SKIN, h:p.h };
       if (!rectsOverlap(test, r)) continue;
-      if (p.y >= r.y + r.h) continue;
+      // Resolve only a head crossing from below. Testing the opposite side
+      // delayed contact by one frame and let horizontal collision snap the
+      // embedded player to the far edge of long doors and buttons.
+      if (p.y < r.y + r.h - Math.max(0.75, CELL * 0.03)) continue;
       if (r.kind === 'spawnerBottom' || r.kind === 'spawner') {
         p.spawnerHeadBumpRef = r.ref || null;
         p.spawnerHeadBumpTimer = Math.max(p.spawnerHeadBumpTimer || 0, 0.34);
@@ -7773,6 +7880,10 @@ function moveVertical(p, dt, jumpHeldNow) {
 
 function updatePlatforms(dt) {
   const room = state.room;
+  for (const door of room.doors) if (door.pendingClose && (!state.player || !rectsOverlap(state.player, doorRect(door)))) {
+    door.open = false;
+    door.pendingClose = false;
+  }
   room.localTime = (room.localTime || 0) + dt;
   for (const btn of room.buttons) {
     btn.prevX = Number.isFinite(btn.x) ? btn.x : (Number.isFinite(btn.startX) ? btn.startX : 0);
@@ -8021,7 +8132,7 @@ function updatePlatforms(dt) {
       }
     } else if (d.state === 'falling') {
       d.timer = Math.max(0, d.timer - dt);
-      d.verticalSpeed += GRAVITY * 0.35 * dt;
+      d.verticalSpeed += (d.speed === 'fast' ? DROP_PLATFORM_FAST_ACCEL : DROP_PLATFORM_SLOW_ACCEL) * dt;
       d.y += (d.verticalSpeed * dt) / CELL;
       if (d.timer <= 0) {
         const spawnRect = dropPlatformSpawnRect(d);
@@ -8109,7 +8220,13 @@ function applyTargetRoomState(room, rawTarget, isOn) {
     if (explicit === 'toggle') obj[key] = !obj[key];
     else obj[key] = !!explicit;
   };
-  for (const d of room.doors) if (d.id === id) apply(d, 'open');
+  for (const d of room.doors) if (d.id === id) {
+    const desired = explicit === 'toggle' ? !(d.pendingClose ? false : d.open) : !!explicit;
+    // A closing door must never eject the player sideways or materialize
+    // inside them. Keep it open until clear; a second press cancels closing.
+    d.pendingClose = !desired && !!state.player && room === state.room && rectsOverlap(state.player, doorRect(d));
+    d.open = desired || d.pendingClose;
+  }
   for (const b of room.blink) if (b.id === id) apply(b, 'active');
   for (const c of (room.conveyors || [])) if (c.id === id) apply(c, 'active');
   for (const m of room.movers) if (m.id === id) apply(m, 'motionEnabled');
@@ -8138,18 +8255,57 @@ function activateTargets(targets, toggle) {
   const room = state.room;
   for (const target of targets) applyTargetRoomState(room, target, true);
 }
+function readTargetRoomState(room, rawTarget) {
+  const { id, action } = parseTargetDescriptor(rawTarget);
+  if (action === 'reverse') { const conveyor=(room.conveyors||[]).find(item=>item.id===id);return !!conveyor&&conveyor.dir!==(conveyor.startDir||conveyor.dir); }
+  if (action === 'visibility') { const mover=(room.movers||[]).find(item=>item.id===id);return !!mover&&mover.visibilityEnabled!==false; }
+  if (action === 'spikes') { const wall=(room.crusherWalls||[]).find(item=>item.id===id);return !!wall&&String(wall.sides||'').length>0; }
+  const find=(items,key='id')=>(items||[]).find(item=>item?.[key]===id);
+  const object=find(room.doors)||find(room.blink)||find(room.conveyors)||find(room.movers)||find(room.crusherWalls)||find(room.smarts)||find(room.spawners)||find(room.spikes)||find((room.enemies||[]).filter(item=>item.type==='E3'));
+  if (!object) return false;
+  if (object.type === 'E3') return object.enabled !== false;
+  if (object === find(room.doors)) return object.pendingClose ? false : !!object.open;
+  if (object === find(room.blink)||object === find(room.spikes)) return !!object.active;
+  if (object === find(room.conveyors)) return !!object.active;
+  if (object === find(room.movers)) return !!object.motionEnabled;
+  if (object === find(room.crusherWalls)) return !!object.enabled;
+  return object.enabled !== false;
+}
+function setButtonTargetState(room, rawTarget, desired) {
+  const { action } = parseTargetDescriptor(rawTarget);
+  if (action === 'invert') applyTargetRoomState(room, rawTarget, !desired);
+  else applyTargetRoomState(room, rawTarget, !!desired);
+}
+function setButtonTargetActualState(room, rawTarget, desired) {
+  const { id, action } = parseTargetDescriptor(rawTarget);
+  // A universal button toggles the state that is currently visible. Explicit
+  // authoring suffixes such as @invert must not make the second click a no-op.
+  if (action === 'reverse' || action === 'visibility' || action === 'spikes') {
+    applyTargetRoomState(room, rawTarget, !!desired);
+  } else {
+    applyTargetRoomState(room, id, !!desired);
+  }
+}
+function setButtonTargetsState(button, desired) {
+  const room=state.room;if(!room||!button)return;
+  for(const target of button.targets||[])setButtonTargetState(room,target,desired);
+}
+function toggleButtonTargets(button) {
+  const room=state.room;if(!room||!button)return false;
+  const seen=new Set();
+  for (const target of button.targets || []) {
+    const {id, action} = parseTargetDescriptor(target);
+    const key = `${id}@${['reverse','visibility','spikes'].includes(action) ? action : 'state'}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    setButtonTargetActualState(room, target, !readTargetRoomState(room, target));
+  }
+  return !button.toggled;
+}
 function syncButtonTargetStates(room = state.room) {
   if (!room) return;
-  const previous = room.buttonTargetStates && typeof room.buttonTargetStates === 'object' ? room.buttonTargetStates : {};
-  const targetStates = new Map();
-  for (const btn of (room.buttons || [])) {
-    for (const target of (btn.targets || [])) targetStates.set(target, (targetStates.get(target) || false) || !!btn.toggled);
-  }
   const next = {};
-  for (const [target, isOn] of targetStates) {
-    next[target] = !!isOn;
-    if (previous[target] !== next[target]) applyTargetRoomState(room, target, next[target]);
-  }
+  for (const btn of room.buttons || []) for (const target of btn.targets || []) next[target] = readTargetRoomState(room,target);
   room.buttonTargetStates = next;
 }
 function rectOnTopOfSurface(rect, top, x, w, tol = 1.5, overlapMin = CELL * 0.2) {
@@ -8257,7 +8413,7 @@ function updateButtons(dt=0) {
       if (activeNow && !btn.pressed && !btn.used) {
         btn.pressed = true;
         btn.used = true;
-        const nextState = !btn.toggled;
+        const nextState = toggleButtonTargets(btn);
         setButtonGroupState(btn, nextState, 0.12);
         pushMsg(nextState ? 'Кнопка ON' : 'Кнопка OFF', '#b8ffcf', 1);
       }
@@ -8269,8 +8425,9 @@ function updateButtons(dt=0) {
     }
 
     if (btn.type === 'H') {
-      if (activeNow !== !!btn.toggled) {
+      if (activeNow !== !!btn.pressed) {
         const nextState = !!activeNow;
+        toggleButtonTargets(btn);
         setButtonGroupState(btn, nextState, 0.12);
         pushMsg(nextState ? 'Свич ON' : 'Свич OFF', '#b8ffcf', 0.7);
       }
@@ -8280,7 +8437,7 @@ function updateButtons(dt=0) {
 
     if (activeNow && !btn.pressed) {
       btn.pressed = true;
-      const nextState = !btn.toggled;
+      const nextState = toggleButtonTargets(btn);
       setButtonGroupState(btn, nextState, 0.12);
       pushMsg(nextState ? 'Переключатель ON' : 'Переключатель OFF', '#b8ffcf', 1);
     }
@@ -12768,6 +12925,12 @@ function checkExit() {
     completeEpisodeRun(state.room.completeEpisode);
     return;
   }
+  if (state.room.campaignRole === 'secret' && Number.isFinite(state.secretReturnRoomIndex)) {
+    const returnIndex = state.secretReturnRoomIndex;
+    state.secretReturnRoomIndex = null;
+    loadRoom(returnIndex, true, true);
+    return;
+  }
   if (Number.isFinite(state.room.nextRoomIndex)) {
     loadRoom(state.room.nextRoomIndex, true, true);
     return;
@@ -13193,8 +13356,8 @@ function worldToScreen(x, y) {
 function updateRulersOverlay() {
   if (!hasGridEnabled()) {
     if (ui.rulersOverlay) ui.rulersOverlay.classList.add('hidden');
-    ui.rulerTop.innerHTML = '';
-    ui.rulerLeft.innerHTML = '';
+    if (ui.rulerTop.childElementCount) ui.rulerTop.replaceChildren();
+    if (ui.rulerLeft.childElementCount) ui.rulerLeft.replaceChildren();
     return;
   }
   if (ui.rulersOverlay) ui.rulersOverlay.classList.remove('hidden');
@@ -13214,8 +13377,9 @@ function updateRulersOverlay() {
     if (center < -CELL * cam.scale || center > state.height + CELL * cam.scale) continue;
     leftParts.push(`<div class="ruler-label" style="top:${center.toFixed(2)}px;font-size:${Math.max(9, Math.min(12, Math.round(CELL * cam.scale * .28)))}px">${rowTop + 1}</div>`);
   }
-  ui.rulerTop.innerHTML = topParts.join('');
-  ui.rulerLeft.innerHTML = leftParts.join('');
+  const topMarkup = topParts.join(''), leftMarkup = leftParts.join('');
+  if (ui.rulerTop.innerHTML !== topMarkup) ui.rulerTop.innerHTML = topMarkup;
+  if (ui.rulerLeft.innerHTML !== leftMarkup) ui.rulerLeft.innerHTML = leftMarkup;
 }
 
 function drawBackgroundAndGrid() {
@@ -13294,7 +13458,7 @@ function drawTiles() {
     }
   }
 
-  for (let y = 0; y < room.h; y++) for (let x = 0; x < room.w; x++) {
+  for (let y = Math.max(0,viewMinTileY + 1); y <= Math.min(room.h - 1,viewMaxTileY + 1); y++) for (let x = Math.max(0,viewMinTileX + 1); x <= Math.min(room.w - 1,viewMaxTileX + 1); x++) {
     if (room.tiles[y][x] !== 1) continue;
     if (x > 0 && x < room.w - 1 && y > 0 && y < room.h - 1 && !roomCellInShape(room, x - 1, y - 1)) continue;
     if (x === 0 && !room.show.l) continue; if (x === room.w - 1 && !room.show.r) continue; if (y === 0 && !room.show.t) continue; if (y === room.h - 1 && !room.show.b) continue;
@@ -13970,6 +14134,7 @@ function drawDoorBadgeSlots(door, sx, sy, sw, sh) {
   }
 }
 function drawLevelDoor(door) {
+  if (door.kind === 'secret') { drawExitDoor(door, true); return; }
   const rect = levelDoorWorldRect(door);
   const pos = worldToScreen(rect.x, rect.y);
   const sw = rect.w * state.cam.scale;
@@ -14014,18 +14179,19 @@ function drawExitAndSpawn() {
   ctx.fillStyle = 'rgba(255,255,255,.22)';
   ctx.fillRect(Math.round(spawnPos.x), Math.round(spawnPos.y), Math.ceil(sw), Math.max(1, Math.round(sh * .14)));
 
-  if (state.room.showDefaultExit !== false && e) {
+  if (state.room.showDefaultExit !== false && e) drawExitDoor(e);
+}
+function drawExitDoor(e, secret=false) {
     const exitRect = getExitDoorWorldRect(e);
     const pos = worldToScreen(exitRect.x, exitRect.y), w = exitRect.w * state.cam.scale, h = exitRect.h * state.cam.scale;
-    ctx.fillStyle = '#74d7ff';
+    ctx.fillStyle = secret ? '#61d994' : '#74d7ff';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
-    ctx.fillStyle = '#eaf9ff';
+    ctx.fillStyle = secret ? '#ddffdf' : '#eaf9ff';
     ctx.fillRect(Math.round(pos.x + w*.18), Math.round(pos.y + h*.18), Math.ceil(w*.64), Math.ceil(h*.64));
     ctx.fillStyle = '#20395d';
     ctx.fillRect(Math.round(pos.x + w*.60), Math.round(pos.y + h*.46), Math.ceil(w*.12), Math.ceil(h*.10));
     ctx.fillStyle = 'rgba(255,255,255,.22)';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.max(1, Math.round(h * .14)));
-  }
 }
 function drawSpikes() {
   for (const sp of state.room.spikes) {
@@ -14933,10 +15099,22 @@ document.addEventListener('visibilitychange', () => {
 function step(ts) {
   if (!step.last) step.last = ts;
   const dt = Math.min(0.02, (ts - step.last) / 1000); step.last = ts; state.time += dt; state.lastDt = dt;
-  if (state.mode === 'playing') {
+  const surfaceCovered = state.mode === 'editor' && !editorSurfaceTransitionBusy;
+  if (!document.hidden && !surfaceCovered && state.mode === 'playing') {
     if (!updateRoomTransition(dt)) updatePlayer(dt);
   }
-  render();
+  // The editor owns its canvas. Redrawing the covered game wastes battery;
+  // static menu previews need only a slow animation cadence. Keep simulation
+  // updates separate from drawing and limit canvas work to 60 Hz.
+  const renderInterval = state.mode === 'playing' || editorSurfaceTransitionBusy ? 1000 / 60 : 100;
+  const surfaceChanged = step.mode !== state.mode || step.width !== state.width || step.height !== state.height;
+  if (!document.hidden && !surfaceCovered && (surfaceChanged || ts - (step.lastRender || 0) >= renderInterval - 0.5)) {
+    render();
+    step.lastRender = ts;
+    step.mode = state.mode;
+    step.width = state.width;
+    step.height = state.height;
+  }
   requestAnimationFrame(step);
 }
 
@@ -14986,7 +15164,11 @@ const toggleGridBtn = document.getElementById('toggleGridBtn');
 
 function updatePauseAbilityButtons() {
   if (!toggleGrabBtn) return;
-  const apply = (btn, on, name) => { btn.classList.toggle('on', !!on); btn.textContent = `${name}: ${on ? 'ON' : 'OFF'}`; };
+  const apply = (btn, on, name) => {
+    const text = `${name}: ${on ? 'ON' : 'OFF'}`;
+    if (btn.classList.contains('on') !== !!on) btn.classList.toggle('on', !!on);
+    if (btn.textContent !== text) btn.textContent = text;
+  };
   apply(toggleGrabBtn, hasLedgeGrab(), 'Зацеп');
   apply(toggleWallBtn, hasWallJumpAbility(), 'Отскок');
   apply(toggleDjBtn, hasDoubleJumpAbility(), 'Дабл-джамп');
@@ -15014,8 +15196,8 @@ function togglePauseMenu() {
   }
 }
 
-startBtn.addEventListener('click', () => startRun(0));
-startTestBtn.addEventListener('click', () => startTestLevel());
+startBtn.addEventListener('click', () => startRun(0).catch(error => { console.error(error); pushMsg(`Ошибка кампании: ${error.message}`, '#ff9eaa', 2); }));
+startTestBtn.addEventListener('click', () => startTestLevel().catch(error => { console.error(error); pushMsg(`Ошибка теста: ${error.message}`, '#ff9eaa', 2); }));
 openEditorBtn.addEventListener('click', openLevelEditor);
 pauseEditorBtn.addEventListener('click', openLevelEditor);
 pauseLobbyBtn.addEventListener('click', requestLobbyExit);
@@ -15042,7 +15224,7 @@ lobbyConfirmOverlay.addEventListener('keydown', event => {
 resetRoomItemsBtn.addEventListener('click', () => { resetRoomItemUnlocks(); pushMsg('JP / FL / V сброшены', '#d7e7ff', 1.0); hideStartConfirm(); prepareWorldPreview(); updateHUD(); });
 worldPrevBtn.addEventListener('click', () => setSelectedWorld(0));
 worldNextBtn.addEventListener('click', () => setSelectedWorld(0));
-startConfirmYesBtn.addEventListener('click', () => startRun(0));
+startConfirmYesBtn.addEventListener('click', () => startRun(0).catch(error => { console.error(error); pushMsg(`Ошибка кампании: ${error.message}`, '#ff9eaa', 2); }));
 startConfirmNoBtn.addEventListener('click', hideStartConfirm);
 heartVendorYesBtn.addEventListener('click', () => {
   if (state.pendingHeartVendor && state.lives < MAX_LIVES) {

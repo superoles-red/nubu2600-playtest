@@ -2,7 +2,9 @@
   'use strict';
 
   const DB_NAME = 'nubu2600-level-library';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
+  const ARCHIVE_STORE_NAME = 'campaignArchives';
+  const CAMPAIGN_LAYOUT_VERSION = 2;
   const STORE_NAME = 'slots';
   const MAX_DRAFT_LEVELS = 20;
   const MAX_PUBLISHED_LEVELS = 100;
@@ -30,6 +32,7 @@
   const EXAM_PENDING_KEY = 'nubu2600.editor.exam.v1';
   const AUTHOR_NAME_KEY = 'nubu2600.editor.author-name.v1';
   const HINT_VISIBILITY_KEY = 'nubu2600.editor.hints-hidden.v1';
+  const GRID_MARKING_KEY = 'nubu2600.editor.grid-marking.v1';
   const LIBRARY_MIRROR_FILE = 'nubu2600-authoring-backup-v1.json';
   const DELETED_SLOT_TOMBSTONES_KEY = 'nubu2600.editor.deleted-slots.v1';
   const STORAGE_TIMEOUT_MS = 6000;
@@ -39,9 +42,10 @@
   const DIFFICULTY_LABELS = { easy: 'Лёгкая', medium: 'Средняя', hard: 'Сложная' };
   const LAYER_ORDER = { decor: -1, terrain: 0, gameplay: 1, hazard: 2, entity: 3, meta: 4 };
   const PROTECTED_TYPES = new Set(['spawn', 'exit']);
+  const UNIQUE_TYPES = new Set(['spawn','exit','secretExit']);
   const PATH_ENDPOINT_TYPES = new Set(['movingPlatform', 'smartPlatform', 'crusherWall']);
   const LINKABLE_TYPES = new Set(['door', 'blinkPlatform', 'movingPlatform', 'smartPlatform', 'conveyor', 'crusherWall', 'flyerSpawner', 'shooterSpawner', 'bomberSpawner', 'cannon', 'spike']);
-  const AUTHORING_WIDTH_CAPS = Object.freeze({ oneWay:8, fragilePlatform:8, blinkPlatform:8, movingPlatform:8, fallingPlatform:8, conveyor:16, bouncePad:4, smartPlatform:4 });
+  const AUTHORING_WIDTH_CAPS = Object.freeze({ oneWay:8, fragilePlatform:8, blinkPlatform:8, movingPlatform:8, fallingPlatform:8, conveyor:16, bouncePad:5, smartPlatform:4 });
   const LINK_ENDPOINT_CONTROL_SIZE = 26;
   const LINK_ENDPOINT_OFFSET = 19;
   const LINK_SOCKET_GAP = 34;
@@ -73,7 +77,7 @@
   ];
   const LABEL_EMOJIS = ['🚀 💨 ✨', '😸 🌟 🎉', '👾 👾 👾', '⚡ 🔥 ⚡', '🌈 ☁️ 🌈'];
   const TYPE_HELP = {
-    spawn:'Вход игрока. Отсюда начинается уровень.', exit:'Выход. При касании уровень завершается.', developerNote:'Комментарий разработчику. В игре не появляется и не имеет игровых свойств.',
+    spawn:'Вход игрока. Отсюда начинается уровень.', exit:'Выход. При касании уровень завершается.', secretExit:'Секретный выход. Зелёная дверь ведёт в секретную комнату эпизода. Только для карт автора.', developerNote:'Комментарий разработчику. В игре не появляется и не имеет игровых свойств.',
     solid:'Надёжная стена или пол. Перетащите на карту и измените размер за углы.', oneWay:'Простая платформа: держит сверху, снизу пропускает.',
     fragilePlatform:'Ломается под игроком и всегда восстанавливается через 4 секунды.', blinkPlatform:'Без провода мигает по циклу; с проводом управляется кнопкой.', movingPlatform:'Лифт движется к конечной точке в одном из восьми направлений.', smartPlatform:'Трамвай ходит по замкнутому маршруту с промежуточными узлами.',
     fallingPlatform:'Начинает падать, когда на неё наступают.', conveyor:'Перемещает игрока и предметы в выбранную сторону.', bouncePad:'Подбрасывает игрока вверх.', driftField:'Парящее поле. Единственный предмет, который можно накладывать на другие типы.',
@@ -108,21 +112,22 @@
     enemyFlyer: { label: 'Шарик', color: '#78cdec', layer: 'entity', group: 'Враги', fixedSize: [2, 2], rotate: true },
     enemyLeech: { label: 'Пиявка', color: '#d381a8', layer: 'entity', group: 'Враги', fixedSize: [1, 1] },
     enemySpikeCube: { label: 'Шипастый куб', color: '#e55f79', layer: 'entity', group: 'Враги', resize: 'xy', defaultSize: [2, 2], rotate: true },
-    pushBlock: { label: 'Гиря', color: '#ff5d66', layer: 'hazard', group: 'Опасности', fixedSize: [2, 2] },
+    pushBlock: { label: 'Гиря', color: '#ff5d66', layer: 'hazard', group: 'Опасности', resize: 'square', defaultSize: [2, 2] },
     coin: { label: 'Монета', color: '#ffc94a', layer: 'entity', group: 'Предметы', fixedSize: [1, 1] },
     collectible: { label: 'Коллекционный значок', color: '#8be8ff', layer: 'entity', group: 'Предметы', fixedSize: [2, 2] },
     pickup: { label: 'Способность', color: '#cb9dff', layer: 'entity', group: 'Предметы', fixedSize: [2, 2] },
     unlockSwitch: { label: 'Переключатель предмета', color: '#b7ffd7', layer: 'gameplay', group: 'Предметы', fixedSize: [2, 2] },
     heartVendor: { label: 'Автомат сердечек', color: '#ff9f9f', layer: 'meta', group: 'Мета', fixedSize: [2, 2] },
     label: { label: 'Баннер', color: '#d8e2ff', layer: 'decor', group: 'Мета', resize: 'label', defaultSize: [8, 2] },
-    spawn: { label: 'Вход', color: '#55e39e', layer: 'meta', group: 'Мета', fixedSize: [1, 2], protected: true },
-    exit: { label: 'Выход', color: '#ff84cd', layer: 'meta', group: 'Мета', fixedSize: [2, 3], protected: true },
+    spawn: { label: 'Вход', color: '#55e39e', layer: 'meta', group: 'Мета', fixedSize: [3, 3], protected: true },
+    exit: { label: 'Выход', color: '#ff84cd', layer: 'meta', group: 'Мета', fixedSize: [3, 3], protected: true },
+    secretExit: { label:'Секретный выход', color:'#55e39e', layer:'meta', group:'Мета', fixedSize:[3,3] },
     developerNote: { label: 'Комментарий', color: '#ffcb62', layer: 'decor', group: 'Разработчик', resize: 'xy', defaultSize: [4, 3] },
   };
 
   const PALETTE_ITEMS = [
     { id: 'button-toggle', type: 'button', label: 'Кнопка', preset: { buttonType: 'T', sides: ['up'], targets: [] } },
-    ...['solid', 'oneWay', 'fragilePlatform', 'blinkPlatform', 'movingPlatform', 'smartPlatform', 'fallingPlatform', 'conveyor', 'bouncePad', 'driftField', 'spike', 'crusherWall', 'door'].map(type => ({ id: type, type })),
+    ...['door', 'solid', 'oneWay', 'fragilePlatform', 'blinkPlatform', 'movingPlatform', 'smartPlatform', 'fallingPlatform', 'conveyor', 'bouncePad', 'driftField', 'spike', 'crusherWall'].map(type => ({ id: type, type })),
     { id: 'portal', type: 'portal' },
     { id: 'playerCannon', type: 'playerCannon' },
     { id: 'generator', type: 'flyerSpawner', label: 'Генератор' },
@@ -136,17 +141,18 @@
     { id: 'heartVendor', type: 'heartVendor', campaignOnly:true },
     { id: 'label', type: 'label' },
     { id: 'developerNote', type: 'developerNote', campaignOnly:true },
+    { id:'secretExit',type:'secretExit',campaignOnly:true },
   ];
 
   const PALETTE_BY_ID = new Map(PALETTE_ITEMS.map(item => [item.id, item]));
   const FAVORITE_IDS = ['solid', 'oneWay', 'fallingPlatform', 'movingPlatform', 'spike', 'coin', 'enemyGoomba'];
-  const MOBILE_FORMER_SPECIAL_IDS = ['collectible','unlockSwitch','pickup-abilities','heartVendor','developerNote'];
-  const MOBILE_COMPACT_LABELS = { collectible:'Значок', 'pickup-abilities':'Навыки', developerNote:'Заметка' };
+  const MOBILE_FORMER_SPECIAL_IDS = ['collectible','unlockSwitch','pickup-abilities','heartVendor','developerNote','secretExit'];
+  const MOBILE_COMPACT_LABELS = { collectible:'Значок', 'pickup-abilities':'Навыки', developerNote:'Заметка',secretExit:'Секретный выход' };
   const MOBILE_PALETTE_CATEGORIES = [
     { id:'base', label:'Основа', icon:'▦', items:['solid','coin','label','pickup-gravity',...MOBILE_FORMER_SPECIAL_IDS] },
     { id:'platforms', label:'Платформы', icon:'═', items:['oneWay','fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','bouncePad'] },
     { id:'hazards', label:'Опасности', icon:'▲', items:['spike','pushBlock','enemyGoomba','enemyFlyer','enemyLeech'] },
-    { id:'mechanisms', label:'Механизмы', icon:'⚙', items:['button-toggle','conveyor','driftField','crusherWall','door','portal','playerCannon','generator'] },
+    { id:'mechanisms', label:'Механизмы', icon:'⚙', items:['button-toggle','door','conveyor','driftField','crusherWall','portal','playerCannon','generator'] },
   ];
 
   const PROPERTY_DEFS = {
@@ -167,7 +173,7 @@
       { key: 'speedCellsPerSecond', label: 'Скорость', type: 'number', min: .5, max: 12, step: .1 },
     ],
     fallingPlatform: [
-      { key: 'triggerDelay', label: 'Задержка падения', type: 'number', min: 0, max: 4, step: .1 },
+      { key: 'speed', label: 'Скорость', type: 'select', options: [['slow', 'Медленно'], ['fast', 'Быстро']] },
       { key: 'respawnDelay', label: 'Возврат, сек', type: 'number', min: .5, max: 10, step: .1 },
     ],
     conveyor: [
@@ -229,6 +235,10 @@
     difficulty: 'easy',
     level: null,
     selectedId: null,
+    selectedIds: new Set(),
+    selectionRect: null,
+    selectionMode: false,
+    gridMarking: '4',
     tool: 'select',
     activePaletteId: null,
     linkSourceId: null,
@@ -314,12 +324,20 @@
   function formatNumber(value) { return Number.isInteger(value) ? String(value) : Number(value).toFixed(1); }
   function difficultyTitle(difficulty) { return DIFFICULTY_LABELS[difficulty] || difficulty; }
   function selectedObject() { return state.level?.objects.find(object => object.id === state.selectedId) || null; }
+  function selectedObjectIds() { if(state.selectedId!==null&&state.selectedIds instanceof Set&&state.selectedIds.size&&state.selectedIds.has(state.selectedId))return state.selectedIds;return new Set(state.selectedId?[state.selectedId]:[]); }
+  function setSelectedObjectIds(ids) { state.selectedIds = new Set(ids || []); state.selectedId = state.selectedIds.values().next().value || null; }
   function authoringWidthCap(type){return AUTHORING_WIDTH_CAPS[type]||null;}
   function constrainNewObjectWidth(object){const maximum=authoringWidthCap(object?.type);if(maximum&&object.w>maximum)object.w=maximum;return object;}
   function targetDescriptorId(value){const text=String(value??'');const at=text.lastIndexOf('@');return at>0?text.slice(0,at):text;}
   function targetDescriptorAllowed(descriptor,target){if(typeof descriptor!=='string'||!target||!LINKABLE_TYPES.has(target.type))return false;if(descriptor===target.id)return true;const suffix=descriptor.slice(target.id.length);if(!descriptor.startsWith(`${target.id}@`))return false;if(suffix==='@visibility')return target.type==='movingPlatform';if(suffix==='@reverse')return target.type==='conveyor';if(suffix==='@spikes')return target.type==='crusherWall';return['@toggle','@on','@off','@invert'].includes(suffix);}
   function buttonHasTarget(button,targetId){return (button?.props?.targets||[]).some(value=>targetDescriptorId(value)===targetId);}
-  function incomingLinks(targetId){return state.level?.objects.filter(object=>object.type==='button'&&buttonHasTarget(object,targetId))||[];}
+  function incomingLinks(targetId,level=state.level){return level?.objects.filter(object=>object.type==='button'&&buttonHasTarget(object,targetId))||[];}
+  function normalizeDisconnectedDoors(level){for(const object of level.objects||[]){if(incomingLinks(object.id,level).length)continue;if(object.type==='door')object.props.open=false;else if(['spike','blinkPlatform'].includes(object.type)&&object.props?.mode==='always')object.props.startActive=true;}return level;}
+  function initialObjectEnabled(object,level=state.level){
+    if(object.type==='door')return !incomingLinks(object.id,level).length||object.props?.open!==true;
+    if(object.type==='blinkPlatform'||object.type==='spike')return !incomingLinks(object.id,level).length&&object.props?.mode==='always'||object.props?.startActive!==false;
+    return object.props?.enabled!==false;
+  }
 
   function stableHash(value) {
     const text = JSON.stringify(value);
@@ -334,11 +352,12 @@
       case 'blinkPlatform': return { mode: 'cycle', cycle: 2, phase: 0, startActive: true };
       case 'movingPlatform': return { path: [], speedCellsPerSecond: 2.4, enabled: true, loop: true, repeatSpacing: 20 };
       case 'smartPlatform': return { path: [], speedCellsPerSecond: 2.4, loop: true, persistent: true, spacingCells: 10, clockwise: true };
-      case 'fallingPlatform': return { triggerDelay: .5, respawnDelay: 2 };
+      case 'fallingPlatform': return { speed: 'slow', triggerDelay: .5, respawnDelay: 2 };
       case 'conveyor': return { direction: 'right', speed: 'slow', mode: 'always' };
       case 'spike': return { direction: 'up', mode: 'always', cycle: 2, startActive: true };
       case 'crusherWall': return { path: [], speedCellsPerSecond: 2.4, enabled: true, loop: true, spikes: false };
       case 'door': return { orientation: 'vertical', open: false };
+      case 'secretExit': return {route:'secret'};
       case 'button': return { buttonType: 'T', sides: ['up'], targets: [] };
       case 'portal': return { pairId: '', color: 'purple', orientation: 'vertical', side: 'right', length: 6 };
       case 'playerCannon': return { dirs: [...CANNON_DIRECTION_CYCLE], direction: 'right', manual: false, rotateInterval: .5, clockwise: true };
@@ -375,9 +394,11 @@
       props: { ...defaultProps(type), ...(raw?.props && typeof raw.props === 'object' && !Array.isArray(raw.props) ? deepClone(raw.props) : {}) },
     };
     if (raw?.notes) object.notes = String(raw.notes);
-    if (type === 'spawn') { object.w = 1; object.h = 2; object.props.semantics = 'playerBody'; }
-    if (type === 'exit') { object.w = 2; object.h = 3; }
+    if (type === 'spawn') { object.w = 3; object.h = 3; object.props.semantics = 'playerBody'; object.props.anchor = 'centerTop'; }
+    if (type === 'exit'||type==='secretExit') { object.w = 3; object.h = 3; if(type==='secretExit')object.props.route='secret'; }
     if (type === 'fallingPlatform' || type === 'bouncePad') object.h = 1;
+    if (type === 'fallingPlatform') object.props.speed = object.props.speed === 'fast' ? 'fast' : 'slow';
+    if (type === 'bouncePad') object.w = clamp(Math.round(Number(object.w) || 3), 1, 5);
     if (type === 'spike') { const direction=object.props.direction||'up',vertical=['left','right'].includes(direction);if(vertical)object.w=Math.max(1,Math.round(object.w));else object.h=Math.max(1,Math.round(object.h)); }
     if (type === 'portal') {
       const side=normalizePortalSide(object.props.side,object.props.orientation==='horizontal'?'down':'right');
@@ -397,8 +418,9 @@
       object.props.clockwise = object.props.clockwise !== false;
     }
     if (type === 'enemyGoomba') { const size=Number(object.w)>=3||Number(object.h)>=3?4:2;object.w=size;object.h=size; }
-    if (type === 'pushBlock') { object.w=2;object.h=2;object.props.fallTrigger = 'proximity'; object.props.fallDelay = .5; }
-    if (type === 'label') { const explicitMode=raw?.props&&Object.prototype.hasOwnProperty.call(raw.props,'mode');object.w = Number(object.w) <= 6 ? 4 : 8; object.h = 2; object.props.decorative = true; object.props.marquee = true;object.props.mode=explicitMode&&['player','message','emoji'].includes(object.props.mode)?object.props.mode:'message'; }
+    if (type === 'pushBlock') { const requested=Math.max(Number(object.w)||2,Number(object.h)||2); object.w=object.h=[2,4,8].reduce((best,size)=>Math.abs(size-requested)<Math.abs(best-requested)?size:best,2); object.props.fallTrigger = 'proximity'; object.props.fallDelay = .5; }
+    if (type === 'door') { const horizontal=object.props.orientation==='horizontal'; const length=clamp(Math.round(horizontal?object.w:object.h),3,6); object.w=horizontal?length:1; object.h=horizontal?1:length; object.props.open=object.props.open===true||object.props.enabled===false||object.props.startActive===false;delete object.props.enabled;delete object.props.startActive; }
+    if (type === 'label') { const explicitMode=raw?.props&&Object.prototype.hasOwnProperty.call(raw.props,'mode');object.w = clamp(Math.round(Number(object.w)||8),3,8); object.h = 2; object.props.decorative = true; object.props.marquee = true;object.props.mode=explicitMode&&['player','message','emoji'].includes(object.props.mode)?object.props.mode:'message'; }
     if (type === 'button' && object.props.buttonType === 'O') object.props.buttonType = 'T';
     return object;
   }
@@ -496,7 +518,7 @@
     const level={
       kind: 'nubu.level', schemaVersion,
       id: String(raw.id || fallback.id || 'user-level'),
-      title: String(raw.title || fallback.title || 'Без названия').slice(0, 48),
+      title: String(raw.title || fallback.title || 'Без названия').slice(0, raw.metadata?.campaign?.layoutVersion===CAMPAIGN_LAYOUT_VERSION?96:48),
       episode: clampInt(raw.episode ?? fallback.episode ?? 1, 1, 99),
       sequence: clampInt(raw.sequence ?? fallback.sequence ?? 1, 1, 999),
       role: ['intro', 'develop', 'exam', 'shop', 'boss', 'postboss', 'secret', 'training', 'lobby'].includes(raw.role) ? raw.role : 'develop',
@@ -508,7 +530,7 @@
       metadata: { status: 'idea', revision: 1, source: 'level-editor', ...(raw.metadata || {}), difficulty: fallback.difficulty || raw.metadata?.difficulty || 'easy' },
     };
     if(schemaVersion===2){level.panels=Array.isArray(raw.panels)?raw.panels.map(panel=>({x:panel?.x,y:panel?.y})):raw.panels;requirePanelContract(level);}
-    return level;
+    return normalizeDisconnectedDoors(level);
   }
 
   function makePanelFloors(panels){
@@ -526,9 +548,9 @@
     if(schemaVersion===2){const topology=normalizedPanelTopology(panels);panels=topology.panels;width=topology.size.width;height=topology.size.height;}
     const shapeSeed={schemaVersion,size:{width,height},...(schemaVersion===2?{panels}:{})};
     const floors=withFloor?(schemaVersion===2?makePanelFloors(panels):[{id:'solid-01',type:'solid',x:0,y:height-2,w:width,h:2,layer:'terrain',props:{}}]):[];
-    const spawnPosition=firstShapePosition(shapeSeed,1,2,{x:1,y:Math.max(0,height-4)},floors)||{x:0,y:0};
-    const spawn={id:'spawn-01',type:'spawn',...spawnPosition,w:1,h:2,layer:'meta',props:{semantics:'playerBody',anchor:'topLeft'}};
-    const exitPosition=firstShapePosition(shapeSeed,2,3,{x:Math.max(0,width-3),y:Math.max(0,height-5)},[...floors,spawn])||{x:Math.max(0,width-2),y:0};
+    const spawnPosition=firstShapePosition(shapeSeed,3,3,{x:1,y:Math.max(0,height-5)},floors)||{x:0,y:0};
+    const spawn={id:'spawn-01',type:'spawn',...spawnPosition,w:3,h:3,layer:'meta',props:{semantics:'playerBody',anchor:'centerTop'}};
+    const exitPosition=firstShapePosition(shapeSeed,3,3,{x:Math.max(0,width-4),y:Math.max(0,height-5)},[...floors,spawn])||{x:Math.max(0,width-3),y:0};
     const level = normalizeLevel({
       schemaVersion,
       id: `user-${Date.now()}-${difficulty}`,
@@ -541,7 +563,7 @@
       designerNotes: '',
       objects: [
         spawn,
-        { id: 'exit-main', type:'exit', ...exitPosition, w:2, h:3, layer:'meta', props:{route:'main'} },
+        { id: 'exit-main', type:'exit', ...exitPosition, w:3, h:3, layer:'meta', props:{route:'main'} },
         ...floors,
       ],
       metadata: { status: 'idea', revision: 1, source: 'level-editor', difficulty },
@@ -562,8 +584,23 @@
     return { key, kind, episode, sequence, title: levels.easy?.title || 'Уровень', publicationStatus: kind === 'user' ? 'draft' : 'campaign', difficulties: levels, clearProofs: {}, revisions: [], createdAt: now, updatedAt: now };
   }
 
-  function markCampaignSlotModified(slot){if(slot?.kind==='campaign'&&slot.metadata)delete slot.metadata.campaignPristineSeed;}
-  function invalidateSlotVerification(slot,difficulty){if(slot?.clearProofs)delete slot.clearProofs[difficulty];if(slot?.kind==='user')slot.publicationStatus='draft';else markCampaignSlotModified(slot);}
+  function campaignPendingDifficulties(slot){return slot?.metadata?.campaignComplete===false&&Array.isArray(slot.metadata.campaignPendingDifficulties)?slot.metadata.campaignPendingDifficulties.filter(difficulty=>DIFFICULTIES.includes(difficulty)):[];}
+  function setCampaignPendingDifficulties(slot,pending){slot.metadata={...(slot.metadata||{}),campaignComplete:pending.length===0};if(pending.length)slot.metadata.campaignPendingDifficulties=pending;else delete slot.metadata.campaignPendingDifficulties;}
+  function markCampaignSlotModified(slot,difficulty){if(slot?.kind!=='campaign'||!slot.metadata)return;delete slot.metadata.campaignPristineSeed;if(difficulty&&slot.metadata.campaignComplete===false)setCampaignPendingDifficulties(slot,campaignPendingDifficulties(slot).filter(candidate=>candidate!==difficulty));}
+  function invalidateSlotVerification(slot,difficulty){if(slot?.clearProofs)delete slot.clearProofs[difficulty];if(slot?.kind==='user')slot.publicationStatus='draft';else markCampaignSlotModified(slot,difficulty);}
+  function mergeCompletedCampaignDifficulties(target,source){
+    if(target?.kind!=='campaign'||target.key!==source?.key||target.metadata?.campaignSourceVersion!==source.metadata?.campaignSourceVersion)return[];
+    const pending=campaignPendingDifficulties(target),sourcePending=campaignPendingDifficulties(source);
+    if(source.metadata?.campaignComplete===false&&!Array.isArray(source.metadata.campaignPendingDifficulties))return[];
+    const completed=pending.filter(difficulty=>!sourcePending.includes(difficulty)&&source.difficulties?.[difficulty]);
+    for(const difficulty of completed)target.difficulties[difficulty]=deepClone(source.difficulties[difficulty]);
+    if(completed.length)setCampaignPendingDifficulties(target,pending.filter(difficulty=>!completed.includes(difficulty)));
+    return completed;
+  }
+  function syncActiveCampaignCompletion(slot){
+    const completed=mergeCompletedCampaignDifficulties(state.slot,slot);
+    if(completed.includes(state.difficulty)&&!state.dirty){state.level=normalizeLevel(state.slot.difficulties[state.difficulty],{difficulty:state.difficulty,episode:state.slot.episode,sequence:state.slot.sequence});state.slot.difficulties[state.difficulty]=state.level;resetHistory();if(state.ready)refreshAll();}
+  }
   function readDeletionTombstones(){try{const value=JSON.parse(localStorage.getItem(DELETED_SLOT_TOMBSTONES_KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}catch(error){return{};}}
   function writeDeletionTombstone(key){try{const entries=Object.entries({...readDeletionTombstones(),[key]:Date.now()}).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,500);localStorage.setItem(DELETED_SLOT_TOMBSTONES_KEY,JSON.stringify(Object.fromEntries(entries)));return true;}catch(error){return false;}}
   function removeDeletionTombstone(key){try{const tombstones=readDeletionTombstones();delete tombstones[key];localStorage.setItem(DELETED_SLOT_TOMBSTONES_KEY,JSON.stringify(tombstones));}catch(error){}}
@@ -579,18 +616,51 @@
   function transactionDone(transaction){return new Promise((resolve,reject)=>{let settled=false,timeoutError=null;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);callback(value);},timer=setTimeout(()=>{if(settled)return;timeoutError=new Error('Операция IndexedDB заняла слишком много времени');try{transaction.abort();}catch(error){}},STORAGE_TIMEOUT_MS);transaction.oncomplete=()=>finish(resolve);transaction.onerror=()=>finish(reject,transaction.error||new Error('Ошибка IndexedDB'));transaction.onabort=()=>finish(reject,timeoutError||transaction.error||new Error('Транзакция IndexedDB отменена'));});}
 
   function openDatabase() {
-    return withTimeout(new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME, { keyPath: 'key' }); };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error('IndexedDB заблокирована другой вкладкой'));
-    }), STORAGE_TIMEOUT_MS, 'Safari не ответил при открытии библиотеки уровней');
+    return new Promise((resolve,reject)=>{
+      let settled=false;
+      const request=indexedDB.open(DB_NAME,DB_VERSION);
+      const fail=error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);};
+      const timer=setTimeout(()=>fail(new Error('Библиотека не ответила. Закройте другие вкладки NuBu2600 и откройте редактор снова.')),STORAGE_TIMEOUT_MS);
+      request.onupgradeneeded=()=>{
+        if(settled){try{request.transaction?.abort();}catch(error){}return;}
+        const db=request.result;if(!db.objectStoreNames.contains(STORE_NAME))db.createObjectStore(STORE_NAME,{keyPath:'key'});if(!db.objectStoreNames.contains(ARCHIVE_STORE_NAME))db.createObjectStore(ARCHIVE_STORE_NAME,{keyPath:'key'});
+      };
+      request.onsuccess=()=>{const db=request.result;if(settled){db.close();return;}settled=true;clearTimeout(timer);db.onversionchange=()=>db.close();resolve(db);};
+      request.onerror=()=>fail(request.error||new Error('Не удалось открыть библиотеку уровней.'));
+      request.onblocked=()=>fail(new Error('Обновление библиотеки заблокировано другой вкладкой NuBu2600. Закройте старые вкладки и откройте редактор снова.'));
+    });
   }
 
   async function dbGet(key) { return requestToPromise(state.db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key)); }
   async function dbGetAll() { return requestToPromise(state.db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll()); }
-  async function dbPut(value) { const tx = state.db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).put(value); await transactionDone(tx); return value; }
+  async function dbGetCampaignArchives(){return requestToPromise(state.db.transaction(ARCHIVE_STORE_NAME,'readonly').objectStore(ARCHIVE_STORE_NAME).getAll());}
+  async function restoreCampaignArchives(archives){
+    const valid=(Array.isArray(archives)?archives:[]).filter(record=>typeof record?.key==='string'&&Array.isArray(record.slots));if(!valid.length)return;
+    const tx=state.db.transaction(ARCHIVE_STORE_NAME,'readwrite'),store=tx.objectStore(ARCHIVE_STORE_NAME),completion=transactionDone(tx);
+    for(const record of valid){const get=store.get(record.key);get.onsuccess=()=>{if(!get.result)store.put(record);};}await completion;
+  }
+  function oldCampaignLayout(slot){return slot?.kind==='campaign'&&Number(slot.episode||1)===1&&slot.metadata?.campaignLayoutVersion!==CAMPAIGN_LAYOUT_VERSION&&!DIFFICULTIES.every(difficulty=>slot.difficulties?.[difficulty]?.metadata?.campaign?.layoutVersion===CAMPAIGN_LAYOUT_VERSION);}
+  async function migrateCampaignLayout(){
+    let emergencyRaw=null;try{emergencyRaw=localStorage.getItem(EMERGENCY_DRAFT_KEY);}catch(error){}
+    const tx=state.db.transaction([STORE_NAME,ARCHIVE_STORE_NAME],'readwrite'),slots=tx.objectStore(STORE_NAME),archives=tx.objectStore(ARCHIVE_STORE_NAME),completion=transactionDone(tx);let archivedCount=0,archivedEmergency=false;
+    const read=slots.getAll();read.onsuccess=()=>{
+      const oldSlots=read.result.filter(oldCampaignLayout);
+      let emergency=null;try{const parsed=JSON.parse(emergencyRaw||'null');if(campaignSequenceFromKey(parsed?.slotKey)&&parsed?.level?.kind==='nubu.level'&&(oldSlots.some(slot=>slot.key===parsed.slotKey)||parsed.level.metadata?.campaign?.layoutVersion!==CAMPAIGN_LAYOUT_VERSION)){emergency=parsed;archivedEmergency=true;}}catch(error){}
+      if(!oldSlots.length&&!emergency)return;
+      const archivedAt=Date.now(),record={key:`ep1-layout1-${archivedAt}-${stableHash(oldSlots)}`,episode:1,layoutVersion:1,archivedAt,reason:'Перенумерация эпизода 1: 20 уровней и 4 специальные комнаты',slots:oldSlots,...(emergency?{emergencyDraft:emergency}:{})};
+      archives.add(record);for(const slot of oldSlots)slots.delete(slot.key);archivedCount=oldSlots.length+(emergency&&!oldSlots.some(slot=>slot.key===emergency.slotKey)?1:0);
+    };
+    await completion;
+    if(archivedEmergency)try{if(localStorage.getItem(EMERGENCY_DRAFT_KEY)===emergencyRaw)localStorage.removeItem(EMERGENCY_DRAFT_KEY);}catch(error){}
+    return archivedCount;
+  }
+  async function dbPut(value) {
+    const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);
+    if(value?.kind==='campaign'&&campaignPendingDifficulties(value).length){
+      const request=store.get(value.key);request.onsuccess=()=>{mergeCompletedCampaignDifficulties(value,request.result);store.put(value);};request.onerror=()=>{try{tx.abort();}catch(error){}};
+    }else store.put(value);
+    await completion;syncActiveCampaignCompletion(value);return value;
+  }
   async function dbAddIfAbsent(value) {
     const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);let inserted=false;
     const request=store.get(value.key);
@@ -599,7 +669,7 @@
     await completion;
     return inserted;
   }
-  async function dbInstallCampaignSeed(value,{expectedSourceVersion=null}={}) {
+  async function dbInstallCampaignSeed(value,{expectedSourceVersion=null,allowPartialRefresh=false}={}) {
     const tx=state.db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME),completion=transactionDone(tx);let written=false;
     const request=store.get(value.key);
     request.onsuccess=()=>{
@@ -609,7 +679,13 @@
         && current?.kind==='campaign'
         && current.metadata?.campaignPristineSeed===true
         && String(current.metadata?.campaignSourceVersion||'')===String(expectedSourceVersion);
-      if(!canRefresh)return;
+      const canCompletePartial=allowPartialRefresh
+        && current?.kind==='campaign'
+        && current.metadata?.campaignComplete===false
+        && campaignPendingDifficulties(current).length>0
+        && String(current.metadata?.campaignSourceVersion||'')===String(value.metadata?.campaignSourceVersion||'');
+      if(!canRefresh&&!canCompletePartial)return;
+      if(canCompletePartial&&!canRefresh){mergeCompletedCampaignDifficulties(current,value);current.updatedAt=Date.now();store.put(current);written=true;return;}
       value.createdAt=Number(current.createdAt)||value.createdAt;
       value.updatedAt=Date.now();
       value.metadata={...(value.metadata||{}),previousCampaignSourceVersion:String(expectedSourceVersion)};
@@ -626,19 +702,45 @@
   async function requestStoragePersistence(){const status=$('storageState');if(!navigator.storage){if(status)status.textContent='IndexedDB доступна; ручной файл остаётся главной внешней копией.';return false;}try{const already=await withTimeout(Promise.resolve(navigator.storage.persisted?.()),1500,'Проверка постоянного хранилища не ответила');state.storagePersistent=already||await withTimeout(Promise.resolve(navigator.storage.persist?.()),1500,'Запрос постоянного хранилища не ответил')||false;if(status){status.textContent=state.storagePersistent?'Хранилище защищено от автоматической очистки':'Браузер не гарантировал постоянное хранение — скачивайте библиотеку';status.classList.toggle('ok',state.storagePersistent);}return state.storagePersistent;}catch(error){if(status)status.textContent='Не удалось запросить постоянное хранение — скачивайте библиотеку';return false;}}
 
   async function readLibraryMirror(){if(!navigator.storage?.getDirectory)return null;try{return await withTimeout((async()=>{const root=await navigator.storage.getDirectory();const handle=await root.getFileHandle(LIBRARY_MIRROR_FILE);const file=await handle.getFile();const payload=JSON.parse(await file.text());return payload?.kind==='nubu.library-backup'&&payload.version===1?payload:null;})(),2500,'Резервное зеркало библиотеки не ответило');}catch(error){return null;}}
-  function writeLibraryMirrorNow({waitMs=0}={}){const operation=state.mirrorQueue.then(async()=>{if(!state.db||!navigator.storage?.getDirectory)return false;try{const slots=await dbGetAll(),deletedSlots=readDeletionTombstones(),payload={kind:'nubu.library-backup',version:1,exportedAt:Date.now(),deletedSlots,slots};const root=await navigator.storage.getDirectory();const handle=await root.getFileHandle(LIBRARY_MIRROR_FILE,{create:true});const writer=await handle.createWritable();await writer.write(`${JSON.stringify(payload)}\n`);await writer.close();return true;}catch(error){return false;}});state.mirrorQueue=operation.catch(()=>false);return waitMs>0?withTimeout(operation,waitMs,'Резервное зеркало ещё закрывает предыдущую запись').catch(()=>false):operation;}
+  function writeLibraryMirrorNow({waitMs=0}={}){const operation=state.mirrorQueue.then(async()=>{if(!state.db||!navigator.storage?.getDirectory)return false;try{const [slots,campaignArchives]=await Promise.all([dbGetAll(),dbGetCampaignArchives()]),deletedSlots=readDeletionTombstones(),payload={kind:'nubu.library-backup',version:1,exportedAt:Date.now(),deletedSlots,slots,campaignArchives};const root=await navigator.storage.getDirectory();const handle=await root.getFileHandle(LIBRARY_MIRROR_FILE,{create:true});const writer=await handle.createWritable();await writer.write(`${JSON.stringify(payload)}\n`);await writer.close();return true;}catch(error){return false;}});state.mirrorQueue=operation.catch(()=>false);return waitMs>0?withTimeout(operation,waitMs,'Резервное зеркало ещё закрывает предыдущую запись').catch(()=>false):operation;}
   function scheduleLibraryMirror(){clearTimeout(state.mirrorTimer);state.mirrorTimer=setTimeout(()=>{state.mirrorTimer=null;writeLibraryMirrorNow();},500);}
-  async function recoverLibraryMirror(){const payload=await readLibraryMirror();if(!payload?.slots?.length)return 0;const deletedSlots={...(payload.deletedSlots||{}),...readDeletionTombstones()};let restored=0;for(const candidate of payload.slots){if(!candidate?.key||!candidate.difficulties||deletedSlots[candidate.key])continue;const current=await dbGet(candidate.key);if(current&&Number(current.updatedAt)>=Number(candidate.updatedAt))continue;const slot=deepClone(candidate);for(const difficulty of DIFFICULTIES){if(slot.difficulties[difficulty]?.kind==='nubu.level')slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty],{difficulty,episode:slot.episode||1,sequence:slot.sequence||1});}await dbPut(slot);restored++;}return restored;}
-  async function exportLibrary(){await saveNow({revision:true});const slots=await dbGetAll();const payload={kind:'nubu.library-backup',version:1,exportedAt:Date.now(),slots};const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'});const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`nubu2600-library-${new Date().toISOString().slice(0,10)}.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Скачана внешняя резервная копия всей библиотеки.','ok');}
+  async function recoverLibraryMirror(){
+    const payload=await readLibraryMirror();if(!payload)return 0;
+    await restoreCampaignArchives(payload.campaignArchives);if(!payload.slots?.length)return 0;
+    const deletedSlots={...(payload.deletedSlots||{}),...readDeletionTombstones()},legacy=payload.slots.filter(slot=>slot?.key&&!deletedSlots[slot.key]&&oldCampaignLayout(slot));
+    if(legacy.length){await restoreCampaignArchives([{key:`ep1-mirror-${stableHash(legacy)}`,episode:1,layoutVersion:1,archivedAt:Number(payload.exportedAt)||Date.now(),reason:'Зеркальная копия прежней нумерации эпизода 1',slots:legacy}]);state.mirrorLegacyArchivedCount=legacy.length;}
+    let restored=0;
+    for(const candidate of payload.slots){
+      if(!candidate?.key||!candidate.difficulties||deletedSlots[candidate.key]||oldCampaignLayout(candidate))continue;
+      const current=await dbGet(candidate.key);if(current&&Number(current.updatedAt)>=Number(candidate.updatedAt))continue;
+      const slot=deepClone(candidate);for(const difficulty of DIFFICULTIES)if(slot.difficulties[difficulty]?.kind==='nubu.level')slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty],{difficulty,episode:slot.episode||1,sequence:slot.sequence||1});
+      await dbPut(slot);restored++;
+    }
+    return restored;
+  }
+  function downloadLibraryPayload(payload,filename){const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=filename;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  async function exportLibrary(){await saveNow({revision:true});const [slots,campaignArchives]=await Promise.all([dbGetAll(),dbGetCampaignArchives()]);downloadLibraryPayload({kind:'nubu.library-backup',version:1,exportedAt:Date.now(),slots,campaignArchives},`nubu2600-library-${new Date().toISOString().slice(0,10)}.json`);toast('Скачана внешняя резервная копия библиотеки и архивов.','ok');}
+  async function exportCampaignArchives(){
+    const campaignArchives=await dbGetCampaignArchives();if(!campaignArchives.length){toast('Архивов прежней нумерации нет.');return;}
+    const slots=campaignArchives.flatMap((archive,batch)=>{
+      const originals=deepClone(archive.slots),emergency=archive.emergencyDraft;
+      if(emergency?.level?.kind==='nubu.level'){
+        let original=originals.find(slot=>slot.key===emergency.slotKey);
+        if(!original){original={key:emergency.slotKey,title:emergency.level.title,episode:1,sequence:campaignSequenceFromKey(emergency.slotKey)||1,difficulties:Object.fromEntries(DIFFICULTIES.map(difficulty=>[difficulty,deepClone(emergency.level)])),revisions:[]};originals.push(original);}
+        original.difficulties[emergency.difficulty||'easy']=deepClone(emergency.level);
+      }
+      return originals.map((original,index)=>{const slot=deepClone(original);slot.key=`archive-ep1-${batch}-${archive.archivedAt}-${index}`;slot.kind='user';slot.title=`Архив · ${original.title||original.key}`.slice(0,48);slot.publicationStatus='draft';slot.clearProofs={};slot.metadata={...(slot.metadata||{}),archivedFrom:original.key,archiveKey:archive.key};for(const difficulty of DIFFICULTIES)if(slot.difficulties?.[difficulty]){slot.difficulties[difficulty].id=`${slot.key}-${difficulty}`;slot.difficulties[difficulty].title=slot.title;}return slot;});});
+    downloadLibraryPayload({kind:'nubu.library-backup',version:1,exportedAt:Date.now(),slots,campaignArchives},`nubu2600-ep1-archive-${new Date().toISOString().slice(0,10)}.json`);toast('Архив скачан. Его карты можно восстановить отдельными копиями в «Мои уровни».','ok');
+  }
   async function importLibrary(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{
-    if(file.size>8*1024*1024)throw new Error('файл больше 8 МБ');const payload=JSON.parse(await file.text());
+    if(file.size>64*1024*1024)throw new Error('файл больше 64 МБ');const payload=JSON.parse(await file.text());
     if(payload?.kind!=='nubu.library-backup'||payload.version!==1||!Array.isArray(payload.slots))throw new Error('это не резервная копия библиотеки NuBu2600');
     const seenKeys=new Set(),valid=payload.slots.map(slot=>{if(typeof slot?.key!=='string'||!slot.key.length||slot.key.length>160||seenKeys.has(slot.key))throw new Error('копия содержит пустой, повторяющийся или слишком длинный ключ набора карт');seenKeys.add(slot.key);if(!DIFFICULTIES.every(difficulty=>slot.difficulties?.[difficulty]?.kind==='nubu.level'))throw new Error(`набор ${slot.key} содержит не все три сложности`);return slot;});if(!valid.length)throw new Error('в копии нет полных уровней');
-    const ok=await confirmAction('Восстановить библиотеку?',`${valid.length} наборов карт будут добавлены; совпадающие ключи заменятся содержимым резервной копии.`);if(!ok)return;
-    await saveNow({revision:true});const restoredSlots=valid.map(candidate=>{const slot=deepClone(candidate);for(const difficulty of DIFFICULTIES)slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty],{difficulty,episode:slot.episode||1,sequence:slot.sequence||1});return slot;});
-    clearTimeout(state.mirrorTimer);state.mirrorTimer=null;await dbPutAll(restoredSlots);for(const slot of restoredSlots)removeDeletionTombstone(slot.key);
+    const ok=await confirmAction('Восстановить библиотеку?',`${valid.length} наборов карт будут восстановлены. Карты эпизода с прежней нумерацией сохранятся в отдельный архив; совпадающие ключи остальных карт заменятся содержимым копии.`);if(!ok)return;
+    await saveNow({revision:true});const legacy=valid.filter(oldCampaignLayout);if(legacy.length)await restoreCampaignArchives([{key:`ep1-import-${Date.now()}-${stableHash(legacy)}`,episode:1,layoutVersion:1,archivedAt:Date.now(),reason:'Импорт библиотеки с прежней нумерацией',slots:legacy}]);const restoredSlots=valid.filter(candidate=>!oldCampaignLayout(candidate)).map(candidate=>{const slot=deepClone(candidate);for(const difficulty of DIFFICULTIES)slot.difficulties[difficulty]=normalizeLevel(slot.difficulties[difficulty],{difficulty,episode:slot.episode||1,sequence:slot.sequence||1});return slot;});
+    clearTimeout(state.mirrorTimer);state.mirrorTimer=null;await restoreCampaignArchives(payload.campaignArchives);await dbPutAll(restoredSlots);for(const slot of restoredSlots)removeDeletionTombstone(slot.key);
     const restoredActive=restoredSlots.some(slot=>slot.key===state.slotKey)?await dbGet(state.slotKey):null;if(restoredActive){state.slot=restoredActive;state.level=normalizeLevel(restoredActive.difficulties[state.difficulty],{difficulty:state.difficulty,episode:restoredActive.episode||1,sequence:restoredActive.sequence||1});state.slot.difficulties[state.difficulty]=state.level;state.selectedId=null;state.dirty=false;resetHistory('Библиотека восстановлена');refreshAll();}
-    await refreshUserSlots();scheduleLibraryMirror();renderLibrary();toast(`Восстановлено наборов карт: ${valid.length}.`,'ok');
+    await refreshUserSlots();scheduleLibraryMirror();renderLibrary();toast(`Восстановлено наборов карт: ${restoredSlots.length}.${legacy.length?` Прежние карты сохранены в архив: ${legacy.length}.`:''}`,'ok');
   }catch(error){scheduleLibraryMirror();toast(`Не удалось восстановить библиотеку: ${error.message}`,'error');}}
 
   function campaignBaseUrl() {
@@ -669,22 +771,28 @@
     return normalizeLevel(await response.json(), { episode: 1, sequence, difficulty });
   }
 
-  async function ensureCampaignSlot(key) {
+  async function ensureCampaignSlot(key,{preferredDifficulty='easy',fast=false}={}) {
     const sequence=campaignSequenceFromKey(key);
     if(!sequence)return null;
     const inflight=state.campaignSlotLoads.get(key);
     if(inflight)return inflight;
     const existing=await dbGet(key),sourceVersion=campaignSourceVersion(),storedSourceVersion=String(existing?.metadata?.campaignSourceVersion||'');
     const refreshPristine=!!(existing&&sourceVersion&&existing.metadata?.campaignPristineSeed===true&&storedSourceVersion!==sourceVersion);
-    if(existing&&!refreshPristine)return existing;
+    if(existing&&!refreshPristine&&existing.metadata?.campaignComplete!==false)return existing;
     const raced=state.campaignSlotLoads.get(key);
     if(raced)return raced;
     const operation=(async()=>{
-      const loaded=await Promise.all(DIFFICULTIES.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));
-      const slot=makeSlot(key,'campaign',1,sequence,Object.fromEntries(DIFFICULTIES.map((difficulty,index)=>[difficulty,loaded[index]])));
-      slot.metadata={...(slot.metadata||{}),campaignSourceVersion:sourceVersion||'unversioned',campaignPristineSeed:true};
-      await dbInstallCampaignSeed(slot,{expectedSourceVersion:refreshPristine?storedSourceVersion:null});
-      return await dbGet(key);
+      const priority=DIFFICULTIES.includes(preferredDifficulty)?preferredDifficulty:'easy';
+      const difficulties=fast?[priority]:DIFFICULTIES;
+      const loaded=await Promise.all(difficulties.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));
+      const loadedByDifficulty=Object.fromEntries(difficulties.map((difficulty,index)=>[difficulty,loaded[index]]));
+      const fallback=loadedByDifficulty.easy||loaded[0];
+      const levels=Object.fromEntries(DIFFICULTIES.map(difficulty=>[difficulty,loadedByDifficulty[difficulty]||cloneForDifficulty(fallback,difficulty)]));
+      const slot=makeSlot(key,'campaign',1,sequence,levels);
+      slot.metadata={...(slot.metadata||{}),campaignSourceVersion:sourceVersion||'unversioned',campaignPristineSeed:true,campaignLayoutVersion:CAMPAIGN_LAYOUT_VERSION,campaignComplete:!fast};
+      if(fast)slot.metadata.campaignPendingDifficulties=DIFFICULTIES.filter(difficulty=>!loadedByDifficulty[difficulty]);
+      await dbInstallCampaignSeed(slot,{expectedSourceVersion:refreshPristine?storedSourceVersion:null,allowPartialRefresh:!fast});
+      const installed=await dbGet(key);syncActiveCampaignCompletion(installed);return installed;
     })();
     state.campaignSlotLoads.set(key,operation);
     try{return await operation;}
@@ -740,7 +848,7 @@
     const run=(async()=>{
       try{performance.mark('nubu-campaign-seed-start');}catch(error){}
       const existingSlots=new Map((await dbGetAll()).map(slot=>[slot?.key,slot])),sourceVersion=campaignSourceVersion();
-      const missing=Array.from({length:CAMPAIGN_LEVEL_COUNT},(_,index)=>index+1).filter(sequence=>{const slot=existingSlots.get(campaignSlotKey(sequence));return !slot||(!!sourceVersion&&slot.metadata?.campaignPristineSeed===true&&String(slot.metadata?.campaignSourceVersion||'')!==sourceVersion);});
+      const missing=Array.from({length:CAMPAIGN_LEVEL_COUNT},(_,index)=>index+1).filter(sequence=>{const slot=existingSlots.get(campaignSlotKey(sequence));return !slot||slot.metadata?.campaignComplete===false||(!!sourceVersion&&slot.metadata?.campaignPristineSeed===true&&String(slot.metadata?.campaignSourceVersion||'')!==sourceVersion);});
       const available=CAMPAIGN_LEVEL_COUNT-missing.length;
       if(!missing.length){updateCampaignSeedStatus('complete',{total:CAMPAIGN_LEVEL_COUNT,processed:available,loaded:available,failed:0});try{performance.mark('nubu-campaign-seed-complete');}catch(error){}return;}
       let cursor=0,processed=available,loaded=available,failed=0;
@@ -864,7 +972,7 @@
     if (!state.level) return false;
     const before = deepClone(state.level);
     const beforeTestSpawn=state.testSpawn?deepClone(state.testSpawn):null;
-    try { callback(); }
+    try { callback(); normalizeDisconnectedDoors(state.level); }
     catch (error) { state.level = before;state.testSpawn=beforeTestSpawn; state.slot.difficulties[state.difficulty] = state.level; toast(error.message || String(error), 'error'); refreshAll(); return false; }
     state.slot.difficulties[state.difficulty] = state.level;
     invalidateSlotVerification(state.slot,state.difficulty);
@@ -885,7 +993,7 @@
     if (!state.level.objects.some(object => object.id === state.selectedId)) state.selectedId = null;
     if (state.slot.clearProofs) delete state.slot.clearProofs[state.difficulty];
     if (state.slot.kind === 'user') state.slot.publicationStatus = 'draft';
-    else markCampaignSlotModified(state.slot);
+    else markCampaignSlotModified(state.slot,state.difficulty);
     state.dirty = true;
     scheduleSave();
     refreshAll();
@@ -1064,19 +1172,19 @@
     if (episode.value === 'user') {
       for (const slot of state.userSlots) { const option = document.createElement('option'); option.value = slot.key; option.textContent = slot.title || 'Без названия'; levelSelect.append(option); }
     } else {
-      for (let sequence = 1; sequence <= CAMPAIGN_LEVEL_COUNT; sequence++) { const option = document.createElement('option'); option.value = campaignSlotKey(sequence); option.textContent = `1-${sequence}`; levelSelect.append(option); }
+      for (let sequence = 1; sequence <= CAMPAIGN_LEVEL_COUNT; sequence++) { const option = document.createElement('option'); option.value = campaignSlotKey(sequence); option.textContent = `Слот ${sequence}${state.slot?.key===option.value?` · ${state.level?.title||state.slot.title}`:''}`; levelSelect.append(option); }
     }
     if (state.slotKey && [...levelSelect.options].some(option => option.value === state.slotKey)) levelSelect.value = state.slotKey;
   }
 
-  async function loadSlot(key, difficulty = state.difficulty, { skipSave = false } = {}) {
+  async function loadSlot(key, difficulty = state.difficulty, { skipSave = false, skipCampaignEnsure = false } = {}) {
     const requestId = ++state.loadRequestId;
     state.loadingSlot = true;
     setEditorReady(false);
     try {
       if (!skipSave) await saveNow();
       const slot = campaignSequenceFromKey(key)
-        ? await ensureCampaignSlot(key)
+        ? (skipCampaignEnsure ? await dbGet(key) : await ensureCampaignSlot(key))
         : await dbGet(key);
       if (requestId !== state.loadRequestId) return false;
       if (!slot) throw new Error('Уровень не найден в локальной библиотеке.');
@@ -1091,11 +1199,11 @@
       state.issues = [];
       state.dirty = false;
       state.activePaletteId = null;
-      state.tool = 'select';
+      state.tool = 'select';state.selectionMode=false;state.selectedIds=new Set();
       resetHistory();
       try { localStorage.setItem(LAST_SLOT_KEY, key); } catch (error) {}
       try { localStorage.setItem(LAST_DIFFICULTY_KEY, state.difficulty); } catch (error) {}
-      refreshSelectors();
+      refreshSelectors();renderPalette();renderMobilePalette();
       refreshAll();
       requestAnimationFrame(fitLevel);
       return true;
@@ -1144,8 +1252,11 @@
     const cell = cellPixels();
     const width = Math.max(1, Math.round(state.level.size.width * cell));
     const height = Math.max(1, Math.round(state.level.size.height * cell));
-    canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
-    canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr));
+    if(canvas.style.width!==`${width}px`)canvas.style.width=`${width}px`;
+    if(canvas.style.height!==`${height}px`)canvas.style.height=`${height}px`;
+    const backingWidth=Math.max(1,Math.round(width*dpr)),backingHeight=Math.max(1,Math.round(height*dpr));
+    if(canvas.width!==backingWidth)canvas.width=backingWidth;
+    if(canvas.height!==backingHeight)canvas.height=backingHeight;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
   }
 
@@ -1159,10 +1270,15 @@
   function drawGrid(cell, width, height) {
     ctx.save();
     if(isPanelLevel()){ctx.beginPath();for(const panel of state.level.panels)ctx.rect(panel.x*LEVEL_PANEL_SIZE*cell,panel.y*LEVEL_PANEL_SIZE*cell,LEVEL_PANEL_SIZE*cell,LEVEL_PANEL_SIZE*cell);ctx.clip();}
-    for (let x = 0; x <= state.level.size.width; x++) { ctx.beginPath(); ctx.strokeStyle = x % 4 === 0 ? '#344a42' : '#20322c'; ctx.lineWidth = x % 4 === 0 ? 1.1 : .65; ctx.moveTo(Math.round(x * cell) + .5, 0); ctx.lineTo(Math.round(x * cell) + .5, height); ctx.stroke(); }
-    for (let y = 0; y <= state.level.size.height; y++) { ctx.beginPath(); ctx.strokeStyle = y % 4 === 0 ? '#344a42' : '#20322c'; ctx.lineWidth = y % 4 === 0 ? 1.1 : .65; ctx.moveTo(0, Math.round(y * cell) + .5); ctx.lineTo(width, Math.round(y * cell) + .5); ctx.stroke(); }
+    const marking=state.gridMarking==='none'?null:state.gridMarking==='5'?5:4;
+    for (let x = 0; x <= state.level.size.width; x++) { const major=!!marking&&x%marking===0;ctx.beginPath();ctx.strokeStyle=major?'#344a42':'#20322c';ctx.lineWidth=major?1.1:.65;ctx.moveTo(Math.round(x*cell)+.5,0);ctx.lineTo(Math.round(x*cell)+.5,height);ctx.stroke(); }
+    for (let y = 0; y <= state.level.size.height; y++) { const major=!!marking&&y%marking===0;ctx.beginPath();ctx.strokeStyle=major?'#344a42':'#20322c';ctx.lineWidth=major?1.1:.65;ctx.moveTo(0,Math.round(y*cell)+.5);ctx.lineTo(width,Math.round(y*cell)+.5);ctx.stroke(); }
     ctx.restore();
   }
+
+  function gridMarkingLabel(value=state.gridMarking){ return value==='none'?'Без разметки':`Сетка ${value}×${value}`; }
+  function updateGridMarkingButton(){const button=$('gridMarkingButton');if(!button)return;button.textContent=gridMarkingLabel();button.title='Разметка сетки: 4×4 → 5×5 → без разметки';button.setAttribute('aria-label',button.title);}
+  function cycleGridMarking(){const values=['4','5','none'],next=values[(values.indexOf(state.gridMarking)+1)%values.length];state.gridMarking=next;try{localStorage.setItem(GRID_MARKING_KEY,next);}catch(error){}updateGridMarkingButton();renderCanvas();}
 
   function drawPanelBackdrop(cell,width,height){
     ctx.fillStyle=isPanelLevel()?'#030706':'#0a1411';ctx.fillRect(0,0,width,height);
@@ -1239,7 +1355,7 @@
     const preview = !!options.preview;
     const mini = !!options.mini;
     context.save();
-    const initiallyDisabled = LINKABLE_TYPES.has(object.type) && (object.props?.enabled === false || object.props?.startActive === false);
+    const initiallyDisabled = LINKABLE_TYPES.has(object.type) && object.type!=='door' && !initialObjectEnabled(object,options.level||state.level);
     context.globalAlpha = preview ? .55 : initiallyDisabled ? (object.type === 'crusherWall' ? .64 : .34) : 1;
     if(initiallyDisabled)context.setLineDash([5,4]);
     context.fillStyle = withAlpha(options.color || def.color, object.type === 'solid' ? .82 : .68);
@@ -1278,13 +1394,14 @@
       context.lineCap='round';context.beginPath();context.moveTo(cx+dx*startDistance,cy+dy*startDistance);context.lineTo(baseX+dx*head*.28,baseY+dy*head*.28);context.strokeStyle='#06100d';context.lineWidth=Math.max(7,Math.min(w,h)*.22);context.stroke();context.strokeStyle=arrowColor;context.lineWidth=Math.max(3.5,Math.min(w,h)*.11);context.stroke();
       context.beginPath();context.moveTo(tipX,tipY);context.lineTo(baseX+perpX*head*.68,baseY+perpY*head*.68);context.lineTo(baseX-perpX*head*.68,baseY-perpY*head*.68);context.closePath();context.fillStyle='#06100d';context.strokeStyle='#06100d';context.lineWidth=3;context.stroke();context.fillStyle=arrowColor;context.fill();
     } else if (object.type === 'spawn') {
-      context.fillStyle = '#ecf4ff'; context.fillRect(x, y, w, h); context.fillStyle = '#203150'; context.fillRect(x + w * .22, y + h * .3, Math.max(1,w*.18), Math.max(1,h*.1)); context.fillRect(x + w * .6, y + h * .3, Math.max(1,w*.18), Math.max(1,h*.1));
-    } else if (object.type === 'exit') {
-      context.fillStyle = withAlpha(def.color,.25); context.fillRect(x,y,w,h); context.strokeRect(x+.5,y+.5,w-1,h-1); context.fillStyle=def.color; context.fillRect(x+w*.2,y+h*.12,w*.6,h*.12);
+      context.fillStyle='#10191f';context.fillRect(x,y,w,h);context.strokeStyle='#718493';context.strokeRect(x+.5,y+.5,w-1,h-1);const bodyX=x+w/3,bodyY=y,bodyW=w/3,bodyH=h*2/3;context.fillStyle='#ecf4ff';context.fillRect(bodyX,bodyY,bodyW,bodyH);context.fillStyle='#203150';context.fillRect(bodyX+bodyW*.22,bodyY+bodyH*.3,Math.max(1,bodyW*.18),Math.max(1,bodyH*.1));context.fillRect(bodyX+bodyW*.6,bodyY+bodyH*.3,Math.max(1,bodyW*.18),Math.max(1,bodyH*.1));
+    } else if (object.type === 'exit'||object.type==='secretExit') {
+      context.fillStyle = withAlpha(def.color,.25); context.fillRect(x,y,w,h); context.strokeRect(x+.5,y+.5,w-1,h-1); context.fillStyle=def.color; context.fillRect(x+w*.2,y+h*.12,w*.6,h*.12);if(object.type==='secretExit'){context.font=`900 ${Math.max(7,Math.min(12,w*.2))}px sans-serif`;context.textAlign='center';context.textBaseline='middle';context.fillText(mini?'С':'Секрет',x+w/2,y+h*.6,Math.max(1,w-4));}
     } else if (object.type === 'enemyGoomba') {
       context.fillRect(x,y,w,h); context.strokeRect(x+.5,y+.5,w-1,h-1); context.fillStyle='#fff'; context.fillRect(x+w*.2,y+h*.22,w*.2,h*.18); context.fillRect(x+w*.6,y+h*.22,w*.2,h*.18); context.fillStyle='#1b100b'; context.fillRect(x+w*.27,y+h*.27,Math.max(1,w*.08),Math.max(1,h*.08)); context.fillRect(x+w*.67,y+h*.27,Math.max(1,w*.08),Math.max(1,h*.08));
     } else if (object.type === 'door') {
-      if(object.props?.open){context.globalAlpha*=.38;context.setLineDash([5,4]);context.strokeRect(x+.5,y+.5,w-1,h-1);context.setLineDash([]);}else{context.fillRect(x,y,w,h);context.strokeRect(x+.5,y+.5,w-1,h-1);context.strokeStyle='rgba(20,15,8,.5)';for(let offset=4;offset<(object.props?.orientation==='horizontal'?h:w);offset+=5){context.beginPath();if(object.props?.orientation==='horizontal'){context.moveTo(x,y+offset);context.lineTo(x+w,y+offset);}else{context.moveTo(x+offset,y);context.lineTo(x+offset,y+h);}context.stroke();}}
+      const linked = incomingLinks(object.id,options.level||state.level).length > 0;
+      if(object.props?.open && linked){context.globalAlpha*=.56;context.setLineDash([5,4]);context.strokeRect(x+.5,y+.5,w-1,h-1);context.setLineDash([]);}else{context.fillRect(x,y,w,h);context.strokeRect(x+.5,y+.5,w-1,h-1);context.strokeStyle='rgba(20,15,8,.5)';for(let offset=4;offset<(object.props?.orientation==='horizontal'?h:w);offset+=5){context.beginPath();if(object.props?.orientation==='horizontal'){context.moveTo(x,y+offset);context.lineTo(x+w,y+offset);}else{context.moveTo(x+offset,y);context.lineTo(x+offset,y+h);}context.stroke();}}
     } else if (object.type === 'button') {
       const side=object.props?.sides?.[0]||'up';context.fillStyle='#5d4d14';if(side==='up')context.fillRect(x,y+h*.58,w,h*.42);else if(side==='down')context.fillRect(x,y,w,h*.42);else if(side==='left')context.fillRect(x+w*.58,y,w*.42,h);else context.fillRect(x,y,w*.42,h);context.fillStyle=def.color;if(side==='up')context.fillRect(x+w*.18,y+h*.30,w*.64,h*.28);else if(side==='down')context.fillRect(x+w*.18,y+h*.42,w*.64,h*.28);else if(side==='left')context.fillRect(x+w*.30,y+h*.18,w*.28,h*.64);else context.fillRect(x+w*.42,y+h*.18,w*.28,h*.64);context.fillStyle='#251f0b';context.font=`900 ${Math.max(7,Math.min(w,h)*.42)}px sans-serif`;context.textAlign='center';context.textBaseline='middle';context.fillText(object.props?.buttonType||'T',x+w/2,y+h/2);
     } else if (object.type === 'driftField') {
@@ -1487,7 +1604,7 @@
         for(const instance of tramRuntimeInstances(object,points).slice(1)){const gx=instance.x,gy=instance.y,x=gx*cell,y=gy*cell,w=object.w*cell,h=object.h*cell;drawObjectShape(ctx,{...object,x:gx,y:gy},x,y,w,h,{preview:true,color,plainPlatform:true});}
       }else{ctx.globalAlpha=.34;drawObjectShape(ctx,{...object,x:end.x,y:end.y},end.x*cell,end.y*cell,object.w*cell,object.h*cell,{preview:true,color});ctx.globalAlpha=1;}
     }
-    for(const entry of connectionEntries(cell)){const selected=state.selectedWire?.sourceId===entry.source.id&&state.selectedWire?.descriptor===entry.descriptor;drawLinkEndpointStem(entry.sourcePoint,entry.color,selected?5:3);drawLinkEndpointStem(entry.targetPoint,entry.color,selected?5:3);ctx.strokeStyle=entry.color;ctx.lineWidth=selected?5:3;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(entry.sourcePoint.cx,entry.sourcePoint.cy);ctx.lineTo(entry.targetPoint.cx,entry.targetPoint.cy);ctx.stroke();ctx.setLineDash([]);drawWireArrowlets(entry.sourcePoint,entry.targetPoint,entry.color);for(const [point,kind] of [[entry.sourcePoint,'plug'],[entry.targetPoint,'socket']]){ctx.beginPath();ctx.arc(point.cx,point.cy,selected?8:6,0,Math.PI*2);ctx.fillStyle='#07100e';ctx.fill();ctx.lineWidth=selected?3:2;ctx.strokeStyle=entry.color;ctx.stroke();if(kind==='plug'){ctx.beginPath();ctx.moveTo(point.cx-2,point.cy-4);ctx.lineTo(point.cx-2,point.cy-8);ctx.moveTo(point.cx+2,point.cy-4);ctx.lineTo(point.cx+2,point.cy-8);ctx.stroke();}else{ctx.beginPath();ctx.arc(point.cx,point.cy,2,0,Math.PI*2);ctx.fillStyle=entry.color;ctx.fill();}}}
+    for(const entry of connectionEntries(cell)){const selected=state.selectedWire?.sourceId===entry.source.id&&state.selectedWire?.descriptor===entry.descriptor;ctx.globalAlpha=selected?1:.34;drawLinkEndpointStem(entry.sourcePoint,entry.color,selected?5:3);drawLinkEndpointStem(entry.targetPoint,entry.color,selected?5:3);ctx.strokeStyle=entry.color;ctx.lineWidth=selected?5:3;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(entry.sourcePoint.cx,entry.sourcePoint.cy);ctx.lineTo(entry.targetPoint.cx,entry.targetPoint.cy);ctx.stroke();ctx.setLineDash([]);drawWireArrowlets(entry.sourcePoint,entry.targetPoint,entry.color);for(const [point,kind] of [[entry.sourcePoint,'plug'],[entry.targetPoint,'socket']]){ctx.beginPath();ctx.arc(point.cx,point.cy,selected?8:6,0,Math.PI*2);ctx.fillStyle='#07100e';ctx.fill();ctx.lineWidth=selected?3:2;ctx.strokeStyle=entry.color;ctx.stroke();if(kind==='plug'){ctx.beginPath();ctx.moveTo(point.cx-2,point.cy-4);ctx.lineTo(point.cx-2,point.cy-8);ctx.moveTo(point.cx+2,point.cy-4);ctx.lineTo(point.cx+2,point.cy-8);ctx.stroke();}else{ctx.beginPath();ctx.arc(point.cx,point.cy,2,0,Math.PI*2);ctx.fillStyle=entry.color;ctx.fill();}}ctx.globalAlpha=1;}
     const portalGroups = new Map();
     for (const portal of state.level.objects.filter(object => object.type === 'portal')) { const key = portal.props?.pairId || portal.id; if (!portalGroups.has(key)) portalGroups.set(key,[]); portalGroups.get(key).push(portal); }
     for (const pair of portalGroups.values()) if (pair.length === 2) { ctx.strokeStyle = ({ blue:'#55c7ff',green:'#70f0a0',yellow:'#ffd56b',orange:'#ffad6b',red:'#ff6b6b',purple:'#c879ff' })[pair[0].props?.color] || '#c879ff'; ctx.setLineDash([2,5]);ctx.beginPath();ctx.moveTo((pair[0].x+pair[0].w/2)*cell,(pair[0].y+pair[0].h/2)*cell);ctx.lineTo((pair[1].x+pair[1].w/2)*cell,(pair[1].y+pair[1].h/2)*cell);ctx.stroke(); }
@@ -1519,14 +1636,16 @@
     const cell = cellPixels(), width = state.level.size.width * cell, height = state.level.size.height * cell;
     ctx.clearRect(0,0,width,height);drawPanelBackdrop(cell,width,height);drawGrid(cell,width,height);drawConnections(cell);drawWireDrag();
     const objects = [...state.level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99));
-    for (const object of objects) drawObjectShape(ctx,object,object.x*cell,object.y*cell,object.w*cell,object.h*cell,{selected:object.id===state.selectedId||state.selectedWire?.sourceId===object.id||state.selectedWire?.targetId===object.id});
+    for (const object of objects) drawObjectShape(ctx,object,object.x*cell,object.y*cell,object.w*cell,object.h*cell,{selected:selectedObjectIds().has(object.id)||state.selectedWire?.sourceId===object.id||state.selectedWire?.targetId===object.id});
+    if(state.drag?.kind==='selectRect'){const rect=normalizedGridRect(state.drag.start,state.drag.current||state.drag.start);ctx.save();ctx.fillStyle='rgba(103,215,255,.12)';ctx.strokeStyle='#67d7ff';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.fillRect(rect.x*cell,rect.y*cell,rect.w*cell,rect.h*cell);ctx.strokeRect(rect.x*cell+.5,rect.y*cell+.5,rect.w*cell-1,rect.h*cell-1);ctx.restore();}
     drawSelectedLinkEndpointStems(cell);
     drawTramInsertionHandles(cell);
     drawAvailableLinkSockets(cell);
-    if (state.testSpawn) { ctx.save();ctx.globalAlpha=.55;drawObjectShape(ctx,{type:'spawn',props:{}},state.testSpawn.x*cell,state.testSpawn.y*cell,cell,cell*2,{preview:true});ctx.restore(); }
+    if (state.testSpawn) { ctx.save();ctx.globalAlpha=.55;drawObjectShape(ctx,{type:'spawn',props:{}},state.testSpawn.x*cell,state.testSpawn.y*cell,cell*3,cell*3,{preview:true});ctx.restore(); }
     const preview = dragPreview();
     if (preview) {const previewInvalid=state.drag?.kind==='erase'||!placementPreviewVerdict(preview).ok,previewColor=previewInvalid?'#ff6974':undefined;drawObjectShape(ctx,preview,preview.x*cell,preview.y*cell,preview.w*cell,preview.h*cell,{preview:true,color:previewColor,invalid:previewInvalid});if(PATH_ENDPOINT_TYPES.has(preview.type))drawPairedPlacementPreview(preview,cell,previewColor||TYPE_DEFS[preview.type].color,previewInvalid);}
     if (state.drag?.kind === 'move') { const object=state.drag.object,candidate=moveCandidateFromDrag(state.drag);if(state.drag.deleteCandidate){ctx.save();ctx.globalAlpha=.78;ctx.fillStyle='rgba(255,45,67,.48)';ctx.fillRect(object.x*cell,object.y*cell,object.w*cell,object.h*cell);ctx.strokeStyle='#ff3348';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(object.x*cell,object.y*cell);ctx.lineTo((object.x+object.w)*cell,(object.y+object.h)*cell);ctx.moveTo((object.x+object.w)*cell,object.y*cell);ctx.lineTo(object.x*cell,(object.y+object.h)*cell);ctx.stroke();ctx.restore();}else if(candidate){const invalid=!placementPreviewVerdict(candidate,[candidate.id]).ok,color=invalid?'#ff6974':undefined;drawObjectShape(ctx,candidate,candidate.x*cell,candidate.y*cell,candidate.w*cell,candidate.h*cell,{preview:true,selected:true,color,invalid});} }
+    if(state.drag?.kind==='moveGroup'){const result=groupMovePreview(state.drag);for(const candidate of result.candidates)drawObjectShape(ctx,candidate,candidate.x*cell,candidate.y*cell,candidate.w*cell,candidate.h*cell,{preview:true,selected:true,color:result.ok?undefined:'#ff6974',invalid:!result.ok});}
     if (state.domResize?.preview) { const object=state.domResize.preview,invalid=!placementPreviewVerdict(object,[object.id]).ok,color=invalid?'#ff6974':undefined;drawObjectShape(ctx,object,object.x*cell,object.y*cell,object.w*cell,object.h*cell,{preview:true,selected:true,color,invalid}); }
     drawPathEndpointHandle(cell);
     positionMapEdgeControls(cell);
@@ -1617,7 +1736,7 @@
 
   function renderPalette(filter = '') {
     const root=$('palette');root.innerHTML='';let group=null;const query=filter.trim().toLocaleLowerCase('ru');
-    for(const item of PALETTE_ITEMS){const def=TYPE_DEFS[item.type];const label=item.label||def.label;const help=TYPE_HELP[item.type]||'Предмет игрового уровня.';const itemGroup=item.campaignOnly?'Только сюжет':def.group;if(query&&!label.toLocaleLowerCase('ru').includes(query))continue;if(itemGroup!==group){group=itemGroup;const title=document.createElement('div');title.className='palette-group-title';title.textContent=group;root.append(title);}const button=document.createElement('button');button.type='button';button.className=`palette-tool ${item.campaignOnly?'campaign-only':''}`;button.dataset.paletteId=item.id;button.dataset.toolSize=(def.fixedSize||def.defaultSize||[1,1]).join('x');button.draggable=true;button.style.setProperty('--tool-color',item.color||def.color);button.title=`${label}: ${help}`;const icon=document.createElement('canvas');icon.width=68;icon.height=52;const text=document.createElement('small');text.textContent=label;button.append(icon,text);if(item.type==='coin'){const badge=document.createElement('span');badge.className='coin-cap';badge.textContent=`0/${state.level?coinLimit():5}`;button.append(badge);}const explain=()=>{const panel=$('paletteHelp');if(panel)panel.innerHTML=`<strong>${label}</strong><p>${help}</p>`;showInteractionHint(item);};button.addEventListener('pointerenter',explain);button.addEventListener('focus',explain);button.addEventListener('pointerup',event=>{if(event.pointerType==='touch')toast(`${label}: ${help}`);});button.addEventListener('click',()=>{explain();toast(`${label}: ${help}`);});button.addEventListener('dragstart',event=>{setTool('select');state.desktopPaletteDrag={paletteId:item.id};state.hoverPoint=null;event.dataTransfer.setData('text/nubu-tool',item.id);event.dataTransfer.effectAllowed='copy';});button.addEventListener('dragend',()=>{state.desktopPaletteDrag=null;state.hoverPoint=null;renderCanvas();});root.append(button);requestAnimationFrame(()=>drawToolIcon(icon,item));}
+    for(const item of PALETTE_ITEMS){if(item.type==='secretExit'&&state.slot?.kind!=='campaign')continue;const def=TYPE_DEFS[item.type];const label=item.label||def.label;const help=TYPE_HELP[item.type]||'Предмет игрового уровня.';const itemGroup=item.campaignOnly?'Только сюжет':def.group;if(query&&!label.toLocaleLowerCase('ru').includes(query))continue;if(itemGroup!==group){group=itemGroup;const title=document.createElement('div');title.className='palette-group-title';title.textContent=group;root.append(title);}const button=document.createElement('button');button.type='button';button.className=`palette-tool ${item.campaignOnly?'campaign-only':''}`;button.dataset.paletteId=item.id;button.dataset.toolSize=(def.fixedSize||def.defaultSize||[1,1]).join('x');button.draggable=true;button.style.setProperty('--tool-color',item.color||def.color);button.title=`${label}: ${help}`;const icon=document.createElement('canvas');icon.width=68;icon.height=52;const text=document.createElement('small');text.textContent=label;button.append(icon,text);if(item.type==='coin'){const badge=document.createElement('span');badge.className='coin-cap';badge.textContent=`0/${state.level?coinLimit():5}`;button.append(badge);}const explain=()=>{const panel=$('paletteHelp');if(panel)panel.innerHTML=`<strong>${label}</strong><p>${help}</p>`;showInteractionHint(item);};button.addEventListener('pointerenter',explain);button.addEventListener('focus',explain);button.addEventListener('pointerup',event=>{if(event.pointerType==='touch')toast(`${label}: ${help}`);});button.addEventListener('click',()=>{explain();toast(`${label}: ${help}`);});button.addEventListener('dragstart',event=>{setTool('select');state.desktopPaletteDrag={paletteId:item.id};state.hoverPoint=null;event.dataTransfer.setData('text/nubu-tool',item.id);event.dataTransfer.effectAllowed='copy';});button.addEventListener('dragend',()=>{state.desktopPaletteDrag=null;state.hoverPoint=null;renderCanvas();});root.append(button);requestAnimationFrame(()=>drawToolIcon(icon,item));}
     updateToolButtons();
   }
 
@@ -1682,7 +1801,7 @@
     let visibleItemCount=0;
     for (const id of category.items) {
       const item = PALETTE_BY_ID.get(id);
-      if (!item) continue;
+      if (!item||item.type==='secretExit'&&state.slot?.kind!=='campaign') continue;
       visibleItemCount++;
       const def = TYPE_DEFS[item.type];
       const variant = document.createElement('button');
@@ -1724,8 +1843,8 @@
   function closeMobileCategoryFromPointerUp(event){if(event.pointerType!=='touch')return;event.preventDefault();event.stopPropagation();state.mobileCategoryCloseClickUntil=Date.now()+500;closeMobileCategorySheet();}
   function closeMobileCategoryFromClick(event){if(Date.now()<state.mobileCategoryCloseClickUntil){event.preventDefault();return;}closeMobileCategorySheet();}
 
-  function setTool(tool){if(tool==='erase'&&state.tool==='erase')tool='select';clearTouchObjectIntent();state.tool=tool;state.activePaletteId=null;state.linkSourceId=null;state.drag=null;updateToolButtons();renderContextToolbar();renderCanvas();}
-  function updateToolButtons(){document.querySelectorAll('[data-tool]').forEach(button=>button.classList.toggle('active',button.dataset.tool===state.tool));const label=({select:'Выбор',pan:'Камера',erase:'Ластик',testSpawn:'Тест отсюда',link:'Выберите цель'})[state.tool]||state.tool;$('toolStatus').textContent=label;canvas.style.cursor=state.tool==='pan'?'grab':state.tool==='erase'?'not-allowed':state.tool==='select'?'grab':'crosshair';}
+  function setTool(tool){const selectionRequested=tool==='boxSelect';state.selectionMode=selectionRequested?!state.selectionMode:false;if(selectionRequested)tool='select';if(tool==='erase'&&state.tool==='erase')tool='select';clearTouchObjectIntent();state.tool=tool;state.activePaletteId=null;state.linkSourceId=null;state.drag=null;updateToolButtons();renderContextToolbar();renderCanvas();}
+  function updateToolButtons(){document.querySelectorAll('[data-tool]').forEach(button=>button.classList.toggle('active',button.dataset.tool==='boxSelect'?state.selectionMode:button.dataset.tool===state.tool&&!state.selectionMode));const label=({select:'Выбор',pan:'Камера',erase:'Ластик',testSpawn:'Тест отсюда',link:'Выберите цель'})[state.tool]||state.tool;$('toolStatus').textContent=state.selectionMode?'Выделение группы':label;canvas.style.cursor=state.tool==='pan'?'grab':state.tool==='erase'?'not-allowed':state.tool==='select'?'grab':'crosshair';}
 
   function pointerGridPoint(event, step = 1){const rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=(event.clientX-rect.left)/cell,rawY=(event.clientY-rect.top)/cell,insideX=clamp(rawX,0,state.level.size.width),insideY=clamp(rawY,0,state.level.size.height);return{x:Math.floor(insideX/step)*step,y:Math.floor(insideY/step)*step,rawX,rawY};}
   function normalizedGridRect(start,end){const minX=clamp(Math.min(start.x,end.x),0,state.level.size.width-1);const minY=clamp(Math.min(start.y,end.y),0,state.level.size.height-1);const maxX=clamp(Math.max(start.x,end.x)+1,minX+1,state.level.size.width);const maxY=clamp(Math.max(start.y,end.y)+1,minY+1,state.level.size.height);return{x:minX,y:minY,w:maxX-minX,h:maxY-minY};}
@@ -1828,7 +1947,13 @@
   }
   function movePreviewRect(){if(state.drag?.kind!=='move')return null;const point=state.drag.current||state.drag.start,object=state.drag.object;return constrainMoveTarget(object,point.rawX-state.drag.offsetX,point.rawY-state.drag.offsetY);}
   function rectsOverlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
-  function overlapAllowed(a,b){return a.type!==b.type&&(['driftField','label'].includes(a.type)||['driftField','label'].includes(b.type));}
+  function overlapAllowed(a,b){
+    if(a.type===b.type)return false;
+    if(['driftField','label'].includes(a.type)||['driftField','label'].includes(b.type))return true;
+    const pad=a.type==='bouncePad'?a:b.type==='bouncePad'?b:null;
+    const support=a.type==='bouncePad'?b:b.type==='bouncePad'?a:null;
+    return !!pad&&!!support&&['solid','oneWay'].includes(support.type);
+  }
   function placementFootprints(object){const footprints=[...staticPlacementFootprints(object)],path=object&&PATH_ENDPOINT_TYPES.has(object.type)&&Array.isArray(object.props?.path)?object.props.path:[];for(const point of path.slice(1))if(Number.isFinite(point?.x)&&Number.isFinite(point?.y))footprints.push({...object,x:Number(point.x),y:Number(point.y)});return footprints;}
   function relocateProtectedObjects(objects,width,height,level=state.level){const occupied=objects.filter(object=>!PROTECTED_TYPES.has(object.type));for(const object of objects.filter(candidate=>PROTECTED_TYPES.has(candidate.type))){const desired={x:clamp(object.x,0,width-object.w),y:clamp(object.y,0,height-object.h)},candidates=[];for(let y=0;y<=height-object.h;y++)for(let x=0;x<=width-object.w;x++)candidates.push({x,y,distance:Math.abs(x-desired.x)+Math.abs(y-desired.y)});candidates.sort((first,second)=>first.distance-second.distance||Math.abs(first.y-desired.y)-Math.abs(second.y-desired.y)||first.y-second.y||first.x-second.x);const position=candidates.find(candidate=>{const probe={...object,x:candidate.x,y:candidate.y};return rectInsideLevelShape(level,probe)&&!occupied.some(owner=>placementFootprints(owner).some(footprint=>rectsOverlap(probe,footprint)&&!overlapAllowed(probe,footprint)));});if(!position)throw new Error(`После изменения формы нет свободного места для «${TYPE_DEFS[object.type]?.label||object.type}». Освободите область и повторите.`);object.x=position.x;object.y=position.y;occupied.push(object);}return objects;}
   function coinLimit(level=state.level){return isPanelLevel(level)?level.panels.length*5:5*Math.max(1,Math.round(level.size.width/20))*Math.max(1,Math.round(level.size.height/20));}
@@ -1843,7 +1968,7 @@
     for(const [dx,dy] of offsets){const second={...deepClone(first),x:first.x+dx,y:first.y+dy},pairClear=!placementFootprints(first).some(firstFootprint=>placementFootprints(second).some(secondFootprint=>rectsOverlap(firstFootprint,secondFootprint)));if(pairClear&&canPlaceInLevel(level,second,ignoreIds).ok)return{ok:true,color,second:{x:second.x,y:second.y}};}
     return{ok:false,reason:'partner',message:'Для пары порталов рядом нет свободного места. Освободите клетки и попробуйте снова.'};
   }
-  function placementPreviewVerdict(candidate,ignoreIds=[],level=state.level){if(!candidate)return{ok:false,message:'Нет предмета для проверки.'};if(candidate.authoringPairError)return{ok:false,message:candidate.authoringPairError};const ignored=new Set(ignoreIds);if(PROTECTED_TYPES.has(candidate.type)&&level.objects.some(object=>object.type===candidate.type&&!ignored.has(object.id)))return{ok:false,message:`${TYPE_DEFS[candidate.type].label} уже есть на уровне.`};if(candidate.type==='pickup'&&candidate.props?.abilityGroup==='gravity'&&level.objects.some(object=>object.type==='pickup'&&object.props?.abilityGroup==='gravity'&&!ignored.has(object.id)))return{ok:false,message:'На уровне может быть только один предмет гравитации.'};if(candidate.type==='coin'&&level.objects.filter(object=>object.type==='coin'&&!ignored.has(object.id)).length>=coinLimit(level))return{ok:false,message:'Достигнут лимит монет.'};if(PATH_ENDPOINT_TYPES.has(candidate.type))return pairedPathPlacement(candidate,candidate.props?.path,level);if(candidate.type==='portal'&&!level.objects.some(object=>object.id===candidate.id))return portalPairPlacement(candidate,level,ignoreIds);return canPlaceInLevel(level,candidate,ignoreIds);}
+  function placementPreviewVerdict(candidate,ignoreIds=[],level=state.level){if(!candidate)return{ok:false,message:'Нет предмета для проверки.'};if(candidate.authoringPairError)return{ok:false,message:candidate.authoringPairError};const ignored=new Set(ignoreIds);if(UNIQUE_TYPES.has(candidate.type)&&level.objects.some(object=>object.type===candidate.type&&!ignored.has(object.id)))return{ok:false,message:`${TYPE_DEFS[candidate.type].label} уже есть на уровне.`};if(candidate.type==='pickup'&&candidate.props?.abilityGroup==='gravity'&&level.objects.some(object=>object.type==='pickup'&&object.props?.abilityGroup==='gravity'&&!ignored.has(object.id)))return{ok:false,message:'На уровне может быть только один предмет гравитации.'};if(candidate.type==='coin'&&level.objects.filter(object=>object.type==='coin'&&!ignored.has(object.id)).length>=coinLimit(level))return{ok:false,message:'Достигнут лимит монет.'};if(PATH_ENDPOINT_TYPES.has(candidate.type))return pairedPathPlacement(candidate,candidate.props?.path,level);if(candidate.type==='portal'&&!level.objects.some(object=>object.id===candidate.id))return portalPairPlacement(candidate,level,ignoreIds);return canPlaceInLevel(level,candidate,ignoreIds);}
 
   function objectAt(point,pointerType='mouse'){const sorted=[...state.level.objects].sort((a,b)=>{const layer=(LAYER_ORDER[b.layer]??99)-(LAYER_ORDER[a.layer]??99);return layer||state.level.objects.indexOf(b)-state.level.objects.indexOf(a);}),exact=sorted.find(object=>staticPlacementFootprints(object).some(footprint=>point.rawX>=footprint.x&&point.rawX<footprint.x+footprint.w&&point.rawY>=footprint.y&&point.rawY<footprint.y+footprint.h));if(exact||pointerType!=='touch')return exact||null;const radius=TOUCH_OBJECT_HIT_RADIUS/cellPixels(),near=sorted.map((object,index)=>{const distance=Math.min(...staticPlacementFootprints(object).map(footprint=>{const dx=Math.max(footprint.x-point.rawX,0,point.rawX-(footprint.x+footprint.w)),dy=Math.max(footprint.y-point.rawY,0,point.rawY-(footprint.y+footprint.h));return Math.hypot(dx,dy);}));return{object,index,distance,area:object.w*object.h};}).filter(entry=>entry.distance<=radius).sort((a,b)=>a.distance-b.distance||a.area-b.area||a.index-b.index);return near[0]?.object||null;}
 
@@ -1858,11 +1983,11 @@
 
   function addPortalPair(first){const placement=portalPairPlacement(first);if(!placement.ok){toast(placement.message,'error');return false;}first.props.color=placement.color;first.props.length=6;const second={...deepClone(first),id:nextObjectId('portal',[first.id]),x:placement.second.x,y:placement.second.y};second.props={...deepClone(first.props)};mutate('Добавлена пара порталов',()=>{state.level.objects.push(first,second);state.selectedId=first.id;});return true;}
 
-  function addPlacedObject(object){constrainNewObjectWidth(object);if(object.authoringPairError){toast(object.authoringPairError,'error');return false;}if(PATH_ENDPOINT_TYPES.has(object.type)){const routePlacement=pairedPathPlacement(object,object.props?.path);if(!routePlacement.ok){toast(`Парный предмет не добавлен: ${routePlacement.message}`,'error');return false;}}if(PROTECTED_TYPES.has(object.type)){const existing=state.level.objects.find(candidate=>candidate.type===object.type);if(existing){state.selectedId=existing.id;refreshAll();toast(`${TYPE_DEFS[object.type].label} уже есть — переместите его.`);return false;}}
+  function addPlacedObject(object){constrainNewObjectWidth(object);if(object.authoringPairError){toast(object.authoringPairError,'error');return false;}if(PATH_ENDPOINT_TYPES.has(object.type)){const routePlacement=pairedPathPlacement(object,object.props?.path);if(!routePlacement.ok){toast(`Парный предмет не добавлен: ${routePlacement.message}`,'error');return false;}}if(object.type==='secretExit'&&state.slot?.kind!=='campaign'){toast('Секретный выход доступен только на картах автора.','error');return false;}if(UNIQUE_TYPES.has(object.type)){const existing=state.level.objects.find(candidate=>candidate.type===object.type);if(existing){state.selectedId=existing.id;refreshAll();toast(`${TYPE_DEFS[object.type].label} уже есть — переместите его.`);return false;}}
     if(object.type==='pickup'&&object.props?.abilityGroup==='gravity'&&state.level.objects.some(candidate=>candidate.type==='pickup'&&candidate.props?.abilityGroup==='gravity')){toast('На уровне может быть только один предмет гравитации.','error');return false;}
     if(object.type==='coin'&&state.level.objects.filter(candidate=>candidate.type==='coin').length>=coinLimit()){toast(`Лимит монет для карты ${state.level.size.width}×${state.level.size.height}: ${coinLimit()}.`,'error');return false;}const placement=canPlace(object);if(!placement.ok){toast(placement.message,'error');return false;}if(object.type==='portal')return addPortalPair(object);mutate(`Добавлен: ${TYPE_DEFS[object.type].label}`,()=>{state.level.objects.push(object);state.selectedId=object.id;});if(object.type==='developerNote')requestAnimationFrame(()=>openDeveloperNote(object));return true;}
 
-  function removeObject(id){const object=state.level.objects.find(candidate=>candidate.id===id);if(!object)return false;if(PROTECTED_TYPES.has(object.type)){toast(`${TYPE_DEFS[object.type].label} нельзя удалить — только переместить.`,'error');return false;}const removedIds=new Set(object.type==='portal'?state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId).map(candidate=>candidate.id):[id]);mutate(object.type==='portal'?'Удалена пара порталов':`Удалён: ${TYPE_DEFS[object.type]?.label||object.type}`,()=>{state.level.objects=state.level.objects.filter(candidate=>!removedIds.has(candidate.id));for(const candidate of state.level.objects){if(Array.isArray(candidate.props?.targets))candidate.props.targets=candidate.props.targets.filter(target=>!removedIds.has(targetDescriptorId(target)));}if(removedIds.has(state.selectedId))state.selectedId=null;});return true;}
+  function removeObject(id){const object=state.level.objects.find(candidate=>candidate.id===id);if(!object)return false;if(PROTECTED_TYPES.has(object.type)){toast(`${TYPE_DEFS[object.type].label} нельзя удалить — только переместить.`,'error');return false;}const removedIds=new Set(object.type==='portal'?state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId).map(candidate=>candidate.id):[id]);mutate(object.type==='portal'?'Удалена пара порталов':`Удалён: ${TYPE_DEFS[object.type]?.label||object.type}`,()=>{state.level.objects=state.level.objects.filter(candidate=>!removedIds.has(candidate.id));for(const candidate of state.level.objects){if(Array.isArray(candidate.props?.targets))candidate.props.targets=candidate.props.targets.filter(target=>!removedIds.has(targetDescriptorId(target)));}state.selectedIds=new Set([...selectedObjectIds()].filter(candidate=>!removedIds.has(candidate)));if(removedIds.has(state.selectedId))state.selectedId=state.selectedIds.values().next().value||null;});return true;}
 
   function subtractSolid(solid, cut) {
     if (!rectsOverlap(solid, cut)) return [solid];
@@ -1920,7 +2045,7 @@
     const removedPortalPairs=new Set(candidates.filter(object=>object.type==='portal'&&invalidIds.has(object.id)).map(object=>object.props?.pairId).filter(Boolean));for(const object of candidates)if(object.type==='portal'&&removedPortalPairs.has(object.props?.pairId))invalidIds.add(object.id);
     let objects=candidates.filter(object=>!invalidIds.has(object.id));const allowedCoins=topology.panels.length*5,coins=objects.filter(object=>object.type==='coin');for(const coin of coins.slice(allowedCoins)){invalidIds.add(coin.id);objects=objects.filter(object=>object.id!==coin.id);}
     relocateProtectedObjects(objects,topology.size.width,topology.size.height,next);const survivingIds=new Set(objects.map(object=>object.id));for(const object of objects)if(Array.isArray(object.props?.targets))object.props.targets=object.props.targets.filter(target=>survivingIds.has(targetDescriptorId(target)));next.objects=objects;
-    let testSpawn=null;if(state.testSpawn){const shiftedSpawn={x:state.testSpawn.x+topology.shiftX,y:state.testSpawn.y+topology.shiftY},position=firstShapePosition(next,1,2,shiftedSpawn,objects);if(position)testSpawn=position;}
+    let testSpawn=null;if(state.testSpawn){const shiftedSpawn={x:state.testSpawn.x+topology.shiftX,y:state.testSpawn.y+topology.shiftY},position=firstShapePosition(next,3,3,shiftedSpawn,objects);if(position)testSpawn=position;}
     return{level:next,testSpawn,removedIds:invalidIds,splitSolids,shiftX:topology.shiftX,shiftY:topology.shiftY};
   }
   function panelRemovalAffectsContent(preview){
@@ -1946,7 +2071,7 @@
     return true;
   }
 
-  function duplicateSelected(){const source=selectedObject();if(!source||PROTECTED_TYPES.has(source.type))return;const offsets=[[1,0],[0,1],[-1,0],[0,-1],[2,2],[source.w+1,0],[-source.w-1,0],[0,source.h+1],[0,-source.h-1]];for(const [dx,dy] of offsets){const copy=constrainNewObjectWidth(deepClone(source)),oldX=copy.x,oldY=copy.y;copy.id=nextObjectId(copy.type);copy.x=clamp(copy.x+dx,0,state.level.size.width-copy.w);copy.y=clamp(copy.y+dy,0,state.level.size.height-copy.h);if(PATH_ENDPOINT_TYPES.has(copy.type))shiftPath(copy,copy.x-oldX,copy.y-oldY);if(copy.type==='portal')copy.props.pairId=nextPortalPairId();const placement=canPlace(copy,[],copy.type==='smartPlatform'?{checkOwnPair:false}:{}),routePlacement=PATH_ENDPOINT_TYPES.has(copy.type)?pairedPathPlacement(copy,copy.props?.path):{ok:true};if(placement.ok&&routePlacement.ok){if(copy.type==='portal')return addPortalPair(copy);mutate('Создана копия предмета',()=>{state.level.objects.push(copy);state.selectedId=copy.id;});return;}}toast('Рядом нет свободного места для копии.','error');}
+  function duplicateSelected(){const source=selectedObject();if(!source||UNIQUE_TYPES.has(source.type))return;const offsets=[[1,0],[0,1],[-1,0],[0,-1],[2,2],[source.w+1,0],[-source.w-1,0],[0,source.h+1],[0,-source.h-1]];for(const [dx,dy] of offsets){const copy=constrainNewObjectWidth(deepClone(source)),oldX=copy.x,oldY=copy.y;copy.id=nextObjectId(copy.type);copy.x=clamp(copy.x+dx,0,state.level.size.width-copy.w);copy.y=clamp(copy.y+dy,0,state.level.size.height-copy.h);if(PATH_ENDPOINT_TYPES.has(copy.type))shiftPath(copy,copy.x-oldX,copy.y-oldY);if(copy.type==='portal')copy.props.pairId=nextPortalPairId();const placement=canPlace(copy,[],copy.type==='smartPlatform'?{checkOwnPair:false}:{}),routePlacement=PATH_ENDPOINT_TYPES.has(copy.type)?pairedPathPlacement(copy,copy.props?.path):{ok:true};if(placement.ok&&routePlacement.ok){if(copy.type==='portal')return addPortalPair(copy);mutate('Создана копия предмета',()=>{state.level.objects.push(copy);state.selectedId=copy.id;});return;}}toast('Рядом нет свободного места для копии.','error');}
 
   function rotateSelected(){const object=selectedObject();if(!object||!TYPE_DEFS[object.type]?.rotate){toast('У этого предмета нет поворота.');return;}const next=deepClone(object);const cycle=value=>DIRECTION_CYCLE[(DIRECTION_CYCLE.indexOf(value)+1)%DIRECTION_CYCLE.length];
     if(next.type==='spike'){const opposite={up:'down',down:'up',left:'right',right:'left'};next.props.direction=opposite[next.props.direction||'up'];}
@@ -1968,9 +2093,9 @@
   function cancelWireDrag(event){const drag=state.wireDrag;if(!drag||drag.pointerId!==event.pointerId)return;event.preventDefault();state.wireDrag=null;state.linkSourceId=null;renderContextToolbar();renderCanvas();}
 
   function clearTouchObjectIntent(){const intent=state.touchObjectIntent;if(intent?.timer)clearTimeout(intent.timer);state.touchObjectIntent=null;}
-  function captureTouchSelectionSnapshot(){if(state.touchSelectionSnapshot)return;state.touchSelectionSnapshot={selectedId:state.selectedId,selectedWire:state.selectedWire?deepClone(state.selectedWire):null};}
+  function captureTouchSelectionSnapshot(){if(state.touchSelectionSnapshot)return;state.touchSelectionSnapshot={selectedId:state.selectedId,selectedIds:[...selectedObjectIds()],selectedWire:state.selectedWire?deepClone(state.selectedWire):null};}
   function discardTouchSelectionSnapshot(){state.touchSelectionSnapshot=null;}
-  function restoreTouchSelectionSnapshot(){const snapshot=state.touchSelectionSnapshot;if(!snapshot)return false;state.touchSelectionSnapshot=null;state.selectedId=snapshot.selectedId&&state.level?.objects.some(object=>object.id===snapshot.selectedId)?snapshot.selectedId:null;state.selectedWire=snapshot.selectedWire&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.sourceId)&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.targetId)?snapshot.selectedWire:null;showInteractionHint(selectedObject());refreshInspector();renderContextToolbar();return true;}
+  function restoreTouchSelectionSnapshot(){const snapshot=state.touchSelectionSnapshot;if(!snapshot)return false;state.touchSelectionSnapshot=null;state.selectedIds=new Set((snapshot.selectedIds||[]).filter(id=>state.level?.objects.some(object=>object.id===id)));state.selectedId=snapshot.selectedId&&state.level?.objects.some(object=>object.id===snapshot.selectedId)?snapshot.selectedId:null;state.selectedWire=snapshot.selectedWire&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.sourceId)&&state.level?.objects.some(object=>object.id===snapshot.selectedWire.targetId)?snapshot.selectedWire:null;showInteractionHint(selectedObject());refreshInspector();renderContextToolbar();return true;}
   function beginFieldTapCandidate(event){state.fieldTapCandidate=state.mobilePaletteExpanded&&(event.button===0||event.button===undefined)?{pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startedAt:performance.now(),gestureVersion:state.touchGestureVersion}:null;}
   function updateFieldTapCandidate(event){const candidate=state.fieldTapCandidate;if(candidate?.pointerId===event.pointerId&&Math.hypot(event.clientX-candidate.startX,event.clientY-candidate.startY)>TOUCH_OBJECT_GESTURE_SLOP)state.fieldTapCandidate=null;}
   function finishFieldTapCandidate(event){
@@ -1981,7 +2106,7 @@
   }
   function resetCanvasGestureState({restoreSelection=false}={}){const hadWireDrag=!!state.wireDrag;clearTouchObjectIntent();if(restoreSelection)restoreTouchSelectionSnapshot();else discardTouchSelectionSnapshot();clearMobilePaletteGesture();restoreMobilePaletteDragSheet();state.touchGestureVersion++;state.fieldTapCandidate=null;state.pointers.clear();state.panelControlPointers.clear();state.panelControlTouch=null;state.pinch=null;state.nativeGesture=null;state.drag=null;state.pan=null;state.domResize=null;state.wireDrag=null;if(hadWireDrag)state.linkSourceId=null;state.mobilePaletteDrag=null;state.desktopPaletteDrag=null;state.activeTramInsertion=null;state.hoverPoint=null;canvas.classList.remove('will-delete');viewport.classList.remove('dragging');canvas.style.cursor=state.tool==='select'?'grab':'';const ghost=$('mobileDragGhost');if(ghost){ghost.hidden=true;ghost.classList.remove('over-field','invalid-placement');}if(state.level)renderCanvas();}
   function beginTouchCanvasIntent(event,activate){clearTouchObjectIntent();const intent={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop,activate,timer:null};intent.timer=setTimeout(()=>{if(state.touchObjectIntent!==intent||state.pinch)return;state.touchObjectIntent=null;state.fieldTapCandidate=null;intent.activate?.();},TOUCH_OBJECT_HOLD_MS);state.touchObjectIntent=intent;return intent;}
-  function beginTouchObjectIntent(event,point,object){beginTouchCanvasIntent(event,()=>{const current=state.level.objects.find(candidate=>candidate.id===object.id);if(!current)return;state.drag={kind:'move',pointerId:event.pointerId,pointerType:'touch',object:deepClone(current),start:point,current:point,offsetX:point.rawX-current.x,offsetY:point.rawY-current.y};canvas.style.cursor='grabbing';renderCanvas();});}
+  function beginTouchObjectIntent(event,point,object){beginTouchCanvasIntent(event,()=>{const current=state.level.objects.find(candidate=>candidate.id===object.id);if(!current)return;const ids=selectedObjectIds();state.drag=ids.size>1&&ids.has(object.id)?{kind:'moveGroup',pointerId:event.pointerId,pointerType:'touch',objects:state.level.objects.filter(candidate=>ids.has(candidate.id)).map(deepClone),start:point,current:point}:{kind:'move',pointerId:event.pointerId,pointerType:'touch',object:deepClone(current),start:point,current:point,offsetX:point.rawX-current.x,offsetY:point.rawY-current.y};canvas.style.cursor='grabbing';renderCanvas();});}
   function beginPinch(){if(state.pointers.size<2)return;clearTouchObjectIntent();restoreTouchSelectionSnapshot();state.fieldTapCandidate=null;state.touchGestureVersion++;const [a,b]=[...state.pointers.values()].slice(0,2);const distance=Math.hypot(a.x-b.x,a.y-b.y);state.pinch={distance,zoom:state.zoom,midX:(a.x+b.x)/2,midY:(a.y+b.y)/2,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};state.drag=null;state.pan=null;state.domResize=null;state.wireDrag=null;state.activeTramInsertion=null;canvas.classList.remove('will-delete');viewport.classList.remove('dragging');renderCanvas();}
   function updatePinch(){if(!state.pinch||state.pointers.size<2)return;const [a,b]=[...state.pointers.values()].slice(0,2);const distance=Math.max(10,Math.hypot(a.x-b.x,a.y-b.y));const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};setZoom(state.pinch.zoom*distance/state.pinch.distance,{x:midpoint.x-viewport.getBoundingClientRect().left,y:midpoint.y-viewport.getBoundingClientRect().top});viewport.scrollLeft+=state.pinch.midX-midpoint.x;viewport.scrollTop+=state.pinch.midY-midpoint.y;state.pinch.midX=midpoint.x;state.pinch.midY=midpoint.y;}
   function beginNativeGesture(event){event.preventDefault();const rect=viewport.getBoundingClientRect(),gesture={zoom:state.zoom,x:(Number(event.clientX)||rect.left+rect.width/2)-rect.left,y:(Number(event.clientY)||rect.top+rect.height/2)-rect.top};resetCanvasGestureState({restoreSelection:true});state.nativeGesture=gesture;}
@@ -1989,8 +2114,10 @@
   function endNativeGesture(event){if(state.nativeGesture)event.preventDefault();state.nativeGesture=null;}
 
   function pointInsideCanvas(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    const rect=canvas.getBoundingClientRect(),view=viewport.getBoundingClientRect(),visual=window.visualViewport;
+    const left=Math.max(rect.left,view.left,visual?.offsetLeft||0),top=Math.max(rect.top,view.top,visual?.offsetTop||0);
+    const right=Math.min(rect.right,view.right,(visual?.offsetLeft||0)+(visual?.width||innerWidth)),bottom=Math.min(rect.bottom,view.bottom,(visual?.offsetTop||0)+(visual?.height||innerHeight));
+    return clientX>=left&&clientX<=right&&clientY>=top&&clientY<=bottom;
   }
 
   function activateMobilePaletteDrag(pointerId,paletteId,clientX,clientY,target=null) {
@@ -2018,7 +2145,7 @@
       activateMobilePaletteDrag(event.pointerId,paletteId,event.clientX,event.clientY,event.currentTarget);
       return;
     }
-    const gesture={pointerId:event.pointerId,paletteId,target:event.currentTarget,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,mode:'pending',timer:null};
+    event.preventDefault();safelyCapturePointer(event.currentTarget,event.pointerId);const scroller=$('mobileCategoryItems');const gesture={pointerId:event.pointerId,paletteId,target:event.currentTarget,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollLeft:scroller?.scrollLeft||0,scrollTop:scroller?.scrollTop||0,mode:'pending',timer:null};
     gesture.timer=setTimeout(()=>{if(state.mobilePaletteGesture!==gesture||gesture.mode!=='pending')return;gesture.mode='drag';gesture.timer=null;activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,gesture.lastX,gesture.lastY,gesture.target);},MOBILE_PALETTE_LONG_PRESS_MS);
     state.mobilePaletteGesture=gesture;
   }
@@ -2027,9 +2154,10 @@
     const gesture=state.mobilePaletteGesture;
     if(!gesture||gesture.pointerId!==event.pointerId||gesture.mode==='drag')return;
     const deltaX=event.clientX-gesture.startX,deltaY=event.clientY-gesture.startY;
-    const portrait=state.layoutMode==='portrait',primary=Math.abs(portrait?deltaX:deltaY),outward=portrait?-deltaY:deltaX,cross=Math.abs(portrait?deltaY:deltaX),outwardDrag=outward>MOBILE_PALETTE_OUTWARD_DRAG_SLOP&&cross>primary*MOBILE_PALETTE_OUTWARD_DOMINANCE;
+    const portrait=state.layoutMode==='portrait',primary=Math.abs(portrait?deltaX:deltaY),outward=portrait?-deltaY:deltaX,outwardDrag=outward>MOBILE_PALETTE_OUTWARD_DRAG_SLOP&&outward>primary*MOBILE_PALETTE_OUTWARD_DOMINANCE;
     if(gesture.mode==='pending'&&outwardDrag){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='drag';event.preventDefault();activateMobilePaletteDrag(gesture.pointerId,gesture.paletteId,event.clientX,event.clientY,gesture.target);}
     else if(gesture.mode==='pending'&&(primary>MOBILE_PALETTE_GESTURE_SLOP||Math.hypot(deltaX,deltaY)>MOBILE_PALETTE_OUTWARD_DRAG_SLOP)){if(gesture.timer)clearTimeout(gesture.timer);gesture.timer=null;gesture.mode='scroll';state.mobileIgnoreClickUntil=Date.now()+450;}
+    if(gesture.mode==='scroll'){event.preventDefault();const scroller=$('mobileCategoryItems');if(scroller){scroller.scrollLeft=gesture.scrollLeft-deltaX;scroller.scrollTop=gesture.scrollTop-deltaY;updateMobileCategoryScrollCue();}}
     gesture.lastX=event.clientX;gesture.lastY=event.clientY;
   }
 
@@ -2129,7 +2257,7 @@
     if(event.button!==0)return;
     if(state.fieldTapCandidate&&(state.tool==='testSpawn'||state.tool==='link'))return;
     if(state.tool==='erase'){state.drag={kind:'erase',pointerId:event.pointerId,start:point,current:point,pointerType:event.pointerType};renderCanvas();return;}
-    if(state.tool==='testSpawn'){const candidate={x:clamp(point.x,0,state.level.size.width-1),y:clamp(point.y,0,state.level.size.height-2),w:1,h:2};if(canPlace(candidate).ok){state.testSpawn={x:candidate.x,y:candidate.y};setTool('select');toast('Play начнётся с временной точки; прохождение не будет засчитано.');renderCanvas();}else toast('Точка теста должна быть в свободном месте.','error');return;}
+    if(state.tool==='testSpawn'){const candidate={x:clamp(point.x,0,state.level.size.width-3),y:clamp(point.y,0,state.level.size.height-3),w:3,h:3,type:'spawn'};if(rectInsideLevelShape(state.level,candidate)&&!state.level.objects.some(object=>placementFootprints(object).some(footprint=>rectsOverlap(footprint,candidate)&&!overlapAllowed(footprint,candidate)))){state.testSpawn={x:candidate.x,y:candidate.y};setTool('select');toast('Play начнётся с временной точки; прохождение не будет засчитано.');renderCanvas();}else toast('Точка теста должна быть в свободном месте.','error');return;}
     if(state.tool==='link'){linkSelectedTo(linkTargetAt(point,event.pointerType));return;}
     if(state.tool==='select'){
       let endpointObject=selectedObject(),linkedTarget=linkedSocketAt(point,event.pointerType);
@@ -2155,24 +2283,26 @@
       }
       const object=objectAt(point,event.pointerType);
       if(object){
-        state.selectedId=object.id;state.selectedWire=null;showInteractionHint(object);
+        if(!selectedObjectIds().has(object.id))setSelectedObjectIds([object.id]);else state.selectedId=object.id;state.selectedWire=null;showInteractionHint(object);
         if(event.pointerType==='touch'){beginTouchObjectIntent(event,point,object);refreshInspector();renderContextToolbar();renderCanvas();}
-        else{state.drag={kind:'move',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(object),start:point,current:point,offsetX:point.rawX-object.x,offsetY:point.rawY-object.y};refreshAll();}
+        else{const ids=selectedObjectIds();state.drag=ids.size>1&&ids.has(object.id)?{kind:'moveGroup',pointerId:event.pointerId,pointerType:event.pointerType,objects:state.level.objects.filter(candidate=>ids.has(candidate.id)).map(deepClone),start:point,current:point}: {kind:'move',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(object),start:point,current:point,offsetX:point.rawX-object.x,offsetY:point.rawY-object.y};refreshAll();}
         return;
       }
-      state.selectedId=null;state.selectedWire=null;showInteractionHint(null);state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');refreshAll();return;
+      state.selectedId=null;state.selectedIds=new Set();state.selectedWire=null;showInteractionHint(null);if(state.selectionMode)state.drag={kind:'selectRect',pointerId:event.pointerId,pointerType:event.pointerType,start:point,current:point};else{state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}refreshAll();return;
     }
   }
 
   function handlePointerMove(event){if(!state.ready||!state.level)return;if(state.pointers.has(event.pointerId))state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});updateFieldTapCandidate(event);if(state.pinch){updatePinch();return;}const intent=state.touchObjectIntent;if(intent?.pointerId===event.pointerId){intent.lastX=event.clientX;intent.lastY=event.clientY;if(Math.hypot(event.clientX-intent.startX,event.clientY-intent.startY)>TOUCH_OBJECT_GESTURE_SLOP){clearTouchObjectIntent();state.pan={pointerId:event.pointerId,x:intent.startX,y:intent.startY,scrollLeft:intent.scrollLeft,scrollTop:intent.scrollTop};viewport.classList.add('dragging');viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);}return;}if(state.pan&&state.pan.pointerId!==event.pointerId||state.drag&&state.drag.pointerId!==event.pointerId)return;const point=pointerGridPoint(event);state.hoverPoint=point;$('cursorReadout').style.display='none';$('cursorStatus').textContent='';
     if(state.pan){viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);return;}
-    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'){state.drag.deleteCandidate=!pointInsideCanvas(event.clientX,event.clientY);canvas.classList.toggle('will-delete',state.drag.deleteCandidate);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode')canvas.style.cursor='grabbing';renderCanvas();}
+    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'){state.drag.deleteCandidate=!pointInsideCanvas(event.clientX,event.clientY);canvas.classList.toggle('will-delete',state.drag.deleteCandidate);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode'||state.drag.kind==='moveGroup')canvas.style.cursor='grabbing';renderCanvas();}
     else {const hovered=objectAt(point,event.pointerType),wire=state.tool==='select'?wireAtPoint(point,event.pointerType):null,tram=state.tool==='select'?tramRouteHandleAt(point,event.pointerType):null;if(state.tool==='select'){canvas.style.cursor=wire?'pointer':tram||pathGhostObjectAt(point)||pathEndpointHit(selectedObject(),point,event.pointerType)?'grab':hovered?'pointer':'grab';showInteractionHint(hovered);}}
   }
 
   function handlePointerUp(event){state.pointers.delete(event.pointerId);if(finishFieldTapCandidate(event))return;if(event.pointerType==='touch')discardTouchSelectionSnapshot();if(state.touchObjectIntent?.pointerId===event.pointerId){clearTouchObjectIntent();return;}if(state.pinch){if(state.pointers.size<2)state.pinch=null;return;}if(state.pan){if(state.pan.pointerId!==event.pointerId)return;state.pan=null;viewport.classList.remove('dragging');return;}const drag=state.drag;if(drag&&drag.pointerId!==event.pointerId)return;state.drag=null;if(!drag)return;
     if(drag.kind==='draw'){const item=PALETTE_BY_ID.get(drag.paletteId);const object=makeObjectFromTool(item,normalizedGridRect(drag.start,drag.current));const placed=addPlacedObject(object);if(placed&&item.type!=='solid')setTool('select');}
     else if(drag.kind==='erase'){eraseRegion(normalizedGridRect(drag.start,drag.current));}
+    else if(drag.kind==='selectRect'){const rect=normalizedGridRect(drag.start,drag.current||drag.start),selected=state.level.objects.filter(object=>staticPlacementFootprints(object).some(footprint=>rectsOverlap(footprint,rect))).map(object=>object.id);setSelectedObjectIds(selected);showInteractionHint(selectedObject());refreshAll();}
+    else if(drag.kind==='moveGroup'){const result=groupMovePreview(drag);if(result.ok&&result.changed)mutate('Группа предметов перемещена',()=>{for(const candidate of result.candidates){const current=state.level.objects.find(object=>object.id===candidate.id);if(current)Object.assign(current,candidate);}});else if(!result.ok)toast(result.message,'error');}
     else if(drag.kind==='move'){if(!pointInsideCanvas(event.clientX,event.clientY)){if(removeObject(drag.object.id))toast('Предмет удалён: он вынесен за границу поля.','ok');}else{const current=state.level.objects.find(object=>object.id===drag.object.id),candidate=moveCandidateFromDrag(drag);if(current&&candidate&&(candidate.x!==current.x||candidate.y!==current.y)){const verdict=placementPreviewVerdict(candidate,[current.id]);if(verdict.ok)mutate('Предмет перемещён',()=>{current.x=candidate.x;current.y=candidate.y;if(Array.isArray(candidate.props?.path))current.props.path=candidate.props.path;});else toast(verdict.message,'error');}}}
     else if(drag.kind==='pathEndpoint'){const current=state.level.objects.find(object=>object.id===drag.object.id);const end=pathEndpointFromDrag(drag);const previous=pathEnd(drag.object);if(current&&(end.x!==previous.x||end.y!==previous.y)){const placement=pathEndpointPlacement(current,end);if(placement.ok)mutate('Конечная точка маршрута перемещена',()=>{current.props.path=routeForObject(current,end);});else toast(`Конечная точка маршрута: ${placement.message}`,'error');}}
     else if(drag.kind==='pathNode'){const current=state.level.objects.find(object=>object.id===drag.object.id),next=pathNodeFromDrag(drag),previous=drag.object.props.path[drag.nodeIndex];if(current&&previous&&drag.insertedNode){const candidatePath=drag.object.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута добавлен',()=>{current.props.path=candidatePath;});}else if(current&&previous&&(next.x!==previous.x||next.y!==previous.y)){const candidatePath=current.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута перемещён',()=>{current.props.path=candidatePath;});}}
@@ -2181,7 +2311,20 @@
     renderCanvas();
   }
 
-  function cancelCanvasPointer(event){const registered=state.pointers.has(event.pointerId);state.pointers.delete(event.pointerId);if(state.fieldTapCandidate?.pointerId===event.pointerId)state.fieldTapCandidate=null;const cancelledIntent=state.touchObjectIntent?.pointerId===event.pointerId,cancelledPinch=registered&&!!state.pinch,cancelledDrag=state.drag?.pointerId===event.pointerId,cancelledPan=state.pan?.pointerId===event.pointerId;if(cancelledIntent)clearTouchObjectIntent();if(cancelledPinch)state.pinch=null;if(cancelledDrag)state.drag=null;if(cancelledPan)state.pan=null;if(cancelledIntent||cancelledDrag||cancelledPan)restoreTouchSelectionSnapshot();else if(registered&&!state.pointers.size)discardTouchSelectionSnapshot();if(!cancelledIntent&&!cancelledPinch&&!cancelledDrag&&!cancelledPan)return;state.activeTramInsertion=null;state.hoverPoint=null;if(cancelledDrag)canvas.classList.remove('will-delete');if(cancelledPan)viewport.classList.remove('dragging');renderCanvas();}
+  function cancelCanvasPointer(event){const registered=state.pointers.has(event.pointerId);state.pointers.delete(event.pointerId);if(state.fieldTapCandidate?.pointerId===event.pointerId)state.fieldTapCandidate=null;const cancelledIntent=state.touchObjectIntent?.pointerId===event.pointerId,cancelledPinch=registered&&!!state.pinch,cancelledDrag=state.drag?.pointerId===event.pointerId,cancelledPan=state.pan?.pointerId===event.pointerId,cancelledMove=cancelledDrag&&state.drag?.kind==='move'&&state.drag?.deleteCandidate,cancelledObject=cancelledMove?state.drag.object:null;if(cancelledIntent)clearTouchObjectIntent();if(cancelledPinch)state.pinch=null;if(cancelledDrag)state.drag=null;if(cancelledPan)state.pan=null;if(cancelledMove&&cancelledObject)removeObject(cancelledObject.id);if(cancelledIntent||cancelledDrag||cancelledPan)restoreTouchSelectionSnapshot();else if(registered&&!state.pointers.size)discardTouchSelectionSnapshot();if(!cancelledIntent&&!cancelledPinch&&!cancelledDrag&&!cancelledPan)return;state.activeTramInsertion=null;state.hoverPoint=null;if(cancelledDrag)canvas.classList.remove('will-delete');if(cancelledPan)viewport.classList.remove('dragging');renderCanvas();}
+
+  function groupMovePreview(drag){
+    const sources=drag.objects.filter(object=>state.level.objects.some(current=>current.id===object.id));
+    if(!sources.length)return{ok:false,message:'Нет выделенных предметов.',candidates:[],changed:false};
+    const footprints=sources.flatMap(placementFootprints),point=drag.current||drag.start;
+    const minDx=Math.max(...footprints.map(object=>-object.x)),maxDx=Math.min(...footprints.map(object=>state.level.size.width-object.x-object.w));
+    const minDy=Math.max(...footprints.map(object=>-object.y)),maxDy=Math.min(...footprints.map(object=>state.level.size.height-object.y-object.h));
+    const dx=clamp(snap(point.rawX-drag.start.rawX,1),minDx,maxDx),dy=clamp(snap(point.rawY-drag.start.rawY,1),minDy,maxDy);
+    const candidates=sources.map(source=>({...deepClone(source),x:source.x+dx,y:source.y+dy,props:{...deepClone(source.props),...(Array.isArray(source.props?.path)?{path:source.props.path.map(point=>({x:point.x+dx,y:point.y+dy}))}:{})}}));
+    const byId=new Map(candidates.map(object=>[object.id,object])),level={...state.level,objects:state.level.objects.map(object=>byId.get(object.id)||object)};
+    for(const candidate of candidates){const verdict=placementPreviewVerdict(candidate,[candidate.id],level);if(!verdict.ok)return{...verdict,candidates,changed:!!(dx||dy)};}
+    return{ok:true,candidates,changed:!!(dx||dy)};
+  }
 
   function movePreviewRectFromDrag(drag){const point=drag.current||drag.start;return constrainMoveTarget(drag.object,point.rawX-drag.offsetX,point.rawY-drag.offsetY);}
   function moveCandidateFromDrag(drag){if(drag?.kind!=='move')return null;const target=movePreviewRectFromDrag(drag),current=state.level.objects.find(object=>object.id===drag.object.id)||drag.object,fixedPath=Array.isArray(drag.object.props?.path)?drag.object.props.path.map(point=>({...point})):null,dx=target.x-drag.object.x,dy=target.y-drag.object.y,movedPath=current.type==='smartPlatform'&&fixedPath?.length?fixedPath.map(point=>({x:point.x+dx,y:point.y+dy})):fixedPath?.length>1?[{x:target.x,y:target.y},fixedPath[fixedPath.length-1]]:fixedPath;return{...current,...target,props:{...current.props,...(movedPath?{path:movedPath}:{})}};}
@@ -2202,7 +2345,25 @@
     if(object.type==='portal'){const note=document.createElement('div');note.className='section-card';const pair=state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId);note.innerHTML=`<strong>Пара порталов</strong><p>${pair.length===2?'Оба конца связаны цветной линией.':'Нужны ровно два конца.'}</p>`;root.append(note);}
   }
 
-  function refreshInspector(){if(!state.level)return;const object=selectedObject();$('noSelection').hidden=!!object;$('objectForm').hidden=!object;if(!object)return;const def=TYPE_DEFS[object.type],geometryStep=object.type==='solid'?1:GRID_STEP,widthInput=$('objectWInput'),widthCap=authoringWidthCap(object.type),availableWidth=state.level.size.width-object.x,widthMaximum=Math.min(availableWidth,widthCap||availableWidth);$('objectTypeLabel').textContent=def.label;$('objectPositionLabel').textContent=`x ${formatNumber(object.x)} · y ${formatNumber(object.y)}`;$('objectXInput').value=formatNumber(object.x);$('objectYInput').value=formatNumber(object.y);widthInput.value=formatNumber(object.w);$('objectHInput').value=formatNumber(object.h);for(const input of [$('objectXInput'),$('objectYInput'),widthInput,$('objectHInput')])input.step=geometryStep;widthInput.max=String(widthMaximum);widthInput.title=widthCap?`Максимальная ширина: ${widthCap} клеток`:'';const widthLabelNode=[...(widthInput.closest('label')?.childNodes||[])].find(node=>node.nodeType===3);if(widthLabelNode)widthLabelNode.textContent=widthCap?`Ширина (макс. ${widthCap})`:'Ширина';const resize=def.resize||'none';widthInput.disabled=!!def.fixedSize||!['x','xy'].includes(resize)&&!(resize==='axis'&&['up','down'].includes(object.props?.direction||'up'));$('objectHInput').disabled=!!def.fixedSize||!['y','xy'].includes(resize)&&!(resize==='axis'&&['left','right'].includes(object.props?.direction||''));$('rotateObjectButton').disabled=!def.rotate;$('linkObjectButton').hidden=object.type!=='button';$('deleteObjectButton').disabled=PROTECTED_TYPES.has(object.type);renderFriendlyProperties(object);requestAnimationFrame(()=>drawToolIcon($('selectedObjectIcon'),{type:object.type,preset:object.props,color:def.color}));}
+  function refreshInspector(){
+    if(!state.level)return;
+    const object=selectedObject();$('noSelection').hidden=!!object;$('objectForm').hidden=!object;if(!object)return;
+    const def=TYPE_DEFS[object.type],step=object.type==='solid'?1:GRID_STEP,widthInput=$('objectWInput'),heightInput=$('objectHInput');
+    const widthCap=authoringWidthCap(object.type),door=object.type==='door',horizontalDoor=door&&object.props?.orientation==='horizontal',weight=object.type==='pushBlock',label=object.type==='label',resize=def.resize||'none';
+    $('objectTypeLabel').textContent=def.label;$('objectPositionLabel').textContent=`x ${formatNumber(object.x)} · y ${formatNumber(object.y)}`;
+    $('objectXInput').value=formatNumber(object.x);$('objectYInput').value=formatNumber(object.y);widthInput.value=formatNumber(object.w);heightInput.value=formatNumber(object.h);
+    for(const input of [$('objectXInput'),$('objectYInput'),widthInput,heightInput])input.step=step;
+    widthInput.min=String(weight?2:label||horizontalDoor?3:1);heightInput.min=String(door&&!horizontalDoor?3:1);
+    widthInput.max=String(Math.min(state.level.size.width-object.x,weight||label?8:horizontalDoor?6:widthCap||Infinity));
+    heightInput.max=String(Math.min(state.level.size.height-object.y,door&&!horizontalDoor?6:Infinity));
+    widthInput.title=weight?'Размер: 2, 4 или 8 клеток':door?'Длина двери: 3–6 клеток':widthCap?`Максимальная ширина: ${widthCap} клеток`:'';
+    const setLabel=(input,text)=>{const node=[...(input.closest('label')?.childNodes||[])].find(node=>node.nodeType===3);if(node)node.textContent=text;};
+    setLabel(widthInput,weight?'Размер (2/4/8)':horizontalDoor?'Длина (3–6)':widthCap?`Ширина (макс. ${widthCap})`:'Ширина');setLabel(heightInput,door&&!horizontalDoor?'Длина (3–6)':'Высота');
+    widthInput.disabled=door?!horizontalDoor:!!def.fixedSize||!['x','xy','square','label'].includes(resize)&&!(resize==='axis'&&['up','down'].includes(object.props?.direction||'up'));
+    heightInput.disabled=door?horizontalDoor:!!def.fixedSize||weight||label||!['y','xy','square'].includes(resize)&&!(resize==='axis'&&['left','right'].includes(object.props?.direction||''));
+    $('rotateObjectButton').disabled=!def.rotate;$('linkObjectButton').hidden=object.type!=='button';$('deleteObjectButton').disabled=PROTECTED_TYPES.has(object.type);
+    renderFriendlyProperties(object);requestAnimationFrame(()=>drawToolIcon($('selectedObjectIcon'),{type:object.type,preset:object.props,color:def.color}));
+  }
 
   function contextIconButton(icon,label,action,className='',active=false,actionId=''){
     const button=document.createElement('button');button.type='button';button.className=`context-icon-button ${className}${active?' is-active':''}`.trim();button.title=label;button.setAttribute('aria-label',label);if(actionId)button.dataset.contextAction=actionId;
@@ -2228,6 +2389,7 @@
   function randomizeLabel(object){const mode=object.props?.mode==='emoji'?'emoji':'message',author=(localStorage.getItem(AUTHOR_NAME_KEY)||'Автор').trim()||'Автор',source=(mode==='emoji'?LABEL_EMOJIS:LABEL_TEMPLATES).map(value=>value.replace('{author}',author)),weights=object.props.randomWeights&&typeof object.props.randomWeights==='object'?{...object.props.randomWeights}:{};const candidates=source.map((text,index)=>({text,index,weight:Number(weights[index])||1})).filter(item=>item.text!==object.props.lastRandom);const total=candidates.reduce((sum,item)=>sum+item.weight,0);let pick=Math.random()*total,chosen=candidates[0]||{text:source[0],index:0,weight:1};for(const item of candidates){pick-=item.weight;if(pick<=0){chosen=item;break;}}weights[chosen.index]=Math.max(.0625,chosen.weight*.5);object.props.randomWeights=weights;object.props.lastRandom=chosen.text;object.props.text=chosen.text;}
 
   function renderContextToolbar(){const root=$('contextToolbar'),handles=$('resizeHandles'),object=selectedObject();if(!root||!handles||!object||state.tool==='link'){if(root)root.hidden=true;if(handles)handles.hidden=true;return;}const def=TYPE_DEFS[object.type],add=(icon,label,action,className='',active=false,id='')=>{const button=contextIconButton(icon,label,action,className,active,id);root.append(button);return button;};root.innerHTML='';root.hidden=false;
+    if(object.type==='pushBlock')add(`${object.w}×${object.h}`,'Размер гири: 2×2, 4×4 или 8×8',()=>{const sizes=[2,4,8],size=sizes[(sizes.indexOf(object.w)+1)%sizes.length],candidate={...object,w:size,h:size};const verdict=placementPreviewVerdict(candidate,[object.id]);if(!verdict.ok){toast(verdict.message,'error');return;}contextMutation('Размер гири изменён',()=>Object.assign(object,candidate),`Гиря: ${size}×${size}`);},'context-variant',false,'weight-size');
     if(def.rotate)add(object.type==='playerCannon'?directionArrow(object.props?.direction||'right'):'↻',object.type==='playerCannon'?'Начальное направление пушки':'Повернуть предмет',rotateSelected,'context-rotate',true,'rotate');
     if(object.type==='portal'){const current=PORTAL_COLORS.includes(object.props?.color)?object.props.color:'purple',used=new Set(state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId!==object.props?.pairId).map(candidate=>candidate.props?.color)),choices=PORTAL_COLORS.filter(color=>color===current||!used.has(color)),next=choices[(choices.indexOf(current)+1)%choices.length],colorButton=add('●',`Цвет портала: ${PORTAL_COLOR_LABELS[current]}`,()=>contextMutation('Цвет пары порталов изменён',()=>{for(const portal of state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId))portal.props.color=next;},`Цвет порталов: ${PORTAL_COLOR_LABELS[next]}`),'context-variant',false,'portal-color');colorButton.style.setProperty('--context-color',PORTAL_COLOR_VALUES[current]);colorButton.style.setProperty('--context-ink',PORTAL_COLOR_VALUES[current]);}
     if(object.type==='blinkPlatform'&&!incomingLinks(object.id).length){const value=Number(object.props?.cycle)||2,label=value>=4?'Медленно':value>=2?'Средне':'Быстро';add(value>=4?'>':value>=2?'>>':'>>>',`Скорость цикла: ${label}`,()=>cycleContextNumber(object,'cycle',[4,2,1],'Скорость','','',['медленно','средне','быстро']),'context-variant',false,'cycle');}
@@ -2235,7 +2397,7 @@
     if(object.type==='smartPlatform'){const clockwise=object.props?.clockwise!==false;add(clockwise?'↻':'↺',clockwise?'Маршрут по часовой стрелке':'Маршрут против часовой стрелки',()=>contextMutation('Направление трамвая изменено',()=>{object.props.clockwise=!clockwise;},clockwise?'Трамвай поедет против часовой стрелки':'Трамвай поедет по часовой стрелке'),'context-variant',clockwise,'tram-direction');}
     if(object.type==='movingPlatform'){const loop=object.props?.loop!==false;add(loop?'↔':'↓',loop?'Лифт ездит туда и обратно':'Лифт падает в конце пути и появляется снова',()=>contextMutation('Поведение лифта изменено',()=>{object.props.loop=!loop;},loop?'Лифт будет падать в конце пути':'Лифт будет ездить туда и обратно'),'context-variant',loop,'lift-loop');}
     if(object.type==='crusherWall'){const spikes=!!object.props?.spikes;add('▲',spikes?'Шипы на прессе включены':'Шипы на прессе выключены',()=>contextMutation('Шипы пресса изменены',()=>{object.props.spikes=!spikes;object.props.sides=!spikes?'udlr':'';},!spikes?'Шипы включены со всех сторон':'Шипы выключены'),'context-danger',spikes,'press-spikes');}
-    if(object.type==='fallingPlatform')add((object.props?.triggerDelay??.5)<=.25?'>>':'>',`Задержка падения: ${formatNumber(object.props?.triggerDelay??.5)} сек`,()=>cycleContextNumber(object,'triggerDelay',[.5,.25],'Задержка падения',' сек'),'context-variant',false,'fall-delay');
+    if(object.type==='fallingPlatform'){const speed=object.props?.speed==='fast'?'fast':'slow';add(speed==='fast'? '>>':'>',speed==='fast'?'Быстрая скорость':'Медленная скорость',()=>cycleContextValue(object,'speed',['slow','fast'],'Скорость',['медленно','быстро']),'context-variant',speed==='fast','fall-speed');}
     if(object.type==='conveyor'){const direction=object.props?.direction||'right',speed=object.props?.speed||'slow';add(directionArrow(direction),`Конвейер движется ${direction==='left'?'влево':'вправо'}`,()=>cycleContextValue(object,'direction',['left','right'],'Направление',['влево','вправо']),'context-variant',false,'direction');add(speed==='fast'?'>>':'>',speed==='fast'?'Быстрая скорость':'Медленная скорость',()=>cycleContextValue(object,'speed',['slow','fast'],'Скорость',['медленно','быстро']),'context-variant',speed==='fast','speed');}
     if(object.type==='spike'){const linked=incomingLinks(object.id).length>0,mode=linked?'toggle':object.props?.mode||'always';if(!linked){const modeControl=add(mode==='always'?'∞':'◷',`Режим: ${mode==='always'?'всегда':'по циклу'}`,()=>cycleContextValue(object,'mode',['always','cycle'],'Режим',['всегда','по циклу']),'context-variant context-parent',mode==='cycle','mode');modeControl.style.order='-12';if(mode==='cycle'){const startActive=object.props?.startActive!==false,cycleSeconds=Number(object.props?.cycle)||2,cycleLabel=cycleSeconds>=4?'Медленно':cycleSeconds>=2?'Средне':'Быстро',lamp=add('bulb',startActive?'Шипы показаны в начале цикла':'Шипы скрыты в начале цикла',()=>contextMutation('Начало цикла шипов изменено',()=>{object.props.startActive=!startActive;},startActive?'Шипы будут начинать скрытыми':'Шипы будут начинать показанными'),'context-state context-nested',startActive,'spike-cycle-start'),cycle=add(cycleSeconds>=4?'>':cycleSeconds>=2?'>>':'>>>',`Скорость цикла: ${cycleLabel} · ${formatNumber(cycleSeconds)} сек`,()=>cycleContextNumber(object,'cycle',[1,2,4],'Скорость цикла',' сек'),'context-variant context-nested',false,'cycle');lamp.style.order='-11';cycle.style.order='-10';}}}
     if(object.type==='button'){const types=['T','H'],labels=['переключатель','пока нажата'],current=types.includes(object.props?.buttonType)?object.props.buttonType:'T';add(current,`Кнопка: ${labels[types.indexOf(current)]}`,()=>cycleContextValue(object,'buttonType',types,'Тип кнопки',labels),'context-variant',false,'button-type');const plug=add('plug','Перетащите вилку в зелёную розетку',()=>{},'context-link',true,'link');plug.addEventListener('pointerdown',event=>beginWireDrag(event,object.id));}
@@ -2246,27 +2408,27 @@
     if(object.type==='unlockSwitch'){const values=['jp','fl','vv'],labels=['джетпак','парение','инверсия'];add('◇',`Открывает: ${labels[Math.max(0,values.indexOf(object.props?.key||'jp'))]}`,()=>cycleContextValue(object,'key',values,'Переключатель',labels),'context-variant',false,'unlock');}
     if(object.type==='label'){const mode=['player','message','emoji'].includes(object.props?.mode)?object.props.mode:'message',modeLabels={player:'имя игрока',message:'сообщение',emoji:'эмодзи'},modeIcons={player:'☺',message:'≡',emoji:'★'};add(modeIcons[mode],`Режим: ${modeLabels[mode]}`,()=>{let next;contextMutation('Режим строки изменён',()=>{next=cycleLabelMode(object);},'');toast(`Режим: ${modeLabels[next]}`,'ok');},'context-variant context-parent',false,'label-mode');if(mode!=='player')add('⚄',mode==='emoji'?'Новый набор эмодзи':'Случайное сообщение',()=>contextMutation('Содержание строки изменено',()=>randomizeLabel(object),'Выбран новый вариант'),'context-variant context-nested',false,'random-label');}
     if(object.type==='developerNote')add('✎','Открыть комментарий разработчика',()=>openDeveloperNote(object),'context-variant',true,'developer-note');
-    if(LINKABLE_TYPES.has(object.type)){const sockets=linkSocketEntries(object,0,0,object.w*cellPixels(),object.h*cellPixels());for(let index=0;index<sockets.length;index++){const definition=sockets[index],descriptor=`${object.id}${definition.suffix}`,connected=state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).includes(descriptor)),socket=add('socket',connected?`${definition.label}: подключено`:`${definition.label}: свободно`,()=>{},'context-link context-socket',connected,index===0?'socket':`aux-socket-${index}`);socket.tabIndex=-1;socket.style.setProperty('--context-color',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');socket.style.setProperty('--context-ink',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');}const primaryDescriptor=object.id,visibilityDescriptor=`${object.id}@visibility`,hasPrimaryLink=state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).some(value=>String(value)===primaryDescriptor)),hasVisibilityLink=object.type==='movingPlatform'&&state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).some(value=>String(value)===visibilityDescriptor)),showBulb=!GENERATOR_TYPES.includes(object.type)&&object.type!=='conveyor'&&(object.type==='movingPlatform'?hasVisibilityLink:hasPrimaryLink||object.type==='blinkPlatform');if(showBulb){const enabled=object.props?.enabled!==false&&object.props?.startActive!==false;add('bulb',enabled?'Предмет включён сначала':'Предмет выключен сначала',()=>contextMutation('Начальное состояние изменено',()=>{if(object.type==='blinkPlatform')object.props.startActive=!enabled;else object.props.enabled=!enabled;},enabled?'Предмет выключен сначала':'Предмет включён сначала'),'context-state',enabled,'enabled');}}
+    if(LINKABLE_TYPES.has(object.type)){const sockets=linkSocketEntries(object,0,0,object.w*cellPixels(),object.h*cellPixels());for(let index=0;index<sockets.length;index++){const definition=sockets[index],descriptor=`${object.id}${definition.suffix}`,connected=state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).includes(descriptor)),socket=add('socket',connected?`${definition.label}: подключено`:`${definition.label}: свободно`,()=>{},'context-link context-socket',connected,index===0?'socket':`aux-socket-${index}`);socket.tabIndex=-1;socket.style.setProperty('--context-color',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');socket.style.setProperty('--context-ink',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');}const primaryDescriptor=object.id,visibilityDescriptor=`${object.id}@visibility`,hasPrimaryLink=state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).some(value=>String(value)===primaryDescriptor)),hasVisibilityLink=object.type==='movingPlatform'&&state.level.objects.some(button=>button.type==='button'&&(button.props?.targets||[]).some(value=>String(value)===visibilityDescriptor)),showBulb=!GENERATOR_TYPES.includes(object.type)&&object.type!=='conveyor'&&(object.type==='movingPlatform'?hasVisibilityLink:hasPrimaryLink||object.type==='blinkPlatform'&&object.props?.mode!=='always');if(showBulb){const enabled=initialObjectEnabled(object);add('bulb',enabled?'Предмет включён сначала':'Предмет выключен сначала',()=>contextMutation('Начальное состояние изменено',()=>{if(object.type==='blinkPlatform'||object.type==='spike')object.props.startActive=!enabled;else if(object.type==='door')object.props.open=enabled;else object.props.enabled=!enabled;},enabled?'Предмет выключен сначала':'Предмет включён сначала'),'context-state',enabled,'enabled');}}
     root.hidden=root.childElementCount===0;positionSelectionUi(object,def);
   }
 
   function positionSelectionUi(object,def){const root=$('contextToolbar'),handles=$('resizeHandles'),stage=$('canvasStage'),cell=cellPixels(),left=canvas.offsetLeft+object.x*cell,top=canvas.offsetTop+object.y*cell,width=object.w*cell,height=object.h*cell,resizable=!def.fixedSize&&!!def.resize&&!PROTECTED_TYPES.has(object.type);handles.hidden=!resizable;if(resizable){handles.style.left=`${left}px`;handles.style.top=`${top}px`;handles.style.width=`${width}px`;handles.style.height=`${height}px`;for(const button of handles.querySelectorAll('button'))button.hidden=false;}if(root.hidden)return;const gap=14,endpointLaneHeight=LINK_ENDPOINT_OFFSET+LINK_ENDPOINT_CONTROL_SIZE/2,inset=canvasStageInset(),stageWidth=Math.max(stage.clientWidth,canvas.offsetLeft+canvas.width+inset),stageHeight=Math.max(stage.clientHeight,canvas.offsetTop+canvas.height+inset),rootWidth=root.offsetWidth||46,rootHeight=root.offsetHeight||46,centerX=left+width/2,centerY=top+height/2;let side='above',rootLeft=clamp(centerX-rootWidth/2,4,Math.max(4,stageWidth-rootWidth-4)),rootTop=top-gap-rootHeight;if(rootTop<4){side='below';rootTop=top+height+gap+endpointLaneHeight;}if(rootTop+rootHeight>stageHeight-4){const canRight=left+width+gap+rootWidth<=stageWidth-4;side=canRight?'right':'left';rootLeft=canRight?left+width+gap:Math.max(4,left-gap-rootWidth);rootTop=clamp(centerY-rootHeight/2,4,Math.max(4,stageHeight-rootHeight-4));}root.style.transform='none';root.style.left=`${rootLeft}px`;root.style.top=`${rootTop}px`;root.dataset.side=side;root.style.setProperty('--context-anchor-x',`${clamp(centerX-rootLeft,8,Math.max(8,rootWidth-8))}px`);root.style.setProperty('--context-anchor-y',`${clamp(centerY-rootTop,8,Math.max(8,rootHeight-8))}px`);const controlOffset=LINK_ENDPOINT_CONTROL_SIZE/2,endpointBounds={left:canvas.offsetLeft,top:canvas.offsetTop,right:canvas.offsetLeft+state.level.size.width*cell,bottom:canvas.offsetTop+state.level.size.height*cell},sockets=linkSocketEntries(object,left,top,width,height,endpointBounds),firstSocket=sockets[0],socketGap=sockets[1]?sockets[1].cx-firstSocket.cx:LINK_SOCKET_GAP,plug=linkSocketGeometry(object,left,top,width,height,endpointBounds);root.style.setProperty('--socket-left',`${firstSocket.cx-rootLeft-controlOffset}px`);root.style.setProperty('--socket-top',`${firstSocket.cy-rootTop-controlOffset}px`);root.style.setProperty('--socket-gap',`${socketGap}px`);root.style.setProperty('--plug-left',`${plug.cx-rootLeft-controlOffset}px`);root.style.setProperty('--plug-top',`${plug.cy-rootTop-controlOffset}px`);}
 
   function beginDomResize(event){const object=selectedObject();if(!object||state.domResize||state.drag||state.pan||state.pinch||state.mobilePaletteDrag||state.wireDrag||state.touchObjectIntent)return;event.preventDefault();event.stopPropagation();const handle=event.currentTarget.dataset.resizeHandle,activate=()=>{state.domResize={pointerId:event.pointerId,handle,object:deepClone(object),preview:deepClone(object)};renderCanvas();};safelyCapturePointer(event.currentTarget,event.pointerId);if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();}
-  function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const length=Math.max(Math.abs(dx),Math.abs(dy))>=4.5?6:3;next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=requested<=6?4:8;next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
+  function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const requestedLength=Math.max(Math.abs(dx),Math.abs(dy));const length=clamp(Math.round(requestedLength),3,6);next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=clamp(Math.round(requested),3,8);next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}if(drag.object.type==='pushBlock'){const requested=Math.max(next.w,next.h),size=[2,4,8].reduce((best,value)=>Math.abs(value-requested)<Math.abs(best-requested)?value:best,2);next.w=size;next.h=size;next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-size:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-size:drag.object.y;}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
   function updateDomResize(event){if(!state.domResize||state.domResize.pointerId!==event.pointerId)return;state.domResize.preview=resizePreviewFromPointer(event.clientX,event.clientY);renderCanvas();}
   function cancelDomResize(event=null){if(!state.domResize||(event&&state.domResize.pointerId!==event.pointerId))return;state.domResize=null;renderCanvas();}
   function endDomResize(event){const drag=state.domResize;if(!drag||drag.pointerId!==event.pointerId)return;state.domResize=null;const current=state.level.objects.find(object=>object.id===drag.object.id),next=drag.preview;if(current&&next&&(next.x!==current.x||next.y!==current.y||next.w!==current.w||next.h!==current.h)){const placement=canPlace(next,[current.id],{checkOwnPair:false});if(!placement.ok){toast(placement.message,'error');renderCanvas();return;}if(PATH_ENDPOINT_TYPES.has(next.type)){const routePlacement=pairedPathPlacement(next,next.props?.path);if(!routePlacement.ok){toast(`Размер маршрута: ${routePlacement.message}`,'error');renderCanvas();return;}}mutate('Размер предмета изменён',()=>{Object.assign(current,next);if(current.type==='portal')current.props.length=Math.max(current.w,current.h);});}else renderCanvas();}
 
   function isAllowedLevelSize(width,height){const steps=[20,40,60,80];return steps.includes(width)&&steps.includes(height)&&((width===20||height===20)||(width===40&&height===40));}
   function canResizeLevelAxis(horizontal,delta){const width=state.level.size.width,height=state.level.size.height,nextWidth=horizontal?width+delta:width,nextHeight=horizontal?height:height+delta;if(isAllowedLevelSize(nextWidth,nextHeight))return true;return !isAllowedLevelSize(width,height)&&delta<0&&nextWidth>=20&&nextHeight>=20;}
-  function refreshLevelForm(){if(!state.level)return;const layout=editablePanelLayout(),panelMode=!!layout,legacy=!!layout?.legacy,conversion=legacyPanelConversion();$('levelTitleInput').value=state.level.title;$('widthInput').value=state.level.size.width;$('heightInput').value=state.level.size.height;$('widthInput').disabled=panelMode;$('heightInput').disabled=panelMode;$('applySizeButton').hidden=panelMode;$('applySizeButton').disabled=panelMode||!state.ready;const summary=$('panelShapeSummary');summary.hidden=!panelMode;if(panelMode){const overExtent=layout.maxX+1>LEVEL_PANEL_EXTENT_LIMIT||layout.maxY+1>LEVEL_PANEL_EXTENT_LIMIT;summary.textContent=legacy&&overExtent?`Старая карта: ${layout.panels.length} полей 20×20 · габарит ${state.level.size.width}×${state.level.size.height}. Новый предел — 4 поля (80 клеток) по оси: удалите крайнее поле кнопкой −.`:`Форма уровня: ${layout.panels.length}/${LEVEL_PANEL_LIMIT} полей 20×20 · габарит ${state.level.size.width}×${state.level.size.height}. На каждой внешней стороне есть своя пара ＋/−.`;}else summary.textContent='';const convert=$('convertPanelsButton');convert.hidden=panelMode;convert.disabled=panelMode||!state.ready||!conversion.ok;convert.title=conversion.ok?'Сохранить прямоугольник и включить редактирование отдельными полями':conversion.message;$('notesInput').value=state.level.designerNotes||'';document.querySelectorAll('[data-difficulty]').forEach(button=>button.classList.toggle('active',button.dataset.difficulty===state.difficulty));$('copyDifficultySelect').value=DIFFICULTIES.find(value=>value!==state.difficulty)||'medium';for(const button of document.querySelectorAll('[data-resize-side]')){const horizontal=['left','right'].includes(button.dataset.resizeSide),delta=Number(button.dataset.resizeDelta);button.disabled=panelMode||!state.ready||!canResizeLevelAxis(horizontal,delta);}try{const unavailable=!state.ready||!state.mapClipboard&&!localStorage.getItem(MAP_CLIPBOARD_KEY);$('pasteMapButton').disabled=unavailable;$('mobilePasteMapButton').disabled=unavailable;}catch(error){}updateZoomControls();refreshPlayerHeader();}
+  function refreshLevelForm(){if(!state.level)return;const layout=editablePanelLayout(),panelMode=!!layout,legacy=!!layout?.legacy,conversion=legacyPanelConversion();$('levelTitleInput').value=state.level.title;$('levelTitleInput').maxLength=state.slot?.kind==='campaign'?96:48;$('widthInput').value=state.level.size.width;$('heightInput').value=state.level.size.height;$('widthInput').disabled=panelMode;$('heightInput').disabled=panelMode;$('applySizeButton').hidden=panelMode;$('applySizeButton').disabled=panelMode||!state.ready;const summary=$('panelShapeSummary');summary.hidden=!panelMode;if(panelMode){const overExtent=layout.maxX+1>LEVEL_PANEL_EXTENT_LIMIT||layout.maxY+1>LEVEL_PANEL_EXTENT_LIMIT;summary.textContent=legacy&&overExtent?`Старая карта: ${layout.panels.length} полей 20×20 · габарит ${state.level.size.width}×${state.level.size.height}. Новый предел — 4 поля (80 клеток) по оси: удалите крайнее поле кнопкой −.`:`Форма уровня: ${layout.panels.length}/${LEVEL_PANEL_LIMIT} полей 20×20 · габарит ${state.level.size.width}×${state.level.size.height}. На каждой внешней стороне есть своя пара ＋/−.`;}else summary.textContent='';const convert=$('convertPanelsButton');convert.hidden=panelMode;convert.disabled=panelMode||!state.ready||!conversion.ok;convert.title=conversion.ok?'Сохранить прямоугольник и включить редактирование отдельными полями':conversion.message;$('notesInput').value=state.level.designerNotes||'';document.querySelectorAll('[data-difficulty]').forEach(button=>button.classList.toggle('active',button.dataset.difficulty===state.difficulty));$('copyDifficultySelect').value=DIFFICULTIES.find(value=>value!==state.difficulty)||'medium';for(const button of document.querySelectorAll('[data-resize-side]')){const horizontal=['left','right'].includes(button.dataset.resizeSide),delta=Number(button.dataset.resizeDelta);button.disabled=panelMode||!state.ready||!canResizeLevelAxis(horizontal,delta);}try{const unavailable=!state.ready||!state.mapClipboard&&!localStorage.getItem(MAP_CLIPBOARD_KEY);$('pasteMapButton').disabled=unavailable;$('mobilePasteMapButton').disabled=unavailable;}catch(error){}updateZoomControls();refreshPlayerHeader();}
 
   function calculateBudget(level=state.level){const counts={};for(const object of level.objects)counts[object.type]=(counts[object.type]||0)+1;const dynamic=['fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','conveyor','door'].reduce((sum,type)=>sum+(counts[type]||0),0);const generators=['flyerSpawner','shooterSpawner','bomberSpawner','cannon'].reduce((sum,type)=>sum+(counts[type]||0),0);const enemies=['enemyGoomba','enemyFlyer','enemyLeech','enemySpikeCube'].reduce((sum,type)=>sum+(counts[type]||0),0);const routePoints=level.objects.reduce((sum,object)=>sum+(Array.isArray(object.props?.path)?object.props.path.length:0),0);const links=level.objects.reduce((sum,object)=>sum+(Array.isArray(object.props?.targets)?object.props.targets.length:0),0);const solidCells=level.objects.filter(object=>object.type==='solid').reduce((sum,object)=>sum+object.w*object.h,0);const score=Math.ceil(solidCells/64)+Math.ceil((counts.coin||0)/8)+Math.max(0,level.objects.length-(counts.solid||0)-(counts.coin||0))+2*dynamic+3*((counts.smartPlatform||0)+enemies)+4*((counts.pushBlock||0)+(counts.enemySpikeCube||0))+6*(counts.crusherWall||0)+8*generators+Math.max(0,routePoints-2*(counts.movingPlatform||0));return{counts,dynamic,generators,enemies,routePoints,links,score,bytes:new Blob([JSON.stringify(level)]).size};}
 
-  function validateLevel(selectChecks=false){const issues=[];const add=(severity,message,objectId=null)=>issues.push({severity,message,objectId});const level=state.level;const title=level.title.trim();if(!title)add('error','Введите название уровня.');if(title.length>48)add('error','Название длиннее 48 символов.');if(/(?:https?:\/\/|www\.|@\w+\.)/iu.test(title))add('error','В названии нельзя размещать ссылки или адреса.');if(/(?:хуй|пизд|еба|бля|fuck|shit)/iu.test(title))add('error','Название не прошло локальный фильтр публикации.');
+  function validateLevel(selectChecks=false){const issues=[];const add=(severity,message,objectId=null)=>issues.push({severity,message,objectId});const level=state.level;const title=level.title.trim();if(!title)add('error','Введите название уровня.');const titleLimit=state.slot?.kind==='campaign'?96:48;if(title.length>titleLimit)add('error',`Название длиннее ${titleLimit} символов.`);if(/(?:https?:\/\/|www\.|@\w+\.)/iu.test(title))add('error','В названии нельзя размещать ссылки или адреса.');if(/(?:хуй|пизд|еба|бля|fuck|shit)/iu.test(title))add('error','Название не прошло локальный фильтр публикации.');
     if(isPanelLevel(level)){const contract=inspectPanelContract(level);if(!contract.ok)add('error',contract.message);}else if(!isAllowedLevelSize(level.size.width,level.size.height))add('error','Допустимы только 20×20, 20×40/60/80, 40/60/80×20 и 40×40. Другие размеры запрещены.');
-    const spawns=level.objects.filter(object=>object.type==='spawn'),exits=level.objects.filter(object=>object.type==='exit');if(spawns.length!==1)add('error',`Нужен ровно один вход; найдено ${spawns.length}.`,spawns[0]?.id);if(exits.length!==1)add('error',`Нужен ровно один выход; найдено ${exits.length}.`,exits[0]?.id);
+    const spawns=level.objects.filter(object=>object.type==='spawn'),exits=level.objects.filter(object=>object.type==='exit');if(spawns.length!==1)add('error',`Нужен ровно один вход; найдено ${spawns.length}.`,spawns[0]?.id);if(exits.length!==1)add('error',`Нужен ровно один выход; найдено ${exits.length}.`,exits[0]?.id);const secretExits=level.objects.filter(object=>object.type==='secretExit');if(secretExits.length>1)add('error','На карте может быть только один секретный выход.',secretExits[1].id);
     const ids=new Set(),objectsById=new Map();for(const object of level.objects){if(ids.has(object.id))add('error','Повторяется внутренний идентификатор предмета.',object.id);ids.add(object.id);objectsById.set(object.id,object);if(!TYPE_DEFS[object.type])add('error',`Игра не знает предмет ${object.type}.`,object.id);if(!rectInsideLevelShape(level,object))add('error',isPanelLevel(level)?'Предмет выходит за доступную форму уровня.':'Предмет выходит за границы.',object.id);else if(object.type==='portal'&&portalShellFootprints(object).some(footprint=>!rectInsideLevelShape(level,footprint)))add('error','Корпус портала выходит за доступную область уровня.',object.id);if([object.x,object.y,object.w,object.h].some(value=>Math.abs(value/GRID_STEP-Math.round(value/GRID_STEP))>1e-8))add('error','Предмет не привязан к сетке.',object.id);if(object.type==='solid'&&[object.x,object.y,object.w,object.h].some(value=>!Number.isInteger(value)))add('error','Монолит должен занимать целые клетки — игра не округляет его скрыто.',object.id);}
     for(const portal of level.objects.filter(object=>object.type==='portal')){const validSide=DIRECTION_CYCLE.includes(portal.props?.side),horizontal=['up','down'].includes(portal.props?.side),orientation=horizontal?'horizontal':'vertical',canonical=validSide&&portal.props?.orientation===orientation&&Number(portal.props?.length)===6&&portal.w===(horizontal?6:2)&&portal.h===(horizontal?2:6);if(!canonical)add('error','Габариты портала не соответствуют направлению стрелки. Смените направление ещё раз или переустановите портал.',portal.id);}
     for(const label of level.objects.filter(object=>object.type==='label')){const text=String(label.props?.text||'').trim();if(!text)add('error','Подпись не может быть пустой.',label.id);if(text.length>80)add('error','Подпись длиннее 80 символов.',label.id);if(/(?:https?:\/\/|www\.|@\w+\.)/iu.test(text))add('error','В подписи нельзя размещать ссылки или адреса.',label.id);if(/(?:хуй|пизд|еба|бля|fuck|shit)/iu.test(text))add('error','Подпись не прошла локальный фильтр публикации.',label.id);}
@@ -2488,7 +2650,7 @@
   }
   function setHintsHidden(hidden,{persist=true}={}){state.hintsHidden=!!hidden;document.documentElement.classList.toggle('hints-hidden',state.hintsHidden);const button=$('toggleHintsButton');if(button){button.textContent='Подсказки';button.setAttribute('aria-pressed',String(!state.hintsHidden));}if(persist)try{localStorage.setItem(HINT_VISIBILITY_KEY,state.hintsHidden?'1':'0');}catch(error){}requestAnimationFrame(syncEditorViewportLayout);}
   function showHintText(label,help,attention=false){const root=$('interactionHint');if(!root)return;root.querySelector('strong').textContent=label;root.querySelector('span').textContent=help;updateInteractionHintHeight();requestAnimationFrame(syncEditorViewportLayout);if(attention){root.classList.remove('attention');void root.offsetWidth;root.classList.add('attention');}}
-  function showInteractionHint(objectOrItem){const type=objectOrItem?.type,def=TYPE_DEFS[type],label=objectOrItem?.label||def?.label||'Поле уровня';let help=TYPE_HELP[type]||'Тяните пустое место, чтобы двигать карту.';if(type==='label'&&String(objectOrItem?.props?.text||'').trim())help=`${help} Текст: «${String(objectOrItem.props.text).trim()}»`;showHintText(label,help);}
+  function showInteractionHint(objectOrItem){const type=objectOrItem?.type,def=TYPE_DEFS[type],label=objectOrItem?.label||def?.label||'Поле уровня';let help=TYPE_HELP[type]||(state.selectionMode?'Протяните прямоугольник вокруг предметов, затем тяните любой выделенный предмет. Повторное нажатие «Выделить» возвращает движение карты.':'Тяните пустое место, чтобы двигать карту.');if(type==='label'&&String(objectOrItem?.props?.text||'').trim())help=`${help} Текст: «${String(objectOrItem.props.text).trim()}»`;showHintText(label,help);}
   function openDeveloperNote(object=selectedObject()){if(object?.type!=='developerNote')return;state.developerNoteId=object.id;$('developerNoteInput').value=String(object.props?.comment||'');$('developerNoteModal').classList.add('open');$('developerNoteModal').setAttribute('aria-hidden','false');requestAnimationFrame(()=>$('developerNoteInput').focus());}
   function closeDeveloperNote(save=false){const object=state.level?.objects.find(candidate=>candidate.id===state.developerNoteId);if(save&&object)mutate('Комментарий изменён',()=>{object.props.comment=String($('developerNoteInput').value||'').slice(0,1200);});state.developerNoteId=null;$('developerNoteModal').classList.remove('open');$('developerNoteModal').setAttribute('aria-hidden','true');}
 
@@ -2508,7 +2670,7 @@
   function levelSizeLabel(level){const fields=levelFieldCount(level);return fields<=2?'маленький':fields<=5?'средний':'большой';}
   function libraryMetaText(slot,{campaign=false,dateStyle='short'}={}){
     const level=libraryLevelFor(slot),status=campaign?{key:'campaign'}:playerSlotStatus(slot),verb=status.key==='submitted'?'опубликован':'изменён',date=new Date(slot.updatedAt||slot.createdAt||Date.now()).toLocaleString('ru-RU',{dateStyle,timeStyle:'short'});
-    return `${campaign?`${difficultyTitle(state.libraryDifficulty)} · `:''}${levelSizeLabel(level)} · ${verb} ${date}`;
+    return `${campaign?`Слот ${slot.sequence} · ${difficultyTitle(state.libraryDifficulty)} · `:''}${levelSizeLabel(level)} · ${verb} ${date}`;
   }
   function makeLibraryCard(slot,{campaign=false}={}){
     const status=campaign?{key:'campaign',label:'Кампания'}:playerSlotStatus(slot),level=libraryLevelFor(slot),displayTitle=campaign?(level?.title||slot.title):slot.title;
@@ -2541,7 +2703,7 @@
     const drafts=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft'),published=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='submitted');
     $('libraryHeading').textContent=showUsers?'Мои уровни':`Эпизод ${episode}`;$('libraryDescription').textContent=showUsers?'Черновики и опубликованные уровни на этом устройстве.':`Уровни эпизода ${episode}; выберите сложность и карту.`;
     $('draftSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS}`;$('publishedSlotCount').textContent=`${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('userSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS} · ${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('publicationLimitBeacon').hidden=published.length<MAX_PUBLISHED_LEVELS;
-    $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;
+    $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;$('exportCampaignArchiveButton').hidden=!(await requestToPromise(state.db.transaction(ARCHIVE_STORE_NAME,'readonly').objectStore(ARCHIVE_STORE_NAME).count()));
     document.querySelectorAll('[data-library-filter]').forEach(button=>{const active=button.dataset.libraryFilter===state.libraryUserFilter;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
     let slots,container;
     if(showUsers){slots=state.libraryUserFilter==='submitted'?published:drafts;container=root;}else{slots=all.filter(slot=>slot.kind==='campaign'&&Number(slot.episode||1)===episode).sort((a,b)=>a.sequence-b.sequence);container=campaignRoot;$('libraryEpisodeSelect').value=String(episode);}
@@ -2559,13 +2721,13 @@
   async function openSelectedLibraryLevel(){const selected=state.librarySelectedSlot;if(!selected)return;const key=selected.key,difficulty=selected.kind==='campaign'?state.libraryDifficulty:'easy';await state.libraryWriteQueue;closeLibrary();await loadSlot(key,difficulty);}
   function syncActiveSlotAfterLibraryWrite(slot,difficulty,label){if(state.slotKey!==slot.key)return false;clearTimeout(state.saveTimer);const visibleLevel=state.level;state.slot=deepClone(slot);state.dirty=false;if(state.difficulty!==difficulty){state.slot.difficulties[state.difficulty]=visibleLevel;refreshSelectors();refreshAll();return false;}state.level=normalizeLevel(deepClone(state.slot.difficulties[difficulty]),{episode:slot.episode||1,sequence:slot.sequence||1,difficulty});state.slot.difficulties[difficulty]=state.level;state.selectedId=null;state.selectedWire=null;state.linkSourceId=null;state.testSpawn=null;state.issues=[];state.activePaletteId=null;state.tool='select';resetHistory(label);refreshSelectors();refreshAll();requestAnimationFrame(fitLevel);return true;}
   async function copySelectedLibraryMap(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key),level=slot?.difficulties?.[difficulty]||slot?.difficulties?.easy;if(!level)return;const payload={kind:'nubu.map-clipboard',version:1,copiedAt:Date.now(),level:deepClone(level)};state.mapClipboard=payload;try{localStorage.setItem(MAP_CLIPBOARD_KEY,JSON.stringify(payload));}catch(error){}toast(`Карта ${level.size.width}×${level.size.height} скопирована.`,'ok');});}
-  async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
+  async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot,difficulty);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
   function exportSelectedCampaignLevel(){const slot=state.librarySelectedSlot,level=libraryLevelFor(slot);if(slot?.kind!=='campaign'||!level)return;const blob=new Blob([`${JSON.stringify(level,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`ep${slot.episode}-${String(slot.sequence).padStart(2,'0')}-${state.libraryDifficulty}.level.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан ${anchor.download}. Сохраните его в iCloud.`,'ok');}
-  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
+  async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot,difficulty);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
 
   async function renameSelectedLibraryLevel(event){const selected=state.librarySelectedSlot;if(selected?.kind!=='user')return;if(playerSlotStatus(selected).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');return;}const key=selected.key,title=String(event.target.value).trim().slice(0,48)||'Без названия';return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key);if(!slot)return;if(playerSlotStatus(slot).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');await renderLibrary();return;}slot.title=title;for(const difficulty of DIFFICULTIES)if(slot.difficulties?.[difficulty])slot.difficulties[difficulty].title=title;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();if(state.slotKey===key)syncActiveSlotAfterLibraryWrite(slot,state.difficulty,'Название изменено в библиотеке');state.librarySelectedKey=key;await refreshUserSlots();await renderLibrary();});}
 
-  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#030706';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;if(isPanelLevel(level)){context.fillStyle='#10241d';context.strokeStyle='#5e8b78';context.lineWidth=1;for(const panel of level.panels){const x=offsetX+panel.x*LEVEL_PANEL_SIZE*scale,y=offsetY+panel.y*LEVEL_PANEL_SIZE*scale,size=LEVEL_PANEL_SIZE*scale;context.fillRect(x,y,size,size);context.strokeRect(x+.5,y+.5,Math.max(0,size-1),Math.max(0,size-1));}}else{context.fillStyle='#10241d';context.fillRect(offsetX,offsetY,level.size.width*scale,level.size.height*scale);}for(const object of [...level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true});}
+  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#030706';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;if(isPanelLevel(level)){context.fillStyle='#10241d';context.strokeStyle='#5e8b78';context.lineWidth=1;for(const panel of level.panels){const x=offsetX+panel.x*LEVEL_PANEL_SIZE*scale,y=offsetY+panel.y*LEVEL_PANEL_SIZE*scale,size=LEVEL_PANEL_SIZE*scale;context.fillRect(x,y,size,size);context.strokeRect(x+.5,y+.5,Math.max(0,size-1),Math.max(0,size-1));}}else{context.fillStyle='#10241d';context.fillRect(offsetX,offsetY,level.size.width*scale,level.size.height*scale);}for(const object of [...level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true,level});}
 
   function confirmAction(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmModal').classList.add('open');$('confirmModal').setAttribute('aria-hidden','false');return new Promise(resolve=>{state.confirmResolver=resolve;});}
   function closeConfirm(result){$('confirmModal').classList.remove('open');$('confirmModal').setAttribute('aria-hidden','true');const resolve=state.confirmResolver;state.confirmResolver=null;resolve?.(result);}
@@ -2576,9 +2738,10 @@
     const geometryStep=object.type==='solid'?1:GRID_STEP,requested=snap(Number($(id).value),geometryStep),widthCap=property==='w'?authoringWidthCap(object.type):null;let value=requested;
     if(property==='x')value=clamp(value,0,state.level.size.width-object.w);if(property==='y')value=clamp(value,0,state.level.size.height-object.h);if(property==='w')value=clamp(Math.max(geometryStep,value),geometryStep,Math.min(state.level.size.width-object.x,widthCap||Infinity));if(property==='h')value=clamp(Math.max(geometryStep,value),geometryStep,state.level.size.height-object.y);
     let nextPath=Array.isArray(object.props?.path)?object.props.path.map(point=>({...point})):null;if(object.type==='smartPlatform'&&['x','y'].includes(property)){const target=constrainMoveTarget(object,property==='x'?value:object.x,property==='y'?value:object.y,geometryStep),dx=target.x-object.x,dy=target.y-object.y;value=target[property];nextPath=object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}else if(PATH_ENDPOINT_TYPES.has(object.type)&&['x','y'].includes(property)&&nextPath?.length>1)nextPath=[{x:property==='x'?value:object.x,y:property==='y'?value:object.y},nextPath[nextPath.length-1]];
-    const next={...object,[property]:value,props:{...object.props,...(nextPath?{path:nextPath}:{})}},placement=canPlace(next,[object.id],{checkOwnPair:false}),routePlacement=PATH_ENDPOINT_TYPES.has(next.type)?pairedPathPlacement(next,nextPath):{ok:true};
+    const linkedGeometry={};if(object.type==='pushBlock'&&['w','h'].includes(property)){const requested=Math.max(geometryStep,value),size=[2,4,8].reduce((best,candidate)=>Math.abs(candidate-requested)<Math.abs(best-requested)?candidate:best,2);value=size;linkedGeometry.w=size;linkedGeometry.h=size;}if(object.type==='door'&&['w','h'].includes(property)){const horizontal=object.props?.orientation==='horizontal',length=clamp(Math.round(value),3,6);value=length;linkedGeometry.w=horizontal?length:1;linkedGeometry.h=horizontal?1:length;}if(object.type==='label'&&property==='w')value=clamp(Math.round(value),3,8);
+    const next={...object,[property]:value,...linkedGeometry,props:{...object.props,...(nextPath?{path:nextPath}:{})}},placement=canPlace(next,[object.id],{checkOwnPair:false}),routePlacement=PATH_ENDPOINT_TYPES.has(next.type)?pairedPathPlacement(next,nextPath):{ok:true};
     if(!placement.ok||!routePlacement.ok){toast(placement.ok?routePlacement.message:placement.message,'error');refreshInspector();return;}
-    const changed=mutate('Размер или положение изменены',()=>{object[property]=value;if(nextPath)object.props.path=nextPath;});if(changed&&widthCap&&requested>widthCap)toast(`Максимальная ширина: ${widthCap} клеток.`);
+    const changed=mutate('Размер или положение изменены',()=>{Object.assign(object,next);});if(changed&&widthCap&&requested>widthCap)toast(`Максимальная ширина: ${widthCap} клеток.`);
   });}
 
   function nearestPortalPasteCandidate(source){
@@ -2600,9 +2763,9 @@
     if(editing)return;if(event.code==='Space'){state.spaceHeld=true;event.preventDefault();}if(event.key.toLowerCase()==='v')setTool('select');if(event.key.toLowerCase()==='e')setTool('erase');if(event.key.toLowerCase()==='r')rotateSelected();if(event.key.toLowerCase()==='p')playLevel();if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();if(state.selectedId)removeObject(state.selectedId);}if(event.key==='Escape'){state.drag=null;state.selectedId=null;setTool('select');refreshAll();}if(event.key==='+'||event.key==='=')setZoom(state.zoom+.1);if(event.key==='-')setZoom(state.zoom-.1);
   }
 
-  function bindUi(){renderPalette();renderMobilePalette();
+  function bindUi(){renderPalette();renderMobilePalette();updateGridMarkingButton();
     const panelControls=$('panelTopologyControls');panelControls.addEventListener('pointerdown',beginPanelControlTouch);panelControls.addEventListener('click',handlePanelControlClick,true);
-    $('paletteSearch').addEventListener('input',event=>renderPalette(event.target.value));
+    $('paletteSearch').addEventListener('input',event=>renderPalette(event.target.value));$('gridMarkingButton').addEventListener('click',cycleGridMarking);
     document.querySelectorAll('[data-tool]').forEach(button=>button.addEventListener('click',()=>setTool(button.dataset.tool)));
     document.querySelectorAll('[data-open-drawer]').forEach(button=>button.addEventListener('click',()=>openDrawer(button.dataset.openDrawer)));
     document.querySelectorAll('[data-close-drawer]').forEach(button=>button.addEventListener('click',()=>closeDrawer(button.dataset.closeDrawer)));
@@ -2614,10 +2777,10 @@
     $('libraryLevelTitleInput').addEventListener('change',event=>renameSelectedLibraryLevel(event).catch(error=>toast(error.message,'error')));$('libraryCopyMapButton').addEventListener('click',()=>copySelectedLibraryMap().catch(error=>toast(error.message,'error')));$('libraryPasteMapButton').addEventListener('click',()=>replaceSelectedMapFromClipboard().catch(error=>toast(error.message,'error')));$('libraryExportLevelButton').addEventListener('click',exportSelectedCampaignLevel);$('libraryImportLevelInput').addEventListener('change',importSelectedCampaignLevel);$('libraryDeleteButton').addEventListener('click',()=>{if(state.librarySelectedSlot?.kind==='user')deleteUserSlot(state.librarySelectedSlot.key).catch(error=>toast(error.message,'error'));});$('withdrawLevelButton').addEventListener('click',()=>withdrawSelectedLevel().catch(error=>toast(error.message,'error')));
     document.querySelectorAll('[data-library-filter]').forEach(button=>button.addEventListener('click',()=>{state.libraryUserFilter=button.dataset.libraryFilter;state.librarySelectedKey=null;renderLibrary();}));$('librarySourceSelect').addEventListener('change',()=>{state.librarySelectedKey=null;renderLibrary();});$('libraryLobbyButton').addEventListener('click',async()=>{const ok=await confirmAction('Выйти в лобби?','Текущая карта будет сохранена, затем редактор закроется.');if(!ok)return;await saveNow({revision:true});closeLibrary();if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else window.location.assign(gameLobbyUrl().href);});$('libraryEpisodeSelect').addEventListener('change',()=>{$('librarySourceSelect').value=`campaign-${$('libraryEpisodeSelect').value}`;state.librarySelectedKey=null;renderLibrary();});$('libraryDifficultySelect').addEventListener('change',event=>{state.libraryDifficulty=event.target.value;renderLibrary();});$('examLevelButton').addEventListener('click',async()=>{const slot=state.librarySelectedSlot;if(slot?.kind!=='user'){toast('Экзамен доступен только для уровней игрока.','error');return;}await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='submitted').length>=MAX_PUBLISHED_LEVELS){toast(`Опубликовано уже ${MAX_PUBLISHED_LEVELS} уровней. Для следующего нужен дополнительный объём.`,'error');return;}const ok=await confirmAction('Экзамен уровня','Уровень запустится с обычного входа. Чтобы получить статус «Опубликован», нужно дойти до выхода без смерти.');if(!ok)return;closeLibrary();await loadSlot(slot.key,'easy');await playLevel({exam:true});});document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-size]').forEach(item=>item.classList.toggle('active',item===button));state.chosenSize=button.dataset.size.split('x').map(Number);}));const updateChosenSize=()=>{state.chosenSize=[Number($('newLevelWidth').value),Number($('newLevelHeight').value)];};$('newLevelWidth').addEventListener('change',updateChosenSize);$('newLevelHeight').addEventListener('change',updateChosenSize);
     $('episodeSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;refreshSelectors(event.target.value);const first=$('levelSelect').value;if(first)loadSlot(first,'easy').catch(error=>toast(error.message,'error'));});$('levelSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;loadSlot(event.target.value,state.difficulty).catch(error=>toast(error.message,'error'));});
-    $('levelTitleInput').addEventListener('change',event=>mutate('Название изменено',()=>{state.level.title=String(event.target.value).trim().slice(0,48)||'Без названия';}));$('notesInput').addEventListener('change',event=>mutate('Заметки изменены',()=>{state.level.designerNotes=String(event.target.value).slice(0,1000);}));$('applySizeButton').addEventListener('click',applySize);$('convertPanelsButton').addEventListener('click',()=>convertLegacyToPanels().catch(error=>toast(error.message,'error')));$('copyDifficultyButton').addEventListener('click',copyDifficulty);$('restoreTemplateButton').addEventListener('click',()=>restoreTemplate().catch(error=>toast(error.message,'error')));$('clearLevelButton').addEventListener('click',clearLevel);$('duplicateLevelButton').addEventListener('click',()=>duplicateLevel().catch(error=>toast(error.message,'error')));$('exportButton').addEventListener('click',exportLevel);$('importInput').addEventListener('change',importLevel);
+    $('levelTitleInput').addEventListener('change',event=>mutate('Название изменено',()=>{state.level.title=String(event.target.value).trim().slice(0,state.slot?.kind==='campaign'?96:48)||'Без названия';}));$('notesInput').addEventListener('change',event=>mutate('Заметки изменены',()=>{state.level.designerNotes=String(event.target.value).slice(0,1000);}));$('applySizeButton').addEventListener('click',applySize);$('convertPanelsButton').addEventListener('click',()=>convertLegacyToPanels().catch(error=>toast(error.message,'error')));$('copyDifficultyButton').addEventListener('click',copyDifficulty);$('restoreTemplateButton').addEventListener('click',()=>restoreTemplate().catch(error=>toast(error.message,'error')));$('clearLevelButton').addEventListener('click',clearLevel);$('duplicateLevelButton').addEventListener('click',()=>duplicateLevel().catch(error=>toast(error.message,'error')));$('exportButton').addEventListener('click',exportLevel);$('importInput').addEventListener('change',importLevel);
     bindObjectNumber('objectXInput','x');bindObjectNumber('objectYInput','y');bindObjectNumber('objectWInput','w');bindObjectNumber('objectHInput','h');$('deleteObjectButton').addEventListener('click',()=>state.selectedId&&removeObject(state.selectedId));$('linkObjectButton').addEventListener('click',()=>{const object=selectedObject();if(object?.type==='button'){state.linkSourceId=object.id;state.tool='link';updateToolButtons();closeDrawer('inspectorPanel');toast('Выберите цель кнопки на карте.');}});
     $('confirmCancelButton').addEventListener('click',()=>closeConfirm(false));$('confirmAcceptButton').addEventListener('click',()=>closeConfirm(true));$('developerNoteCancelButton').addEventListener('click',()=>closeDeveloperNote(false));$('developerNoteSaveButton').addEventListener('click',()=>closeDeveloperNote(true));$('libraryModal').addEventListener('click',event=>{if(event.target===$('libraryModal'))closeLibrary();});$('confirmModal').addEventListener('click',event=>{if(event.target===$('confirmModal'))closeConfirm(false);});$('developerNoteModal').addEventListener('click',event=>{if(event.target===$('developerNoteModal'))closeDeveloperNote(false);});
-    $('copyMapButton').addEventListener('click',copyMap);$('pasteMapButton').addEventListener('click',pasteMap);$('mobileCopyMapButton').addEventListener('click',copyMap);$('mobilePasteMapButton').addEventListener('click',pasteMap);$('mobileUndoButton').addEventListener('click',undo);$('mobileRedoButton').addEventListener('click',redo);$('zoomOutButton').addEventListener('click',()=>setZoom(state.zoom-.1));$('zoomInButton').addEventListener('click',()=>setZoom(state.zoom+.1));$('zoomSlider').addEventListener('input',event=>setZoom(Number(event.target.value)/100));document.querySelectorAll('[data-resize-side]').forEach(button=>button.addEventListener('click',()=>resizeLevelFromSide(button.dataset.resizeSide,Number(button.dataset.resizeDelta))));document.querySelectorAll('[data-resize-handle]').forEach(button=>button.addEventListener('pointerdown',beginDomResize));window.addEventListener('pointermove',updateDomResize);window.addEventListener('pointerup',endDomResize);window.addEventListener('pointercancel',cancelDomResize);try{$('authorNameInput').value=localStorage.getItem(AUTHOR_NAME_KEY)||'';}catch(error){}$('authorNameInput').addEventListener('change',event=>{try{localStorage.setItem(AUTHOR_NAME_KEY,String(event.target.value).trim().slice(0,24));}catch(error){}});$('exportLibraryButton').addEventListener('click',()=>exportLibrary().catch(error=>toast(error.message,'error')));$('importLibraryInput').addEventListener('change',importLibrary);
+    $('copyMapButton').addEventListener('click',copyMap);$('pasteMapButton').addEventListener('click',pasteMap);$('mobileCopyMapButton').addEventListener('click',copyMap);$('mobilePasteMapButton').addEventListener('click',pasteMap);$('mobileUndoButton').addEventListener('click',undo);$('mobileRedoButton').addEventListener('click',redo);$('zoomOutButton').addEventListener('click',()=>setZoom(state.zoom-.1));$('zoomInButton').addEventListener('click',()=>setZoom(state.zoom+.1));$('zoomSlider').addEventListener('input',event=>setZoom(Number(event.target.value)/100));document.querySelectorAll('[data-resize-side]').forEach(button=>button.addEventListener('click',()=>resizeLevelFromSide(button.dataset.resizeSide,Number(button.dataset.resizeDelta))));document.querySelectorAll('[data-resize-handle]').forEach(button=>button.addEventListener('pointerdown',beginDomResize));window.addEventListener('pointermove',updateDomResize);window.addEventListener('pointerup',endDomResize);window.addEventListener('pointercancel',cancelDomResize);try{$('authorNameInput').value=localStorage.getItem(AUTHOR_NAME_KEY)||'';}catch(error){}$('authorNameInput').addEventListener('change',event=>{try{localStorage.setItem(AUTHOR_NAME_KEY,String(event.target.value).trim().slice(0,24));}catch(error){}});$('exportLibraryButton').addEventListener('click',()=>exportLibrary().catch(error=>toast(error.message,'error')));$('importLibraryInput').addEventListener('change',importLibrary);$('restoreLibraryButton').addEventListener('click',()=>$('importLibraryInput').click());$('exportCampaignArchiveButton').addEventListener('click',()=>exportCampaignArchives().catch(error=>toast(error.message,'error')));
     document.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'&&event.isPrimary&&viewport.contains(event.target)&&state.pointers.size&&!state.pointers.has(event.pointerId))resetCanvasGestureState({restoreSelection:true});},{capture:true});
     viewport.addEventListener('pointerdown',handlePointerDown);viewport.addEventListener('pointermove',handlePointerMove);viewport.addEventListener('pointerup',handlePointerUp);viewport.addEventListener('pointercancel',cancelCanvasPointer);viewport.addEventListener('lostpointercapture',event=>{if(event.target===viewport)cancelCanvasPointer(event);});viewport.addEventListener('pointerleave',()=>{if(!state.drag&&!state.pan&&!state.pinch&&!state.desktopPaletteDrag){state.hoverPoint=null;$('cursorReadout').style.display='none';renderCanvas();}});canvas.addEventListener('contextmenu',event=>event.preventDefault());canvas.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='copy';if(state.desktopPaletteDrag){state.hoverPoint=pointerGridPoint(event);renderCanvas();}});canvas.addEventListener('dragleave',event=>{if(state.desktopPaletteDrag&&!canvas.contains(event.relatedTarget)){state.hoverPoint=null;renderCanvas();}});canvas.addEventListener('drop',event=>{event.preventDefault();const id=event.dataTransfer.getData('text/nubu-tool')||state.desktopPaletteDrag?.paletteId,item=PALETTE_BY_ID.get(id),point=pointerGridPoint(event);state.desktopPaletteDrag=null;state.hoverPoint=null;if(!item){renderCanvas();return;}if(addPlacedObject(makeObjectFromTool(item,{x:point.x,y:point.y,w:1,h:1}))&&item.type!=='solid')setTool('select');else renderCanvas();});
     viewport.addEventListener('wheel',event=>{if(!(event.ctrlKey||event.metaKey)){if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();return;}event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(state.zoom+(event.deltaY<0?.1:-.1),{x:event.clientX-rect.left,y:event.clientY-rect.top});},{passive:false});viewport.addEventListener('gesturestart',beginNativeGesture,{passive:false});viewport.addEventListener('gesturechange',updateNativeGesture,{passive:false});viewport.addEventListener('gestureend',endNativeGesture,{passive:false});
@@ -2660,7 +2823,7 @@
   }
 
   async function initialize() {
-    try{state.hintsHidden=localStorage.getItem(HINT_VISIBILITY_KEY)==='1';}catch(error){}
+    try{state.hintsHidden=localStorage.getItem(HINT_VISIBILITY_KEY)==='1';const storedGrid=localStorage.getItem(GRID_MARKING_KEY);if(['4','5','none'].includes(storedGrid))state.gridMarking=storedGrid;}catch(error){}
     bindUi();
     setHintsHidden(state.hintsHidden,{persist:false});
     setPlayInFlight(false);
@@ -2671,6 +2834,7 @@
     try {
       state.db = await openDatabase();
       const mirrorRecoveryCount = await recoverLibraryMirror();
+      const campaignArchiveCount=(await migrateCampaignLayout())+(state.mirrorLegacyArchivedCount||0);
       await importLegacyDraftOnce();
       const returnContext = readPlaytestReturnContext();
       const emergencyTarget = readEmergencyDraftTarget();
@@ -2703,7 +2867,7 @@
       if(campaignKeysToEnsure.size){
         const veil=$('editorLoadingVeil'),sequences=[...campaignKeysToEnsure].map(campaignSequenceFromKey).join(', ');
         if(veil?.querySelector('b'))veil.querySelector('b').textContent=`Загружаю карту ${sequences}…`;
-        await Promise.all([...campaignKeysToEnsure].map(candidate=>ensureCampaignSlot(candidate)));
+        await Promise.all([...campaignKeysToEnsure].map(candidate=>ensureCampaignSlot(candidate,{preferredDifficulty:candidate===emergencyTarget?.slotKey?emergencyTarget.difficulty:difficulty,fast:candidate!==emergencyTarget?.slotKey})));
       }
       const recovery = await recoverEmergencyDraft();
       if (recovery) {
@@ -2711,7 +2875,7 @@
         difficulty = recovery.difficulty;
       }
       await refreshUserSlots();
-      await loadSlot(key, difficulty);
+      await loadSlot(key, difficulty, { skipCampaignEnsure: campaignKeysToEnsure.size > 0 });
       seedCampaignInBackground();
       await requestStoragePersistence();
       scheduleLibraryMirror();
@@ -2719,7 +2883,8 @@
       clearPlaytestReturnContext(returnContext);
       updatePlayAvailability(validateLevel(false));
       requestAnimationFrame(() => requestAnimationFrame(() => { if (!restoreEditorView(view)) fitLevel(); }));
-      if(recovery)toast('Аварийная копия черновика восстановлена.','ok');
+      if(campaignArchiveCount)toast(`Прежние карты эпизода сохранены в архиве (${campaignArchiveCount}). Архив можно скачать в библиотеке.`,'ok');
+      else if(recovery)toast('Аварийная копия черновика восстановлена.','ok');
       else if(mirrorRecoveryCount)toast(`Из зеркальной копии восстановлено наборов: ${mirrorRecoveryCount}.`,'ok');
       else if(state.campaignSeedStatus==='complete')toast('Библиотека готова: 24 карты × 3 сложности.','ok');
       if(returnContext?.warning)toast(returnContext.warning,returnContext.recoveredFrom==='url'?'ok':'error');
