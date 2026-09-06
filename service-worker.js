@@ -1,7 +1,7 @@
 const PRECACHE_ENTRIES = [
   {
     "url": "./build-manifest.json",
-    "revision": "32f5880874cabaf1"
+    "revision": "6dba81ba203d50f4"
   },
   {
     "url": "./campaign/ep1/ep1-01-easy.level.json",
@@ -581,11 +581,11 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/editor.js",
-    "revision": "3714834b7baaaa8b"
+    "revision": "cb4a225c6a42decb"
   },
   {
     "url": "./editor/index.html",
-    "revision": "40c0eea627e7b12a"
+    "revision": "0d456d2024d9b99f"
   },
   {
     "url": "./editor/nubu-level.schema.json",
@@ -635,7 +635,7 @@ const SCOPE_KEY = SCOPE_URL.pathname
   .replace(/^\/+|\/+$/g, '')
   .replace(/[^a-z0-9_-]+/gi, '-') || 'root';
 const CACHE_PREFIX = `nubu2600-app-${SCOPE_KEY}-`;
-const CACHE_NAME = `${CACHE_PREFIX}adda8874daedf041`;
+const CACHE_NAME = `${CACHE_PREFIX}476832c0a85f5de6`;
 const ROOT_DOCUMENT_URL = new URL('index.html', SCOPE_URL).href;
 const EDITOR_DOCUMENT_URL = new URL('editor/index.html', SCOPE_URL).href;
 const PRECACHE_URLS = new Set(PRECACHE_ENTRIES.map(entry => new URL(entry.url, SCOPE_URL).href));
