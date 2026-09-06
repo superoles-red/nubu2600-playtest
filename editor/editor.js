@@ -18,9 +18,8 @@
   const GEOMETRY_EPSILON = 1e-8;
   const MOBILE_PLAYER_BREAKPOINT = 1024;
   const GRID_STEP = 1;
-  // Route subdivision may use the runtime/schema half-cell precision while
-  // ordinary object placement and manual route dragging keep their full cells.
-  const TRAM_ROUTE_GRID_STEP = 0.5;
+  // Tram route nodes and potential handles are authored on whole cells.
+  const TRAM_ROUTE_GRID_STEP = 1;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
   const RESULT_KEY = 'nubu2600.editor.playtest.result.v1';
   const PLAYTEST_RETURN_PARAM = 'playtestReturn';
@@ -1518,7 +1517,7 @@
 
   function tramPathIssue(object,path,level=state.level) {
     if(!Array.isArray(path)||path.length<2)return'У трамвая должно быть хотя бы два узла.';
-    for(const point of path)if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';
+    for(const point of path){if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';if(Math.abs(point.x-Math.round(point.x))>GEOMETRY_EPSILON||Math.abs(point.y-Math.round(point.y))>GEOMETRY_EPSILON)return'Каждый настоящий узел трамвая должен стоять на целой клетке.';}
     if(!pathInsideLevelShape(level,object,path))return'Маршрут трамвая проходит через отсутствующую панель.';
     for(let first=0;first<path.length;first++)for(let second=first+1;second<path.length;second++)if(Math.hypot(path[first].x-path[second].x,path[first].y-path[second].y)<TRAM_MIN_NODE_DISTANCE-.001)return`Между любыми узлами трамвая должно оставаться минимум ${TRAM_MIN_NODE_DISTANCE} клетки.`;
     const closed=[...path,path[0]],segments=[];for(let index=1;index<closed.length;index++)segments.push([closed[index-1],closed[index]]);
@@ -1526,15 +1525,43 @@
     return'';
   }
 
+  function tramStableHandleSeed(a,b,slot){
+    let hash=2166136261;
+    for(const value of [a.x,a.y,b.x,b.y,slot]){hash=Math.imul(hash^Math.round(Number(value)*1000),16777619);}
+    return hash>>>0;
+  }
+
+  function tramWholeCellPoint(a,b,progress,seed){
+    const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy),idealDistance=length*progress;
+    const ideal={x:a.x+dx*progress,y:a.y+dy*progress};
+    const xValues=[Math.floor(ideal.x),Math.ceil(ideal.x)],yValues=[Math.floor(ideal.y),Math.ceil(ideal.y)],candidates=[];
+    for(const x of xValues)for(const y of yValues){
+      if(!Number.isFinite(x)||!Number.isFinite(y)||candidates.some(point=>point.x===x&&point.y===y))continue;
+      const projection=((x-a.x)*dx+(y-a.y)*dy)/(length*length);
+      if(projection<-GEOMETRY_EPSILON||projection>1+GEOMETRY_EPSILON)continue;
+      const along=projection*length,lineDistance=Math.abs(dx*(y-a.y)-dy*(x-a.x))/length;
+      candidates.push({x,y,along,lineDistance,score:lineDistance*1000+Math.abs(along-idealDistance)});
+    }
+    if(!candidates.length)return{x:Math.round(ideal.x),y:Math.round(ideal.y)};
+    const bestScore=Math.min(...candidates.map(candidate=>candidate.score)),best=candidates.filter(candidate=>Math.abs(candidate.score-bestScore)<1e-8);
+    return{...best[(seed>>>0)%best.length]};
+  }
+
   function tramInsertionPoints(object,path=object?.props?.path,level=state.level) {
     if(object?.type!=='smartPlatform'||!Array.isArray(path)||path.length<2)return[];
-    // These are handles for starting a drag, not already valid authored nodes.
-    // Even a short/blocked segment has its exact midpoint; only release commits.
+    // These are potential handles, not authored nodes. A segment shorter than
+    // three cells has no handle; longer segments receive floor(length / 3)
+    // evenly spaced whole-cell candidates. Exact half-cell ties are stable per
+    // segment so redraws never make a handle jump between neighbouring cells.
     const handles=[],segmentCount=path.length;
-    for(let index=0;index<segmentCount;index++){
-      const a=path[index],b=path[(index+1)%path.length],length=Math.hypot(b.x-a.x,b.y-a.y);
-      if(!Number.isFinite(length)||length<=1e-8)continue;
-      handles.push({index:index+1,point:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},distanceAlong:length/2});
+    for(let segmentIndex=0;segmentIndex<segmentCount;segmentIndex++){
+      const a=path[segmentIndex],b=path[(segmentIndex+1)%path.length],length=Math.hypot(b.x-a.x,b.y-a.y);
+      if(!Number.isFinite(length)||length<TRAM_MIN_NODE_DISTANCE-GEOMETRY_EPSILON)continue;
+      const count=Math.floor((length+GEOMETRY_EPSILON)/TRAM_MIN_NODE_DISTANCE);
+      for(let slot=1;slot<=count;slot++){
+        const progress=slot/(count+1),point=tramWholeCellPoint(a,b,progress,tramStableHandleSeed(a,b,slot));
+        handles.push({index:Math.min(path.length,segmentIndex+slot),segmentIndex,slot,count,point,distanceAlong:length*progress});
+      }
     }
     return handles;
   }
