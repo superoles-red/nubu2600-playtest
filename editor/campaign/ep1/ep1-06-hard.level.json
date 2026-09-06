@@ -63,12 +63,12 @@
       "x": 12,
       "y": 4,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -117,12 +117,12 @@
       "x": 8,
       "y": 11,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -161,12 +161,12 @@
       "x": 0,
       "y": 16,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -205,12 +205,12 @@
       "x": 16,
       "y": 20,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -249,12 +249,12 @@
       "x": 0,
       "y": 24,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -263,12 +263,12 @@
       "x": 10,
       "y": 24,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -380,12 +380,12 @@
       "x": 8,
       "y": 44,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -414,12 +414,12 @@
       "x": 4,
       "y": 52,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -428,12 +428,12 @@
       "x": 12,
       "y": 52,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -488,12 +488,12 @@
       "x": 8,
       "y": 60,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -562,12 +562,12 @@
       "x": 0,
       "y": 72,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -576,12 +576,12 @@
       "x": 16,
       "y": 72,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -610,12 +610,12 @@
       "x": 0,
       "y": 76,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -624,26 +624,27 @@
       "x": 16,
       "y": 76,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
       "id": "spike-01",
       "type": "spike",
       "x": 0,
-      "y": 79.5,
+      "y": 79,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "up",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {
@@ -660,14 +661,15 @@
       "id": "spike-02",
       "type": "spike",
       "x": 16,
-      "y": 79.5,
+      "y": 79,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "up",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {
@@ -686,12 +688,12 @@
       "x": 8,
       "y": 80,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -720,12 +722,12 @@
       "x": 5,
       "y": 84,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -744,12 +746,12 @@
       "x": 9,
       "y": 88,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -791,12 +793,12 @@
       "x": 9,
       "y": 94,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {

@@ -110,14 +110,15 @@
       "id": "spike-01",
       "type": "spike",
       "x": 12,
-      "y": 14.5,
+      "y": 14,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "up",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {

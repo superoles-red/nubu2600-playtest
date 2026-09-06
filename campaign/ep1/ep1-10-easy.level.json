@@ -27,7 +27,7 @@
     {
       "id": "spawn-01",
       "type": "spawn",
-      "x": 2,
+      "x": 1,
       "y": 50,
       "w": 3,
       "h": 3,
@@ -102,9 +102,9 @@
     {
       "id": "door-01",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 53,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -190,9 +190,9 @@
     {
       "id": "door-02",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 47,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -213,9 +213,9 @@
     {
       "id": "door-03",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 41,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -226,9 +226,9 @@
     {
       "id": "door-04",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 35,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -239,9 +239,9 @@
     {
       "id": "door-05",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 29,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -252,9 +252,9 @@
     {
       "id": "door-06",
       "type": "door",
-      "x": 1,
+      "x": 0,
       "y": 23,
-      "w": 3,
+      "w": 5,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -266,14 +266,13 @@
       "id": "door-07",
       "type": "door",
       "x": 5,
-      "y": 50,
+      "y": 48,
       "w": 1,
-      "h": 3,
+      "h": 5,
       "layer": "gameplay",
       "props": {
         "orientation": "vertical",
-        "open": false,
-        "enabled": false
+        "open": true
       }
     },
     {
@@ -309,9 +308,9 @@
     {
       "id": "door-09",
       "type": "door",
-      "x": 17,
+      "x": 16,
       "y": 35,
-      "w": 3,
+      "w": 4,
       "h": 1,
       "layer": "gameplay",
       "props": {
@@ -382,9 +381,9 @@
     {
       "id": "label-01",
       "type": "label",
-      "x": 10,
-      "y": 40,
-      "w": 4,
+      "x": 9,
+      "y": 37,
+      "w": 6,
       "h": 2,
       "layer": "decor",
       "props": {
@@ -405,22 +404,6 @@
       "h": 1,
       "layer": "terrain",
       "props": {}
-    },
-    {
-      "id": "label-02",
-      "type": "label",
-      "x": 12,
-      "y": 22,
-      "w": 8,
-      "h": 2,
-      "layer": "decor",
-      "props": {
-        "mode": "player",
-        "text": "Автор",
-        "color": "#d8e2ff",
-        "decorative": true,
-        "marquee": true
-      }
     },
     {
       "id": "coin-01",
@@ -545,7 +528,7 @@
     {
       "id": "coin-15",
       "type": "coin",
-      "x": 14,
+      "x": 12,
       "y": 24,
       "w": 1,
       "h": 1,
@@ -565,7 +548,7 @@
     {
       "id": "coin-17",
       "type": "coin",
-      "x": 18,
+      "x": 17,
       "y": 24,
       "w": 1,
       "h": 1,

@@ -116,12 +116,12 @@
       "x": 8,
       "y": 68,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -160,12 +160,12 @@
       "x": 5,
       "y": 41,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -192,14 +192,15 @@
       "id": "spike-01",
       "type": "spike",
       "x": 7,
-      "y": 58.5,
+      "y": 58,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "up",
         "mode": "cycle",
         "cycle": 2,
+        "startActive": true,
         "phase": 0.8
       }
     }

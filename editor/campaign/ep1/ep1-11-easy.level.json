@@ -167,9 +167,9 @@
       "id": "door-01",
       "type": "door",
       "x": 5,
-      "y": 13,
+      "y": 12,
       "w": 1,
-      "h": 3,
+      "h": 4,
       "layer": "gameplay",
       "props": {
         "orientation": "vertical",

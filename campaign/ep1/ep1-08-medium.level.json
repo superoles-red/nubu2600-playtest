@@ -62,12 +62,12 @@
       "x": 9,
       "y": 4,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -106,12 +106,12 @@
       "x": 5,
       "y": 8,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -150,12 +150,12 @@
       "x": 1,
       "y": 12,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -413,12 +413,12 @@
       "x": 1,
       "y": 32,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {
@@ -457,12 +457,12 @@
       "x": 5,
       "y": 36,
       "w": 2,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.5,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {

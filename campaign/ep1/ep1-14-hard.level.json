@@ -96,12 +96,12 @@
       "x": 13,
       "y": 12,
       "w": 6,
-      "h": 0.5,
+      "h": 1,
       "layer": "gameplay",
       "props": {
+        "speed": "slow",
         "triggerDelay": 0.45,
-        "respawnDelay": 2,
-        "speed": "slow"
+        "respawnDelay": 2
       }
     },
     {

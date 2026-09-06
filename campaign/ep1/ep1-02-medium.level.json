@@ -262,12 +262,13 @@
       "x": 8,
       "y": 34,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "down",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {
@@ -336,12 +337,13 @@
       "x": 2,
       "y": 41,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "down",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {
@@ -360,12 +362,13 @@
       "x": 14,
       "y": 41,
       "w": 4,
-      "h": 0.5,
+      "h": 1,
       "layer": "hazard",
       "props": {
         "direction": "down",
         "mode": "always",
-        "cycle": 2
+        "cycle": 2,
+        "startActive": true
       }
     },
     {
