@@ -52,6 +52,7 @@
   const LINK_ENDPOINT_OFFSET = 19;
   const LINK_SOCKET_GAP = 34;
   const TRAM_MIN_NODE_DISTANCE = 3;
+  const TRAM_HANDLE_SPACING = 4;
   const TRAM_BEND_COLOR = '#67d7ff';
   const TRAM_INSERTION_COLOR = '#ffd56b';
   const INVALID_PREVIEW_COLOR = '#ff3348';
@@ -1521,7 +1522,15 @@
     if(!pathInsideLevelShape(level,object,path))return'Маршрут трамвая проходит через отсутствующую панель.';
     for(let first=0;first<path.length;first++)for(let second=first+1;second<path.length;second++)if(Math.hypot(path[first].x-path[second].x,path[first].y-path[second].y)<TRAM_MIN_NODE_DISTANCE-.001)return`Между любыми узлами трамвая должно оставаться минимум ${TRAM_MIN_NODE_DISTANCE} клетки.`;
     const closed=[...path,path[0]],segments=[];for(let index=1;index<closed.length;index++)segments.push([closed[index-1],closed[index]]);
-    for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++)if(tramSegmentsOverlap(...segments[first],...segments[second]))return'Маршрут трамвая не может накладываться сам на себя; пересечение поперёк разрешено.';
+    for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++){
+      if(!tramSegmentsIntersect(...segments[first],...segments[second]))continue;
+      const adjacent=second===first+1||(first===0&&second===segments.length-1);
+      if(adjacent){
+        const shared=second===first+1?segments[first][1]:segments[first][0];
+        if(tramSegmentsShareOnlyEndpoint(...segments[first],...segments[second],shared))continue;
+      }
+      return'Маршрут трамвая не может пересекать сам себя.';
+    }
     return'';
   }
 
@@ -1534,15 +1543,28 @@
   function tramWholeCellPoint(a,b,progress,seed){
     const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy),idealDistance=length*progress;
     const ideal={x:a.x+dx*progress,y:a.y+dy*progress};
-    const xValues=[Math.floor(ideal.x),Math.ceil(ideal.x)],yValues=[Math.floor(ideal.y),Math.ceil(ideal.y)],candidates=[];
-    for(const x of xValues)for(const y of yValues){
+    const candidates=[];
+    const minX=Math.floor(Math.min(a.x,b.x))-2,maxX=Math.ceil(Math.max(a.x,b.x))+2;
+    const minY=Math.floor(Math.min(a.y,b.y))-2,maxY=Math.ceil(Math.max(a.y,b.y))+2;
+    for(let x=minX;x<=maxX;x++)for(let y=minY;y<=maxY;y++){
       if(!Number.isFinite(x)||!Number.isFinite(y)||candidates.some(point=>point.x===x&&point.y===y))continue;
       const projection=((x-a.x)*dx+(y-a.y)*dy)/(length*length);
       if(projection<-GEOMETRY_EPSILON||projection>1+GEOMETRY_EPSILON)continue;
+      if(projection<=GEOMETRY_EPSILON||projection>=1-GEOMETRY_EPSILON)continue;
       const along=projection*length,lineDistance=Math.abs(dx*(y-a.y)-dy*(x-a.x))/length;
       candidates.push({x,y,along,lineDistance,score:lineDistance*1000+Math.abs(along-idealDistance)});
     }
-    if(!candidates.length)return{x:Math.round(ideal.x),y:Math.round(ideal.y)};
+    if(!candidates.length){
+      const fallback=[];
+      for(let x=minX;x<=maxX;x++)for(let y=minY;y<=maxY;y++){
+        const projection=((x-a.x)*dx+(y-a.y)*dy)/(length*length);
+        if(projection<-GEOMETRY_EPSILON||projection>1+GEOMETRY_EPSILON)continue;
+        const along=projection*length,lineDistance=Math.abs(dx*(y-a.y)-dy*(x-a.x))/length;
+        fallback.push({x,y,along,lineDistance,score:lineDistance*1000+Math.abs(along-idealDistance)});
+      }
+      candidates.push(...fallback);
+    }
+    if(!candidates.length)return{x:Math.round(a.x),y:Math.round(a.y)};
     const bestScore=Math.min(...candidates.map(candidate=>candidate.score)),best=candidates.filter(candidate=>Math.abs(candidate.score-bestScore)<1e-8);
     return{...best[(seed>>>0)%best.length]};
   }
@@ -1550,14 +1572,14 @@
   function tramInsertionPoints(object,path=object?.props?.path,level=state.level) {
     if(object?.type!=='smartPlatform'||!Array.isArray(path)||path.length<2)return[];
     // These are potential handles, not authored nodes. A segment shorter than
-    // three cells has no handle; longer segments receive floor(length / 3)
+    // four cells has no handle; longer segments receive floor(length / 4)
     // evenly spaced whole-cell candidates. Exact half-cell ties are stable per
     // segment so redraws never make a handle jump between neighbouring cells.
     const handles=[],segmentCount=path.length;
     for(let segmentIndex=0;segmentIndex<segmentCount;segmentIndex++){
       const a=path[segmentIndex],b=path[(segmentIndex+1)%path.length],length=Math.hypot(b.x-a.x,b.y-a.y);
-      if(!Number.isFinite(length)||length<TRAM_MIN_NODE_DISTANCE-GEOMETRY_EPSILON)continue;
-      const count=Math.floor((length+GEOMETRY_EPSILON)/TRAM_MIN_NODE_DISTANCE);
+      if(!Number.isFinite(length)||length<TRAM_HANDLE_SPACING-GEOMETRY_EPSILON)continue;
+      const count=Math.floor((length+GEOMETRY_EPSILON)/TRAM_HANDLE_SPACING);
       for(let slot=1;slot<=count;slot++){
         const progress=slot/(count+1),point=tramWholeCellPoint(a,b,progress,tramStableHandleSeed(a,b,slot));
         handles.push({index:Math.min(path.length,segmentIndex+slot),segmentIndex,slot,count,point,distanceAlong:length*progress});
@@ -1630,7 +1652,21 @@
     return object.props.path;
   }
 
-  function tramSegmentsOverlap(a,b,c,d){const abx=b.x-a.x,aby=b.y-a.y,acx=c.x-a.x,acy=c.y-a.y,adx=d.x-a.x,ady=d.y-a.y;if(Math.abs(abx*acy-aby*acx)>.001||Math.abs(abx*ady-aby*adx)>.001)return false;const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);return Math.min(first[1],second[1])-Math.max(first[0],second[0])>.001;}
+  function tramCross(a,b,c){return(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
+  function tramPointOnSegment(point,a,b){return Math.abs(tramCross(a,b,point))<=GEOMETRY_EPSILON&&point.x>=Math.min(a.x,b.x)-GEOMETRY_EPSILON&&point.x<=Math.max(a.x,b.x)+GEOMETRY_EPSILON&&point.y>=Math.min(a.y,b.y)-GEOMETRY_EPSILON&&point.y<=Math.max(a.y,b.y)+GEOMETRY_EPSILON;}
+  function tramSegmentsIntersect(a,b,c,d){
+    const abC=tramCross(a,b,c),abD=tramCross(a,b,d),cdA=tramCross(c,d,a),cdB=tramCross(c,d,b);
+    if(((abC>GEOMETRY_EPSILON&&abD< -GEOMETRY_EPSILON)||(abC< -GEOMETRY_EPSILON&&abD>GEOMETRY_EPSILON))&&((cdA>GEOMETRY_EPSILON&&cdB< -GEOMETRY_EPSILON)||(cdA< -GEOMETRY_EPSILON&&cdB>GEOMETRY_EPSILON)))return true;
+    return (Math.abs(abC)<=GEOMETRY_EPSILON&&tramPointOnSegment(c,a,b))||(Math.abs(abD)<=GEOMETRY_EPSILON&&tramPointOnSegment(d,a,b))||(Math.abs(cdA)<=GEOMETRY_EPSILON&&tramPointOnSegment(a,c,d))||(Math.abs(cdB)<=GEOMETRY_EPSILON&&tramPointOnSegment(b,c,d));
+  }
+  function tramSegmentsShareOnlyEndpoint(a,b,c,d,shared){
+    const abx=b.x-a.x,aby=b.y-a.y;
+    if(Math.abs(tramCross(a,b,c))<=GEOMETRY_EPSILON&&Math.abs(tramCross(a,b,d))<=GEOMETRY_EPSILON){
+      const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);
+      return Math.min(first[1],second[1])-Math.max(first[0],second[0])<=GEOMETRY_EPSILON;
+    }
+    return tramPointOnSegment(shared,a,b)&&tramPointOnSegment(shared,c,d);
+  }
 
   function runtimeTramPath(object,points=object?.props?.path){const route=Array.isArray(points)?points.map(point=>({x:Number(point.x),y:Number(point.y)})):[];return object?.props?.clockwise===false&&route.length>2?[route[0],...route.slice(1).reverse()]:route;}
   function tramRuntimeInstances(object,points=object?.props?.path){const route=runtimeTramPath(object,points);if(!route.length)return[];const loop=object?.props?.loop!==false,segmentCount=loop?route.length:Math.max(0,route.length-1),segments=[];let routeLength=0;for(let index=0;index<segmentCount;index++){const from=route[index],to=route[(index+1)%route.length],length=Math.hypot(to.x-from.x,to.y-from.y);segments.push({from,to,length});routeLength+=length;}const spacing=Math.max(0,Number(object?.props?.spacingCells)||0),count=loop&&spacing>0?Math.max(1,Math.round(routeLength/spacing)):1;return Array.from({length:count},(_,index)=>{let remaining=count===1?0:routeLength*index/count;for(let segmentIndex=0;segmentIndex<segments.length;segmentIndex++){const segment=segments[segmentIndex],length=segment.length||1;if(remaining<=length||segmentIndex===segments.length-1){const progress=clamp(remaining/length,0,1);return{index,count,distance:count===1?0:routeLength*index/count,x:segment.from.x+(segment.to.x-segment.from.x)*progress,y:segment.from.y+(segment.to.y-segment.from.y)*progress};}remaining-=length;}return{index,count,distance:0,x:route[0].x,y:route[0].y};});}

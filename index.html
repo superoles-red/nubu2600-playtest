@@ -612,8 +612,11 @@ loadPersistentProgress();
 
 function resize() {
   const vv = window.visualViewport;
-  const width = Math.round(vv ? vv.width : window.innerWidth);
-  const height = Math.round(vv ? vv.height : window.innerHeight);
+  const rawWidth = vv ? vv.width : window.innerWidth;
+  const rawHeight = vv ? vv.height : window.innerHeight;
+  if (!Number.isFinite(rawWidth) || !Number.isFinite(rawHeight) || rawWidth <= 0 || rawHeight <= 0) return;
+  const width = Math.round(rawWidth);
+  const height = Math.round(rawHeight);
   const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
   const backingWidth = Math.round(width * dpr), backingHeight = Math.round(height * dpr);
   // Mobile browsers also notify viewport scrolling without changing its size.
@@ -636,7 +639,10 @@ window.addEventListener('resize', resize, { passive: true });
 window.addEventListener('orientationchange', resize, { passive: true });
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', resize, { passive: true });
-  window.visualViewport.addEventListener('scroll', resize, { passive: true });
+  // Scrolling the visual viewport does not change the canvas geometry. Calling
+  // resize here can recreate the backing store in the middle of a jump and
+  // make the camera appear to jerk while the player is moving sideways.
+  window.visualViewport.addEventListener('scroll', () => {}, { passive: true });
 }
 resize();
 
