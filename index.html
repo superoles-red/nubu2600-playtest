@@ -24,7 +24,7 @@
   body{user-select:none;-webkit-user-select:none}
   #app{position:fixed;inset:0;opacity:1;will-change:opacity;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
   #app.runtime-surface-leaving,#app.runtime-surface-entering{opacity:0;pointer-events:none}
-  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#081428}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#081428;touch-action:none}
   .hud{position:fixed;inset:0;pointer-events:none;z-index:10}
   .hud-top{position:absolute;left:max(10px, env(safe-area-inset-left));right:max(10px, env(safe-area-inset-right));top:max(10px, env(safe-area-inset-top));display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
   .hud-card{background:rgba(8,14,28,.39);border:1px solid var(--line);border-radius:16px;padding:10px 12px;backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.24)}
@@ -123,7 +123,13 @@
   .editor-playtest-bar span{display:none}
   .editor-playtest-bar button{min-width:0;min-height:44px;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:7px 5px;background:#24324d;color:#fff;font:800 clamp(10px,2.9vw,14px)/1 system-ui;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   body.editor-playtest .hud-card,body.editor-playtest #menuBtn{display:none}
-  html,body,#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+  html,body,#app{overscroll-behavior:none}
+  /* Apply to controls and their text as well: mobile native-control styles can
+     override a body-only selection rule and expose the long-press magnifier. */
+  *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  input,textarea,[contenteditable="true"],[contenteditable="true"] *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+  :where(button,label,a,[role="button"],input,textarea,select){touch-action:manipulation}
+  .panel{touch-action:pan-y;overscroll-behavior:contain}
   img,canvas{-webkit-user-drag:none}
   .editor-shell{position:fixed;z-index:200;inset:0;opacity:1;background:#07100d;will-change:opacity;transition:opacity .18s cubic-bezier(.2,.75,.25,1)}
   .editor-shell.editor-surface-entering,.editor-shell.editor-surface-leaving{opacity:0;pointer-events:none}
@@ -13337,7 +13343,9 @@ function updateCamera() {
   cam.targetX = targetX;
   cam.targetY = targetY;
 
-  const followSpeed = 0.12;
+  // Keep the original 60 Hz camera response at every display refresh rate.
+  const renderDt = Number.isFinite(state.renderDt) ? Math.max(0, state.renderDt) : 1 / 60;
+  const followSpeed = 1 - Math.pow(1 - 0.12, renderDt * 60);
   cam.x += (targetX - cam.x) * followSpeed;
   cam.y += (targetY - cam.y) * followSpeed;
 
@@ -13351,7 +13359,12 @@ function updateCamera() {
 }
 function worldToScreen(x, y) {
   const cam = state.cam;
-  return { x: cam.screenX + ((x - VIEW_OFFSET) - cam.x) * cam.scale, y: cam.screenY + ((y - VIEW_OFFSET) - cam.y) * cam.scale };
+  // During world drawing, pixel rounding uses one shared camera origin.
+  // The canvas applies its fractional remainder to every object together.
+  return {
+    x: cam.screenX + (x - VIEW_OFFSET) * cam.scale - (cam.x * cam.scale + (cam.drawTranslateX || 0)),
+    y: cam.screenY + (y - VIEW_OFFSET) * cam.scale - (cam.y * cam.scale + (cam.drawTranslateY || 0)),
+  };
 }
 function updateRulersOverlay() {
   if (!hasGridEnabled()) {
@@ -13383,9 +13396,13 @@ function updateRulersOverlay() {
 }
 
 function drawBackgroundAndGrid() {
-  ctx.clearRect(0, 0, state.width, state.height);
-  ctx.fillStyle = '#060c1b'; ctx.fillRect(0, 0, state.width, state.height);
   const cam = state.cam, room = state.room, displayBounds = getDisplayBounds(room), freeBounds = getFreeBounds(room);
+  // Cancel the shared world translation for the viewport itself, including
+  // clearing and clipping, so camera subpixels cannot leave an edge seam.
+  const viewportX = -(cam.drawTranslateX || 0), viewportY = -(cam.drawTranslateY || 0);
+  const viewportRight = viewportX + state.width, viewportBottom = viewportY + state.height;
+  ctx.clearRect(viewportX, viewportY, state.width, state.height);
+  ctx.fillStyle = '#060c1b'; ctx.fillRect(viewportX, viewportY, state.width, state.height);
   const viewMinX = Math.floor(cam.x / CELL) * CELL;
   const viewMaxX = Math.ceil((cam.x + cam.drawW) / CELL) * CELL;
   const viewMinY = Math.floor(cam.y / CELL) * CELL;
@@ -13399,14 +13416,14 @@ function drawBackgroundAndGrid() {
   const roomRight = worldToScreen(freeBounds.maxX, freeBounds.minY).x;
   const roomBottom = worldToScreen(freeBounds.minX, freeBounds.maxY).y;
 
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, state.width, state.height); ctx.clip();
-  ctx.fillStyle = 'rgba(255,255,255,0.018)'; ctx.fillRect(0, 0, state.width, state.height);
+  ctx.save(); ctx.beginPath(); ctx.rect(viewportX, viewportY, state.width, state.height); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.018)'; ctx.fillRect(viewportX, viewportY, state.width, state.height);
   const wideExtra = Math.max(0, state.width - (roomRight - roomLeft));
   const tallExtra = Math.max(0, state.height - (roomBottom - roomTop));
-  const softDisplayLeft = wideExtra > 24 ? 0 : displayLeft;
-  const softDisplayRight = wideExtra > 24 ? state.width : displayRight;
-  const softDisplayTop = tallExtra > 24 ? 0 : displayTop;
-  const softDisplayBottom = tallExtra > 24 ? state.height : displayBottom;
+  const softDisplayLeft = wideExtra > 24 ? viewportX : displayLeft;
+  const softDisplayRight = wideExtra > 24 ? viewportRight : displayRight;
+  const softDisplayTop = tallExtra > 24 ? viewportY : displayTop;
+  const softDisplayBottom = tallExtra > 24 ? viewportBottom : displayBottom;
   ctx.fillStyle = 'rgba(255,255,255,0.022)'; ctx.fillRect(softDisplayLeft, softDisplayTop, softDisplayRight - softDisplayLeft, softDisplayBottom - softDisplayTop);
   ctx.fillStyle = 'rgba(255,255,255,0.028)'; ctx.fillRect(roomLeft, roomTop, roomRight - roomLeft, roomBottom - roomTop);
   if (hasGridEnabled()) {
@@ -13414,17 +13431,17 @@ function drawBackgroundAndGrid() {
       const sx = worldToScreen(x, 0).x;
       const major = (Math.round(x / CELL) % MAJOR) === 0;
       ctx.strokeStyle = major ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = major ? 1.05 : 1; ctx.beginPath(); ctx.moveTo(Math.round(sx) + .5, 0); ctx.lineTo(Math.round(sx) + .5, state.height); ctx.stroke();
+      ctx.lineWidth = major ? 1.05 : 1; ctx.beginPath(); ctx.moveTo(Math.round(sx) + .5, viewportY); ctx.lineTo(Math.round(sx) + .5, viewportBottom); ctx.stroke();
     }
     for (let y = viewMinY; y <= viewMaxY; y += CELL) {
       const sy = worldToScreen(0, y).y;
       const major = (Math.round(y / CELL) % MAJOR) === 0;
       ctx.strokeStyle = major ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = major ? 1.05 : 1; ctx.beginPath(); ctx.moveTo(0, Math.round(sy) + .5); ctx.lineTo(state.width, Math.round(sy) + .5); ctx.stroke();
+      ctx.lineWidth = major ? 1.05 : 1; ctx.beginPath(); ctx.moveTo(viewportX, Math.round(sy) + .5); ctx.lineTo(viewportRight, Math.round(sy) + .5); ctx.stroke();
     }
     const roomStrokeAlpha = (state.width - (roomRight - roomLeft) > 24 || state.height - (roomBottom - roomTop) > 24) ? 0.26 : 0.48;
     ctx.strokeStyle = `rgba(255,255,255,${roomStrokeAlpha})`; ctx.lineWidth = 1.25; ctx.strokeRect(Math.round(roomLeft) + .5, Math.round(roomTop) + .5, Math.round(roomRight - roomLeft), Math.round(roomBottom - roomTop));
-    if (softDisplayLeft !== 0 || softDisplayRight !== state.width || softDisplayTop !== 0 || softDisplayBottom !== state.height) {
+    if (softDisplayLeft !== viewportX || softDisplayRight !== viewportRight || softDisplayTop !== viewportY || softDisplayBottom !== viewportBottom) {
       ctx.strokeStyle = 'rgba(132,223,255,0.16)'; ctx.lineWidth = 1; ctx.strokeRect(Math.round(displayLeft) + .5, Math.round(displayTop) + .5, Math.round(displayRight - displayLeft), Math.round(displayBottom - displayTop));
     }
   }
@@ -14642,30 +14659,43 @@ function drawMessages() {
     ctx.fillStyle = m.color; ctx.font = '12px system-ui'; ctx.fillText(m.text, 20, y); y += 20;
   }
 }
-function render() {
+function render(alpha=1) {
   if (!state.room || !state.player) { if (ui.rulersOverlay) ui.rulersOverlay.classList.add('hidden'); ui.rulerTop.innerHTML=''; ui.rulerLeft.innerHTML=''; return; }
-  updateCamera();
-  drawBackgroundAndGrid();
-  drawLabels();
-  drawTiles();
-  drawDriftFields();
-  drawPlatforms();
-  drawCannons();
-  drawSpawners();
-  drawHeartVendors();
-  for (const d of state.room.doors) drawDoor(d);
-  drawSpikes();
-  drawCoins();
-  drawPickups();
-  drawCollections();
-  drawLevelDoors();
-  drawExitAndSpawn();
-  drawEnemies();
-  drawPlayer();
-  drawPortals();
-  drawCrusherWalls();
+  withInterpolatedWorld(alpha, () => {
+    updateCamera();
+    const cam = state.cam;
+    cam.drawTranslateX = Math.round(cam.x * cam.scale) - cam.x * cam.scale;
+    cam.drawTranslateY = Math.round(cam.y * cam.scale) - cam.y * cam.scale;
+    ctx.save();
+    ctx.translate(cam.drawTranslateX, cam.drawTranslateY);
+    try {
+      drawBackgroundAndGrid();
+      drawLabels();
+      drawTiles();
+      drawDriftFields();
+      drawPlatforms();
+      drawCannons();
+      drawSpawners();
+      drawHeartVendors();
+      for (const d of state.room.doors) drawDoor(d);
+      drawSpikes();
+      drawCoins();
+      drawPickups();
+      drawCollections();
+      drawLevelDoors();
+      drawExitAndSpawn();
+      drawEnemies();
+      drawPlayer();
+      drawPortals();
+      drawCrusherWalls();
+      drawCollisionDebugOverlay();
+    } finally {
+      ctx.restore();
+      cam.drawTranslateX = 0;
+      cam.drawTranslateY = 0;
+    }
+  });
   drawMessages();
-  drawCollisionDebugOverlay();
   updateRulersOverlay();
 }
 
@@ -15076,41 +15106,112 @@ window.addEventListener('message', event => {
   }
   if (event.data.type === 'nubu:close-editor' && (event.source === editorFrame?.contentWindow || event.source === playFrame?.contentWindow)) closeEmbeddedEditor();
 });
-document.addEventListener('contextmenu',event=>event.preventDefault());
-document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
+const editableTouchTarget = target => target?.closest?.('input,textarea,[contenteditable="true"]');
+document.addEventListener('contextmenu',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
+document.addEventListener('selectstart',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
+document.addEventListener('dblclick',event=>{if(!editableTouchTarget(event.target))event.preventDefault();},{passive:false});
 for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
-document.addEventListener('touchstart', event => {const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"]');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();}, { passive:false, capture:true });
+document.addEventListener('touchstart', event => {
+  // Stationary holds and double taps have no touchmove. Claim the game surface
+  // from the first contact, while keeping native clicks and menu scrolling.
+  const nativeInteraction = event.target?.closest?.('.panel,button,label,a,[role="button"],input,textarea,select,[contenteditable="true"]');
+  if ((event.touches?.length || 0) > 1 || !nativeInteraction) event.preventDefault();
+}, { passive:false, capture:true });
 document.addEventListener('touchmove', event => {
   if ((event.touches?.length || 0) > 1) {
     event.preventDefault();
     return;
   }
-  const interactive = event.target?.closest?.('button,label,a,[role="button"],input,textarea,select');
+  const interactive = event.target?.closest?.('button,label,a,[role="button"],input,textarea,select,[contenteditable="true"]');
   if (interactive) return;
-  const pausePanel = event.target?.closest?.('#pauseOverlay .panel');
-  if (pausePanel && pausePanel.scrollHeight > pausePanel.clientHeight + 1) return;
+  const scrollPanel = event.target?.closest?.('.panel');
+  if (scrollPanel && scrollPanel.scrollHeight > scrollPanel.clientHeight + 1) return;
   event.preventDefault();
 }, { passive:false, capture:true });
-document.addEventListener('wheel', event => {if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();}, { passive:false, capture:true });
+document.addEventListener('wheel', event => {if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();}, { passive:false, capture:true });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearActiveInput();
+  resetFrameClock();
 });
 
-function step(ts) {
-  if (!step.last) step.last = ts;
-  const dt = Math.min(0.02, (ts - step.last) / 1000); step.last = ts; state.time += dt; state.lastDt = dt;
-  const surfaceCovered = state.mode === 'editor' && !editorSurfaceTransitionBusy;
-  if (!document.hidden && !surfaceCovered && state.mode === 'playing') {
-    if (!updateRoomTransition(dt)) updatePlayer(dt);
+// Physics always advances at the established 60 Hz rate. Display refresh only
+// chooses when to present it; ordinary slow frames keep all their elapsed time.
+const SIMULATION_DT = 1 / 60;
+const MAX_ACTIVE_FRAME_GAP = 0.5;
+function resetFrameClock() {
+  step.last = null;
+  step.accumulator = 0;
+  step.previous = null;
+}
+function captureRenderSnapshot() {
+  const room = state.room, player = state.player;
+  if (!room || !player) return null;
+  const entries = [];
+  const capture = (body, units = 1) => {
+    if (!body || !Number.isFinite(body.x) || !Number.isFinite(body.y)) return;
+    entries.push({ body, x:body.x, y:body.y, units, portalCooldown:body.portalCooldown || 0,
+      phase:body.state, cornerVisualX:body.cornerVisualX, cornerVisualY:body.cornerVisualY });
+  };
+  capture(player);
+  for (const key of ['enemies', 'pushBlocks', 'bullets']) for (const body of room[key] || []) capture(body);
+  for (const key of ['movers', 'dropPlatforms', 'crusherWalls']) for (const body of room[key] || []) capture(body, CELL);
+  for (const smart of room.smarts || []) for (const body of smart.instances || []) capture(body, CELL);
+  return { room, player, localTime:room.localTime, entries };
+}
+function withInterpolatedWorld(alpha, draw) {
+  const snapshot = step.previous;
+  if (!snapshot || snapshot.room !== state.room || snapshot.player !== state.player || alpha >= 1) return draw();
+  const blend = clamp(alpha, 0, 1), restore = [];
+  const set = (body, key, value) => { restore.push([body, key, body[key]]); body[key] = value; };
+  // These presentation values exist only during synchronous drawing. Collision
+  // prevX/prevY, velocities, contacts and the next simulation tick stay untouched.
+  for (const old of snapshot.entries) {
+    const body = old.body;
+    // Teleports, respawns and discontinuities must appear at the destination.
+    if ((body.portalCooldown || 0) > old.portalCooldown || body.state !== old.phase ||
+        Math.hypot(body.x - old.x, body.y - old.y) * old.units > CELL * 4) continue;
+    for (const key of ['x', 'y', 'cornerVisualX', 'cornerVisualY']) {
+      if (Number.isFinite(old[key]) && Number.isFinite(body[key])) set(body, key, old[key] + (body[key] - old[key]) * blend);
+    }
   }
-  // The editor owns its canvas. Redrawing the covered game wastes battery;
-  // static menu previews need only a slow animation cadence. Active gameplay
-  // must draw on every display frame: a second 60 Hz timer can skip a whole
-  // refresh on small timing variations and undersample faster displays.
+  if (Number.isFinite(snapshot.localTime) && Number.isFinite(state.room.localTime)) {
+    set(state.room, 'localTime', snapshot.localTime + (state.room.localTime - snapshot.localTime) * blend);
+  }
+  try { return draw(); }
+  finally { for (let i = restore.length - 1; i >= 0; i--) { const [body, key, value] = restore[i]; body[key] = value; } }
+}
+function step(ts) {
+  const elapsed = step.last == null ? 0 : Math.max(0, (ts - step.last) / 1000);
+  step.last = ts;
+  const surfaceCovered = state.mode === 'editor' && !editorSurfaceTransitionBusy;
+  const playing = !document.hidden && !surfaceCovered && state.mode === 'playing';
+  // Very long stalls are suspensions, including in a visible tab. Visibility
+  // changes also reset this clock, avoiding seconds of unseen catch-up gameplay.
+  const suspended = elapsed > MAX_ACTIVE_FRAME_GAP;
+  const dt = suspended ? 0 : elapsed;
+  state.renderDt = dt;
+  if (!playing || suspended || step.simMode !== state.mode) {
+    step.accumulator = 0;
+    step.previous = null;
+  }
+  if (playing) {
+    step.accumulator = (step.accumulator || 0) + dt;
+    while (step.accumulator + 1e-10 >= SIMULATION_DT && state.mode === 'playing') {
+      step.previous = captureRenderSnapshot();
+      state.lastDt = SIMULATION_DT;
+      state.time += SIMULATION_DT;
+      if (!updateRoomTransition(SIMULATION_DT)) updatePlayer(SIMULATION_DT);
+      step.accumulator = Math.max(0, step.accumulator - SIMULATION_DT);
+      if (step.previous && (step.previous.room !== state.room || step.previous.player !== state.player)) step.previous = null;
+    }
+  }
+  step.simMode = state.mode;
+  // Active gameplay draws on every display frame, including those between
+  // physics ticks. The editor owns its canvas; menu previews use a slow cadence.
   const activeFrame = state.mode === 'playing' || editorSurfaceTransitionBusy;
   const surfaceChanged = step.mode !== state.mode || step.width !== state.width || step.height !== state.height;
   if (!document.hidden && !surfaceCovered && (activeFrame || surfaceChanged || ts - (step.lastRender || 0) >= 99.5)) {
-    render();
+    render(playing ? Math.min(1, (step.accumulator || 0) / SIMULATION_DT) : 1);
     step.lastRender = ts;
     step.mode = state.mode;
     step.width = state.width;

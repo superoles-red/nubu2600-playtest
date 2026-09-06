@@ -475,8 +475,11 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 }
 
 /* 2026-08-27: две универсальные компоновки, без отдельного desktop-breakpoint. */
-html, body, .app-shell { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
+html, body, .app-shell { overscroll-behavior: none; }
+/* Native buttons and their child text need their own long-press protection. */
+* { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+:where(button, label, a, [role="button"], input, textarea, select, .modal) { touch-action: manipulation; }
 .command-bar { z-index: 82; }
 .size-rail { z-index: 12; }
 .interaction-hint { z-index: 94; }
