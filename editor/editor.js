@@ -18,6 +18,9 @@
   const GEOMETRY_EPSILON = 1e-8;
   const MOBILE_PLAYER_BREAKPOINT = 1024;
   const GRID_STEP = 1;
+  // Route subdivision may use the runtime/schema half-cell precision while
+  // ordinary object placement and manual route dragging keep their full cells.
+  const TRAM_ROUTE_GRID_STEP = 0.5;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
   const RESULT_KEY = 'nubu2600.editor.playtest.result.v1';
   const PLAYTEST_RETURN_PARAM = 'playtestReturn';
@@ -1534,11 +1537,18 @@
     for(let index=0;index<path.length;index++){
       const a=path[index],b=path[(index+1)%path.length],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
       if(length<TRAM_MIN_NODE_DISTANCE*2-.001)continue;
-      const distances=new Set([length/2]);for(let distance=TRAM_MIN_NODE_DISTANCE;distance<=length-TRAM_MIN_NODE_DISTANCE+.001;distance+=TRAM_MIN_NODE_DISTANCE)distances.add(distance);
-      // One insertion handle belongs to each straight segment. Prefer its
-      // midpoint; nearby grid alternatives are fallbacks, never extra circles.
-      for(const distance of [...distances].sort((first,second)=>Math.abs(first-length/2)-Math.abs(second-length/2))){
-        const point={x:clamp(snap(a.x+dx*distance/length,1),0,level.size.width-object.w),y:clamp(snap(a.y+dy*distance/length,1),0,level.size.height-object.h)},key=`${point.x}:${point.y}`;
+      // Enumerate only points shared by the straight route and the supported
+      // half-cell grid. Rounding x/y separately would move a diagonal handle
+      // off its route and bend the route merely by inserting a node.
+      const grid=[a.x,a.y,b.x,b.y].map(value=>value/TRAM_ROUTE_GRID_STEP);
+      if(grid.some(value=>Math.abs(value-Math.round(value))>1e-8))continue;
+      const [ax,ay,bx,by]=grid.map(Math.round),gridDx=bx-ax,gridDy=by-ay;
+      let divisor=Math.abs(gridDx),remainder=Math.abs(gridDy);
+      while(remainder){const next=divisor%remainder;divisor=remainder;remainder=next;}
+      const positions=Array.from({length:Math.max(0,divisor-1)},(_,offset)=>offset+1);
+      // One handle per segment, with the valid point nearest its midpoint first.
+      for(const position of positions.sort((first,second)=>Math.abs(first-divisor/2)-Math.abs(second-divisor/2))){
+        const point={x:(ax+gridDx/divisor*position)*TRAM_ROUTE_GRID_STEP,y:(ay+gridDy/divisor*position)*TRAM_ROUTE_GRID_STEP},key=`${point.x}:${point.y}`,distance=length*position/divisor;
         const candidate={...object,x:point.x,y:point.y},placement=canPlaceInLevel(level,candidate,[object.id],{checkOwnPair:false});
         if(seen.has(key)||!placement.ok||path.some(node=>Math.hypot(node.x-point.x,node.y-point.y)<TRAM_MIN_NODE_DISTANCE-.001)||path.some(node=>rectsOverlap({...object,x:node.x,y:node.y},candidate)))continue;
         const candidatePath=path.map(node=>({...node}));candidatePath.splice(index+1,0,point);
@@ -1567,8 +1577,10 @@
   }
 
   function pathNodeFromDrag(drag) {
-    const point=drag.current||drag.start,object=drag.object;
-    const requested={x:clamp(snap(point.rawX-drag.offsetX,1),0,state.level.size.width-object.w),y:clamp(snap(point.rawY-drag.offsetY,1),0,state.level.size.height-object.h)};
+    const point=drag.current||drag.start,object=drag.object,origin=object.props.path[drag.nodeIndex];
+    // Keep an inserted half-cell point exactly under its marker on a tap.
+    // Manual dragging retains the existing one-cell movement increments.
+    const requested={x:clamp(origin.x+snap(point.rawX-drag.start.rawX,1),0,state.level.size.width-object.w),y:clamp(origin.y+snap(point.rawY-drag.start.rawY,1),0,state.level.size.height-object.h)};
     const candidatePath=object.props.path.map((node,index)=>index===drag.nodeIndex?requested:node),placement=pairedPathPlacement(object,candidatePath);
     if(placement.ok)drag.lastValidNode={...requested};
     return{...(drag.lastValidNode||object.props.path[drag.nodeIndex])};
@@ -2439,7 +2451,7 @@
     for(let a=0;a<level.objects.length;a++)for(let b=a+1;b<level.objects.length;b++){const first=level.objects[a],second=level.objects[b],overlap=staticPlacementFootprints(first).some(firstFootprint=>staticPlacementFootprints(second).some(secondFootprint=>rectsOverlap(firstFootprint,secondFootprint)&&!overlapAllowed(firstFootprint,secondFootprint)));if(overlap)add('error',`Предметы «${TYPE_DEFS[first.type]?.label}» и «${TYPE_DEFS[second.type]?.label}» занимают одно место.`,second.id);}
     const portalGroups=new Map(),portalColors=new Map();for(const portal of level.objects.filter(object=>object.type==='portal')){const key=portal.props?.pairId||'';if(!portalGroups.has(key))portalGroups.set(key,[]);portalGroups.get(key).push(portal);}for(const [key,pair] of portalGroups){if(!key||pair.length!==2)add('error','Каждый портал должен иметь ровно один парный конец.',pair[0]?.id);const color=pair[0]?.props?.color;if(color&&portalColors.has(color)&&portalColors.get(color)!==key)add('error','Две разные пары порталов не могут иметь одинаковый цвет.',pair[0]?.id);else if(color)portalColors.set(color,key);}
     for(const button of level.objects.filter(object=>object.type==='button')){const uniqueTargets=new Set();for(const target of button.props?.targets||[]){if(typeof target!=='string'){add('error','Связь кнопки должна быть строковым идентификатором розетки.',button.id);continue;}const descriptor=target,targetId=targetDescriptorId(descriptor),targetObject=objectsById.get(targetId);if(!targetObject)add('error','Кнопка связана с удалённым предметом.',button.id);else if(!targetDescriptorAllowed(descriptor,targetObject))add('error','Кнопка связана с неподдерживаемой розеткой предмета.',button.id);if(uniqueTargets.has(descriptor))add('error','Одна и та же розетка не может быть подключена к кнопке дважды.',button.id);uniqueTargets.add(descriptor);}}
-    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/GRID_STEP-Math.round(point.x/GRID_STEP))>1e-8||Math.abs(point.y/GRID_STEP-Math.round(point.y/GRID_STEP))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
+    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const pathGridStep=moving.type==='smartPlatform'?TRAM_ROUTE_GRID_STEP:GRID_STEP,invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/pathGridStep-Math.round(point.x/pathGridStep))>1e-8||Math.abs(point.y/pathGridStep-Math.round(point.y/pathGridStep))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
     const budget=calculateBudget(level);if(level.objects.length>512)add('error','Больше 512 авторских объектов.');if((budget.counts.coin||0)>coinLimit(level))add('error',`Монет больше допустимых ${coinLimit(level)} для карты ${level.size.width}×${level.size.height}.`);if(budget.dynamic>48)add('error','Больше 48 динамических платформ, дверей и конвейеров.');if((budget.counts.crusherWall||0)>8)add('error','Больше 8 прессов.');if((budget.counts.pushBlock||0)>12)add('error','Больше 12 тяжёлых кубов.');if(portalGroups.size>6)add('error','Больше 6 пар порталов: уникальных цветов не хватит.');if((budget.counts.button||0)>32)add('error','Больше 32 кнопок.');if(budget.links>64)add('error','Больше 64 связей кнопок.');if(budget.routePoints>128)add('error','Больше 128 точек маршрутов.');if(budget.generators>8)add('error','Больше 8 генераторов.');if(budget.enemies>40)add('error','Больше 40 заранее размещённых врагов.');if(budget.bytes>512*1024)add('error','Файл уровня больше 512 КБ.');if(budget.score>100)add('error',`Нагрузка ${budget.score}: выше стартового hard cap 100.`);else if(budget.score>70)add('warning',`Нагрузка ${budget.score}: жёлтая зона, нужен тест слабого устройства.`);
     if(!issues.length)add('ok','Критических ошибок не найдено. Теперь уровень надо пройти в игре.');state.issues=issues;renderIssues();updateBudget(budget);if(selectChecks)selectInspectorTab('checks');return issues;}
 

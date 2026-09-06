@@ -612,16 +612,25 @@ loadPersistentProgress();
 
 function resize() {
   const vv = window.visualViewport;
-  state.width = Math.round(vv ? vv.width : window.innerWidth);
-  state.height = Math.round(vv ? vv.height : window.innerHeight);
-  state.dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-  canvas.width = Math.round(state.width * state.dpr);
-  canvas.height = Math.round(state.height * state.dpr);
+  const width = Math.round(vv ? vv.width : window.innerWidth);
+  const height = Math.round(vv ? vv.height : window.innerHeight);
+  const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  const backingWidth = Math.round(width * dpr), backingHeight = Math.round(height * dpr);
+  // Mobile browsers also notify viewport scrolling without changing its size.
+  // Recreating the canvas or resetting the following camera then causes a snap
+  // during movement, especially when a jump makes both axes lag behind target.
+  if (width === state.width && height === state.height && dpr === state.dpr &&
+      canvas.width === backingWidth && canvas.height === backingHeight) return;
+  state.width = width;
+  state.height = height;
+  state.dpr = dpr;
+  canvas.width = backingWidth;
+  canvas.height = backingHeight;
   canvas.style.width = state.width + 'px';
   canvas.style.height = state.height + 'px';
   ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-  state.cam.x = NaN;
-  state.cam.y = NaN;
+  // Keep the current world position through real viewport changes as well;
+  // updateCamera applies the new visible bounds on the next rendered frame.
 }
 window.addEventListener('resize', resize, { passive: true });
 window.addEventListener('orientationchange', resize, { passive: true });
