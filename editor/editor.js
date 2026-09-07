@@ -18,8 +18,6 @@
   const GEOMETRY_EPSILON = 1e-8;
   const MOBILE_PLAYER_BREAKPOINT = 1024;
   const GRID_STEP = 1;
-  // Tram route nodes and potential handles are authored on whole cells.
-  const TRAM_ROUTE_GRID_STEP = 1;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
   const RESULT_KEY = 'nubu2600.editor.playtest.result.v1';
   const PLAYTEST_RETURN_PARAM = 'playtestReturn';
@@ -52,7 +50,6 @@
   const LINK_ENDPOINT_OFFSET = 19;
   const LINK_SOCKET_GAP = 34;
   const TRAM_MIN_NODE_DISTANCE = 3;
-  const TRAM_HANDLE_SPACING = 4;
   const TRAM_BEND_COLOR = '#67d7ff';
   const TRAM_INSERTION_COLOR = '#ffd56b';
   const INVALID_PREVIEW_COLOR = '#ff3348';
@@ -1518,73 +1515,34 @@
 
   function tramPathIssue(object,path,level=state.level) {
     if(!Array.isArray(path)||path.length<2)return'У трамвая должно быть хотя бы два узла.';
-    for(const point of path){if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';if(Math.abs(point.x-Math.round(point.x))>GEOMETRY_EPSILON||Math.abs(point.y-Math.round(point.y))>GEOMETRY_EPSILON)return'Каждый настоящий узел трамвая должен стоять на целой клетке.';}
+    for(const point of path)if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';
     if(!pathInsideLevelShape(level,object,path))return'Маршрут трамвая проходит через отсутствующую панель.';
     for(let first=0;first<path.length;first++)for(let second=first+1;second<path.length;second++)if(Math.hypot(path[first].x-path[second].x,path[first].y-path[second].y)<TRAM_MIN_NODE_DISTANCE-.001)return`Между любыми узлами трамвая должно оставаться минимум ${TRAM_MIN_NODE_DISTANCE} клетки.`;
     const closed=[...path,path[0]],segments=[];for(let index=1;index<closed.length;index++)segments.push([closed[index-1],closed[index]]);
-    for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++){
-      if(!tramSegmentsIntersect(...segments[first],...segments[second]))continue;
-      const adjacent=second===first+1||(first===0&&second===segments.length-1);
-      if(adjacent){
-        const shared=second===first+1?segments[first][1]:segments[first][0];
-        if(tramSegmentsShareOnlyEndpoint(...segments[first],...segments[second],shared))continue;
-      }
-      return'Маршрут трамвая не может пересекать сам себя.';
-    }
+    for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++)if(tramSegmentsOverlap(...segments[first],...segments[second]))return'Маршрут трамвая не может накладываться сам на себя; пересечение поперёк разрешено.';
     return'';
   }
 
-  function tramStableHandleSeed(a,b,slot){
-    let hash=2166136261;
-    for(const value of [a.x,a.y,b.x,b.y,slot]){hash=Math.imul(hash^Math.round(Number(value)*1000),16777619);}
-    return hash>>>0;
-  }
-
-  function tramWholeCellPoint(a,b,progress,seed){
-    const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy),idealDistance=length*progress;
-    const ideal={x:a.x+dx*progress,y:a.y+dy*progress};
-    const candidates=[];
-    const minX=Math.floor(Math.min(a.x,b.x))-2,maxX=Math.ceil(Math.max(a.x,b.x))+2;
-    const minY=Math.floor(Math.min(a.y,b.y))-2,maxY=Math.ceil(Math.max(a.y,b.y))+2;
-    for(let x=minX;x<=maxX;x++)for(let y=minY;y<=maxY;y++){
-      if(!Number.isFinite(x)||!Number.isFinite(y)||candidates.some(point=>point.x===x&&point.y===y))continue;
-      const projection=((x-a.x)*dx+(y-a.y)*dy)/(length*length);
-      if(projection<-GEOMETRY_EPSILON||projection>1+GEOMETRY_EPSILON)continue;
-      if(projection<=GEOMETRY_EPSILON||projection>=1-GEOMETRY_EPSILON)continue;
-      const along=projection*length,lineDistance=Math.abs(dx*(y-a.y)-dy*(x-a.x))/length;
-      candidates.push({x,y,along,lineDistance,score:lineDistance*1000+Math.abs(along-idealDistance)});
-    }
-    if(!candidates.length){
-      const fallback=[];
-      for(let x=minX;x<=maxX;x++)for(let y=minY;y<=maxY;y++){
-        const projection=((x-a.x)*dx+(y-a.y)*dy)/(length*length);
-        if(projection<-GEOMETRY_EPSILON||projection>1+GEOMETRY_EPSILON)continue;
-        const along=projection*length,lineDistance=Math.abs(dx*(y-a.y)-dy*(x-a.x))/length;
-        fallback.push({x,y,along,lineDistance,score:lineDistance*1000+Math.abs(along-idealDistance)});
-      }
-      candidates.push(...fallback);
-    }
-    if(!candidates.length)return{x:Math.round(a.x),y:Math.round(a.y)};
-    const bestScore=Math.min(...candidates.map(candidate=>candidate.score)),best=candidates.filter(candidate=>Math.abs(candidate.score-bestScore)<1e-8);
-    return{...best[(seed>>>0)%best.length]};
-  }
-
+  const tramInsertionCache=new WeakMap();
   function tramInsertionPoints(object,path=object?.props?.path,level=state.level) {
     if(object?.type!=='smartPlatform'||!Array.isArray(path)||path.length<2)return[];
-    // These are potential handles, not authored nodes. A segment shorter than
-    // four cells has no handle; longer segments receive floor(length / 4)
-    // evenly spaced whole-cell candidates. Exact half-cell ties are stable per
-    // segment so redraws never make a handle jump between neighbouring cells.
-    const handles=[],segmentCount=path.length;
-    for(let segmentIndex=0;segmentIndex<segmentCount;segmentIndex++){
-      const a=path[segmentIndex],b=path[(segmentIndex+1)%path.length],length=Math.hypot(b.x-a.x,b.y-a.y);
-      if(!Number.isFinite(length)||length<TRAM_HANDLE_SPACING-GEOMETRY_EPSILON)continue;
-      const count=Math.floor((length+GEOMETRY_EPSILON)/TRAM_HANDLE_SPACING);
-      for(let slot=1;slot<=count;slot++){
-        const progress=slot/(count+1),point=tramWholeCellPoint(a,b,progress,tramStableHandleSeed(a,b,slot));
-        handles.push({index:Math.min(path.length,segmentIndex+slot),segmentIndex,slot,count,point,distanceAlong:length*progress});
+    const occupied=level.objects.filter(candidate=>candidate.id!==object.id).map(candidate=>`${candidate.id}:${candidate.x},${candidate.y},${candidate.w},${candidate.h}:${Array.isArray(candidate.props?.path)?candidate.props.path.map(point=>`${point.x},${point.y}`).join(';'):''}`).join('|');
+    const cacheable=level===state.level&&path===object.props?.path,cacheKey=cacheable?`${level.size.width}x${level.size.height}:${object.w}x${object.h}:${path.map(point=>`${point.x},${point.y}`).join(';')}:${occupied}`:'',cached=cacheable?tramInsertionCache.get(object):null;
+    if(cached?.key===cacheKey)return cached.handles;
+    if(tramPathIssue(object,path,level))return[];
+    const handles=[],seen=new Set();
+    for(let index=0;index<path.length;index++){
+      const a=path[index],b=path[(index+1)%path.length],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+      if(length<TRAM_MIN_NODE_DISTANCE*2-.001)continue;
+      const distances=new Set([length/2]);for(let distance=TRAM_MIN_NODE_DISTANCE;distance<=length-TRAM_MIN_NODE_DISTANCE+.001;distance+=TRAM_MIN_NODE_DISTANCE)distances.add(distance);
+      for(const distance of [...distances].sort((first,second)=>first-second)){
+        const point={x:clamp(snap(a.x+dx*distance/length,1),0,level.size.width-object.w),y:clamp(snap(a.y+dy*distance/length,1),0,level.size.height-object.h)},key=`${point.x}:${point.y}`;
+        const candidate={...object,x:point.x,y:point.y},placement=canPlaceInLevel(level,candidate,[object.id],{checkOwnPair:false});
+        if(seen.has(key)||!placement.ok||path.some(node=>Math.hypot(node.x-point.x,node.y-point.y)<TRAM_MIN_NODE_DISTANCE-.001)||path.some(node=>rectsOverlap({...object,x:node.x,y:node.y},candidate)))continue;
+        seen.add(key);handles.push({index:index+1,point,distanceAlong:distance});
       }
     }
+    if(cacheable)tramInsertionCache.set(object,{key:cacheKey,handles});
     return handles;
   }
 
@@ -1599,74 +1557,20 @@
 
   function tramRouteHandleAt(point,pointerType='mouse') {
     const trams=[...state.level.objects].filter(object=>object.type==='smartPlatform').reverse();
-    let best=null;
-    for(const object of trams){
-      const px=point.rawX-object.w/2,py=point.rawY-object.h/2,nodeRadius=(pointerType==='touch'?25:15)/cellPixels();
-      for(let nodeIndex=object.props.path.length-1;nodeIndex>=1;nodeIndex--){const node=object.props.path[nodeIndex],distance=Math.hypot(px-node.x,py-node.y);if(distance<=nodeRadius&&(!best||distance<best.distance))best={object,nodeIndex,distance};}
-      const segment=tramRouteSegmentHit(object,point,pointerType);
-      if(segment&&(!best||segment.distance<best.distance))best={object,segment,distance:segment.distance};
-    }
-    return best;
-  }
-
-  function pathNodeCandidateFromDrag(drag) {
-    const point=drag.current||drag.start,object=drag.object,origin=object.props.path[drag.nodeIndex];
-    const dx=point.rawX-drag.start.rawX,dy=point.rawY-drag.start.rawY;
-    drag.nodeMoved=!!drag.nodeMoved||Math.hypot(dx,dy)*cellPixels()>3;
-    const requested=drag.insertedNode
-      ? drag.nodeMoved?{x:snap(point.rawX-drag.offsetX,TRAM_ROUTE_GRID_STEP),y:snap(point.rawY-drag.offsetY,TRAM_ROUTE_GRID_STEP)}:{...origin}
-      : {x:clamp(origin.x+snap(dx,1),0,state.level.size.width-object.w),y:clamp(origin.y+snap(dy,1),0,state.level.size.height-object.h)};
-    const path=object.props.path.map((node,index)=>index===drag.nodeIndex?requested:node);
-    const onGrid=[requested.x,requested.y].every(value=>Math.abs(value/TRAM_ROUTE_GRID_STEP-Math.round(value/TRAM_ROUTE_GRID_STEP))<1e-8);
-    const candidateObject={...object,props:{...object.props,path}};
-    const placement=onGrid?pairedPathPlacement(candidateObject,path):{ok:false,message:'Поставьте узел на сетку уровня.'};
-    drag.requestedNode={...requested};drag.nodePlacement=placement;
-    drag.previewValid=!!(drag.nodeMoved&&placement.ok&&!drag.outside);
-    return{point:requested,path,placement,moved:drag.nodeMoved};
+    for(const object of trams){const nodeIndex=tramRouteNodeHit(object,point,pointerType);if(nodeIndex>=1)return{object,nodeIndex};}
+    for(const object of trams){const segment=tramRouteSegmentHit(object,point,pointerType);if(segment)return{object,segment};}
+    return null;
   }
 
   function pathNodeFromDrag(drag) {
-    const candidate=pathNodeCandidateFromDrag(drag);
-    if(drag.insertedNode)return{...candidate.point};
-    if(candidate.placement.ok)drag.lastValidNode={...candidate.point};
-    return{...(drag.lastValidNode||drag.object.props.path[drag.nodeIndex])};
+    const point=drag.current||drag.start,object=drag.object;
+    const requested={x:clamp(snap(point.rawX-drag.offsetX,1),0,state.level.size.width-object.w),y:clamp(snap(point.rawY-drag.offsetY,1),0,state.level.size.height-object.h)};
+    const candidatePath=object.props.path.map((node,index)=>index===drag.nodeIndex?requested:node),placement=pairedPathPlacement(object,candidatePath);
+    if(placement.ok)drag.lastValidNode={...requested};
+    return{...(drag.lastValidNode||object.props.path[drag.nodeIndex])};
   }
 
-  function tramNodeRemoval(object,nodeIndex) {
-    if(!object||nodeIndex<=0||nodeIndex>=object.props.path.length)return{ok:false,message:'Начало маршрута переносится вместе с трамваем.'};
-    if(object.props.path.length<=2)return{ok:false,message:'В маршруте должно остаться хотя бы два узла.'};
-    const path=object.props.path.filter((_,index)=>index!==nodeIndex).map(point=>({...point}));
-    const placement=pairedPathPlacement({...object,props:{...object.props,path}},path);
-    return{...placement,path};
-  }
-
-  function tramPathForRender(object) {
-    const drag=state.drag;
-    if(drag?.kind==='pathNode'&&drag.object.id===object.id){
-      const next=pathNodeFromDrag(drag);
-      if(drag.insertedNode)return drag.previewValid?drag.object.props.path.map((node,index)=>index===drag.nodeIndex?next:node):object.props.path;
-      if(drag.deleteCandidate){const removal=tramNodeRemoval(object,drag.nodeIndex);return removal.ok?removal.path:object.props.path;}
-      return object.props.path.map((node,index)=>index===drag.nodeIndex?next:node);
-    }
-    if(drag?.kind==='move'&&drag.object.id===object.id&&!drag.deleteCandidate){const target=movePreviewRectFromDrag(drag),dx=target.x-drag.object.x,dy=target.y-drag.object.y;return drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}
-    return object.props.path;
-  }
-
-  function tramCross(a,b,c){return(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
-  function tramPointOnSegment(point,a,b){return Math.abs(tramCross(a,b,point))<=GEOMETRY_EPSILON&&point.x>=Math.min(a.x,b.x)-GEOMETRY_EPSILON&&point.x<=Math.max(a.x,b.x)+GEOMETRY_EPSILON&&point.y>=Math.min(a.y,b.y)-GEOMETRY_EPSILON&&point.y<=Math.max(a.y,b.y)+GEOMETRY_EPSILON;}
-  function tramSegmentsIntersect(a,b,c,d){
-    const abC=tramCross(a,b,c),abD=tramCross(a,b,d),cdA=tramCross(c,d,a),cdB=tramCross(c,d,b);
-    if(((abC>GEOMETRY_EPSILON&&abD< -GEOMETRY_EPSILON)||(abC< -GEOMETRY_EPSILON&&abD>GEOMETRY_EPSILON))&&((cdA>GEOMETRY_EPSILON&&cdB< -GEOMETRY_EPSILON)||(cdA< -GEOMETRY_EPSILON&&cdB>GEOMETRY_EPSILON)))return true;
-    return (Math.abs(abC)<=GEOMETRY_EPSILON&&tramPointOnSegment(c,a,b))||(Math.abs(abD)<=GEOMETRY_EPSILON&&tramPointOnSegment(d,a,b))||(Math.abs(cdA)<=GEOMETRY_EPSILON&&tramPointOnSegment(a,c,d))||(Math.abs(cdB)<=GEOMETRY_EPSILON&&tramPointOnSegment(b,c,d));
-  }
-  function tramSegmentsShareOnlyEndpoint(a,b,c,d,shared){
-    const abx=b.x-a.x,aby=b.y-a.y;
-    if(Math.abs(tramCross(a,b,c))<=GEOMETRY_EPSILON&&Math.abs(tramCross(a,b,d))<=GEOMETRY_EPSILON){
-      const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);
-      return Math.min(first[1],second[1])-Math.max(first[0],second[0])<=GEOMETRY_EPSILON;
-    }
-    return tramPointOnSegment(shared,a,b)&&tramPointOnSegment(shared,c,d);
-  }
+  function tramSegmentsOverlap(a,b,c,d){const abx=b.x-a.x,aby=b.y-a.y,acx=c.x-a.x,acy=c.y-a.y,adx=d.x-a.x,ady=d.y-a.y;if(Math.abs(abx*acy-aby*acx)>.001||Math.abs(abx*ady-aby*adx)>.001)return false;const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);return Math.min(first[1],second[1])-Math.max(first[0],second[0])>.001;}
 
   function runtimeTramPath(object,points=object?.props?.path){const route=Array.isArray(points)?points.map(point=>({x:Number(point.x),y:Number(point.y)})):[];return object?.props?.clockwise===false&&route.length>2?[route[0],...route.slice(1).reverse()]:route;}
   function tramRuntimeInstances(object,points=object?.props?.path){const route=runtimeTramPath(object,points);if(!route.length)return[];const loop=object?.props?.loop!==false,segmentCount=loop?route.length:Math.max(0,route.length-1),segments=[];let routeLength=0;for(let index=0;index<segmentCount;index++){const from=route[index],to=route[(index+1)%route.length],length=Math.hypot(to.x-from.x,to.y-from.y);segments.push({from,to,length});routeLength+=length;}const spacing=Math.max(0,Number(object?.props?.spacingCells)||0),count=loop&&spacing>0?Math.max(1,Math.round(routeLength/spacing)):1;return Array.from({length:count},(_,index)=>{let remaining=count===1?0:routeLength*index/count;for(let segmentIndex=0;segmentIndex<segments.length;segmentIndex++){const segment=segments[segmentIndex],length=segment.length||1;if(remaining<=length||segmentIndex===segments.length-1){const progress=clamp(remaining/length,0,1);return{index,count,distance:count===1?0:routeLength*index/count,x:segment.from.x+(segment.to.x-segment.from.x)*progress,y:segment.from.y+(segment.to.y-segment.from.y)*progress};}remaining-=length;}return{index,count,distance:0,x:route[0].x,y:route[0].y};});}
@@ -1687,12 +1591,14 @@
     for(const object of state.level.objects){
       if(!PATH_ENDPOINT_TYPES.has(object.type))continue;
       const end=pathEndForRender(object);
-      const points=object.type==='smartPlatform'?tramPathForRender(object):[{x:object.x,y:object.y},end];
+      let points=object.type==='smartPlatform'?(object.props?.path||routeForObject(object,end)):[{x:object.x,y:object.y},end];
+      if(object.type==='smartPlatform'&&state.drag?.kind==='pathNode'&&state.drag.object.id===object.id){const next=pathNodeFromDrag(state.drag);points=(state.drag.insertedNode?state.drag.object.props.path:points).map((node,index)=>index===state.drag.nodeIndex?next:node);}
+      if(object.type==='smartPlatform'&&state.drag?.kind==='move'&&state.drag.object.id===object.id&&!state.drag.deleteCandidate){const target=movePreviewRectFromDrag(state.drag),dx=target.x-state.drag.object.x,dy=target.y-state.drag.object.y;points=state.drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}
       const color=object.type==='smartPlatform'?(pairedPathPlacement(object,points).ok?TYPE_DEFS[object.type].color:'#ff6974'):(pathEndpointPlacement(object,end).ok?TYPE_DEFS[object.type].color:'#ff6974');
       ctx.strokeStyle=color;ctx.setLineDash([5,4]);ctx.beginPath();points.forEach((point,index)=>{const x=(point.x+object.w/2)*cell,y=(point.y+object.h/2)*cell;if(index)ctx.lineTo(x,y);else ctx.moveTo(x,y);});if(object.type==='smartPlatform'&&points.length>2)ctx.closePath();ctx.stroke();
       if(object.type==='smartPlatform'){
         ctx.setLineDash([]);
-        for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index&&!(state.drag?.object?.id===object.id&&(state.drag.deleteCandidate||(state.drag.insertedNode&&!state.drag.previewValid))),cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.save();ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':active&&state.drag?.insertedNode?TRAM_INSERTION_COLOR:index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();ctx.restore();}
+        for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index,cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.save();ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':active?TRAM_INSERTION_COLOR:index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();ctx.restore();}
         const centers=points.map(point=>({cx:(point.x+object.w/2)*cell,cy:(point.y+object.h/2)*cell})),ordered=object.props?.clockwise===false?[centers[0],...centers.slice(1).reverse()]:centers;
         for(let index=0;index<ordered.length;index++)drawWireArrowlets(ordered[index],ordered[(index+1)%ordered.length],color,{size:4,outline:false});
         for(const instance of tramRuntimeInstances(object,points).slice(1)){const gx=instance.x,gy=instance.y,x=gx*cell,y=gy*cell,w=object.w*cell,h=object.h*cell;drawObjectShape(ctx,{...object,x:gx,y:gy},x,y,w,h,{preview:true,color,plainPlatform:true});}
@@ -1706,26 +1612,8 @@
   }
 
   function drawTramInsertionHandles(cell) {
-    ctx.save();ctx.setLineDash([]);
-    const drag=state.drag?.kind==='pathNode'?state.drag:null;
-    for(const object of state.level.objects.filter(candidate=>candidate.type==='smartPlatform')){
-      const path=tramPathForRender(object),editing=drag?.object.id===object.id;
-      for(const handle of tramInsertionPoints(object,path)){
-        // A grabbed potential is drawn once at the pointer/valid preview node.
-        if(editing&&drag.insertedNode&&(handle.index===drag.nodeIndex||(drag.previewValid&&handle.index===drag.nodeIndex+1)))continue;
-        const cx=(handle.point.x+object.w/2)*cell,cy=(handle.point.y+object.h/2)*cell;
-        const hovered=!!state.hoverPoint&&Math.hypot((state.hoverPoint.rawX-handle.point.x-object.w/2)*cell,(state.hoverPoint.rawY-handle.point.y-object.h/2)*cell)<=12;
-        ctx.beginPath();ctx.arc(cx,cy,hovered?6.5:5,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=hovered?2.5:1.5;ctx.strokeStyle=hovered?'#f5fff9':'#08100d';ctx.stroke();
-      }
-      if(!editing)continue;
-      if(drag.insertedNode&&!drag.previewValid){
-        const point=drag.requestedNode||drag.object.props.path[drag.nodeIndex],cx=clamp((point.x+object.w/2)*cell,7,canvas.width-7),cy=clamp((point.y+object.h/2)*cell,7,canvas.height-7);
-        ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=drag.nodeMoved?'#ff6974':TYPE_DEFS.smartPlatform.color;ctx.stroke();
-      }else if(drag.deleteCandidate){
-        const point=object.props.path[drag.nodeIndex],cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
-        ctx.beginPath();ctx.moveTo(cx-7,cy-7);ctx.lineTo(cx+7,cy+7);ctx.moveTo(cx+7,cy-7);ctx.lineTo(cx-7,cy+7);ctx.strokeStyle='#ff6974';ctx.lineWidth=3;ctx.stroke();
-      }
-    }
+    ctx.save();
+    for(const object of state.level.objects.filter(candidate=>candidate.type==='smartPlatform')){let path=object.props.path;if(state.drag?.kind==='pathNode'&&state.drag.object.id===object.id){const next=pathNodeFromDrag(state.drag);path=(state.drag.insertedNode?state.drag.object.props.path:path).map((point,index)=>index===state.drag.nodeIndex?next:point);}else if(state.drag?.kind==='move'&&state.drag.object.id===object.id&&!state.drag.deleteCandidate){const target=movePreviewRectFromDrag(state.drag),dx=target.x-state.drag.object.x,dy=target.y-state.drag.object.y;path=state.drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}for(const handle of tramInsertionPoints(object,path)){const cx=(handle.point.x+object.w/2)*cell,cy=(handle.point.y+object.h/2)*cell,hovered=!!state.hoverPoint&&Math.hypot((state.hoverPoint.rawX-handle.point.x-object.w/2)*cell,(state.hoverPoint.rawY-handle.point.y-object.h/2)*cell)<=12;ctx.save();ctx.shadowColor=TRAM_INSERTION_COLOR;ctx.shadowBlur=hovered?10:5;ctx.beginPath();ctx.arc(cx,cy,hovered?6.5:5,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=hovered?2.5:1.5;ctx.strokeStyle=hovered?'#f5fff9':'#08100d';ctx.stroke();ctx.restore();}}
     ctx.restore();
   }
 
@@ -2333,12 +2221,12 @@
     renderCanvas();
   }
 
-  function handlePointerDown(event,routeHandleOverride=null){
+  function handlePointerDown(event){
     if(!state.ready)return;
     const touch=event.pointerType==='touch';
     if(touch&&event.isPrimary&&state.pointers.size&&!state.pointers.has(event.pointerId))resetCanvasGestureState({restoreSelection:true});
     if(touch&&state.pointers.size){const registered=state.pointers.has(event.pointerId);event.preventDefault();state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});if(!registered)safelyCapturePointer(viewport,event.pointerId);if(state.pointers.size>=2&&!state.pinch)beginPinch();return;}
-    if(state.domResize||state.mobilePaletteDrag||state.wireDrag||(!routeHandleOverride&&event.target?.closest?.('button,input,select,textarea,label,.context-toolbar,.resize-handles')))return;
+    if(state.domResize||state.mobilePaletteDrag||state.wireDrag||event.target?.closest?.('button,input,select,textarea,label,.context-toolbar,.resize-handles'))return;
     if(touch){event.preventDefault();captureTouchSelectionSnapshot();}
     state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     safelyCapturePointer(viewport,event.pointerId);
@@ -2349,7 +2237,7 @@
       if(event.button===0||event.button===undefined){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       return;
     }
-    const point=pointerGridPoint(event),wireHit=!routeHandleOverride&&state.tool==='select'?wireAtPoint(point,event.pointerType):null;
+    const point=pointerGridPoint(event),wireHit=state.tool==='select'?wireAtPoint(point,event.pointerType):null;
     if(wireHit?.edge==='target'||wireHit?.edge==='source'){
       const startsNewWire=wireHit.edge==='source',title=startsNewWire?'Новый провод':'Провод выбран',message=startsNewWire?'Потяните вилку к новой розетке. Уже подключённые провода останутся на месте.':`Потяните край к другой розетке или отпустите в стороне, чтобы отключить: ${TYPE_DEFS[wireHit.source.type].label} → ${TYPE_DEFS[wireHit.target.type].label}.`;
       state.selectedWire=startsNewWire?null:{sourceId:wireHit.source.id,targetId:wireHit.target.id,descriptor:wireHit.descriptor};state.selectedId=wireHit.source.id;showHintText(title,message);
@@ -2362,8 +2250,8 @@
       if(event.pointerType==='touch'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       refreshAll();return;
     }
-    const tramHandle=routeHandleOverride||tramRouteHandleAt(point,event.pointerType);
-    if((event.button===2||state.tool==='erase')&&tramHandle?.nodeIndex>0){toast('Чтобы удалить узел трамвая, перетащите его за границу поля.');return;}
+    const tramHandle=tramRouteHandleAt(point,event.pointerType);
+    if((event.button===2||state.tool==='erase')&&tramHandle?.nodeIndex>0){toast('Основные узлы трамвая нельзя удалить — их можно только перетянуть.');return;}
     if(event.button===2){eraseRegion({x:point.x,y:point.y,w:1,h:1});return;}
     if(event.button===1||state.spaceHeld||state.tool==='pan'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');return;}
     if(event.button!==0)return;
@@ -2380,16 +2268,7 @@
       }
       if(tramHandle){
         endpointObject=tramHandle.object;state.selectedId=endpointObject.id;state.selectedWire=null;
-        const activate=()=>{
-          let nodeIndex=tramHandle.nodeIndex??-1,insertedNode=false,dragObject=deepClone(endpointObject);
-          if(tramHandle.segment){const segment=tramHandle.segment;dragObject.props.path.splice(segment.index,0,{...segment.point});nodeIndex=segment.index;insertedNode=true;}
-          if(nodeIndex<1)return;
-          state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};
-          const node=dragObject.props.path[nodeIndex];
-          state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:dragObject,start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:insertedNode?null:{...node},insertedNode,nodeMoved:false,outside:false,deleteCandidate:false,previewValid:false};
-          showHintText(insertedNode?'Новый узел трамвая':'Узел трамвая',insertedNode?'Потяните кружок и отпустите в свободном месте. Нажатие без переноса не меняет маршрут.':'Перетяните узел. Чтобы удалить его, вынесите за границу поля.');
-          canvas.style.cursor='grabbing';renderCanvas();
-        };
+        const activate=()=>{let nodeIndex=tramHandle.nodeIndex??-1,insertedNode=false,dragObject=endpointObject;if(tramHandle.segment){const segment=tramHandle.segment,candidatePath=endpointObject.props.path.map(node=>({...node}));candidatePath.splice(segment.index,0,segment.point);const placement=pairedPathPlacement(endpointObject,candidatePath);if(!placement.ok){toast(`Узел маршрута не добавлен: ${placement.message}`,'error');return;}dragObject=deepClone(endpointObject);dragObject.props.path=candidatePath;nodeIndex=segment.index;insertedNode=true;}if(nodeIndex<1)return;state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};const node=dragObject.props.path[nodeIndex];state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:deepClone(dragObject),start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:{...node},insertedNode};canvas.style.cursor='grabbing';renderCanvas();};
         if(event.pointerType==='touch'){refreshInspector();renderContextToolbar();renderCanvas();beginTouchCanvasIntent(event,activate);}else activate();
         return;
       }
@@ -2415,7 +2294,7 @@
 
   function handlePointerMove(event){if(!state.ready||!state.level)return;if(state.pointers.has(event.pointerId))state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});updateFieldTapCandidate(event);if(state.pinch){updatePinch();return;}const intent=state.touchObjectIntent;if(intent?.pointerId===event.pointerId){intent.lastX=event.clientX;intent.lastY=event.clientY;if(Math.hypot(event.clientX-intent.startX,event.clientY-intent.startY)>TOUCH_OBJECT_GESTURE_SLOP){clearTouchObjectIntent();state.pan={pointerId:event.pointerId,x:intent.startX,y:intent.startY,scrollLeft:intent.scrollLeft,scrollTop:intent.scrollTop};viewport.classList.add('dragging');viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);}return;}if(state.pan&&state.pan.pointerId!==event.pointerId||state.drag&&state.drag.pointerId!==event.pointerId)return;const point=pointerGridPoint(event);state.hoverPoint=point;$('cursorReadout').style.display='none';$('cursorStatus').textContent='';
     if(state.pan){viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);return;}
-    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'||state.drag.kind==='pathNode'){state.drag.outside=!pointInsideCanvas(event.clientX,event.clientY);state.drag.deleteCandidate=state.drag.outside&&(state.drag.kind==='move'||!state.drag.insertedNode);canvas.classList.toggle('will-delete',state.drag.outside);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode'||state.drag.kind==='moveGroup')canvas.style.cursor='grabbing';renderCanvas();}
+    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'){state.drag.deleteCandidate=!pointInsideCanvas(event.clientX,event.clientY);canvas.classList.toggle('will-delete',state.drag.deleteCandidate);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode'||state.drag.kind==='moveGroup')canvas.style.cursor='grabbing';renderCanvas();}
     else {const hovered=objectAt(point,event.pointerType),wire=state.tool==='select'?wireAtPoint(point,event.pointerType):null,tram=state.tool==='select'?tramRouteHandleAt(point,event.pointerType):null;if(state.tool==='select'){canvas.style.cursor=wire?'pointer':tram||pathGhostObjectAt(point)||pathEndpointHit(selectedObject(),point,event.pointerType)?'grab':hovered?'pointer':'grab';showInteractionHint(hovered);}}
   }
 
@@ -2426,24 +2305,7 @@
     else if(drag.kind==='moveGroup'){const result=groupMovePreview(drag);if(result.ok&&result.changed)mutate('Группа предметов перемещена',()=>{for(const candidate of result.candidates){const current=state.level.objects.find(object=>object.id===candidate.id);if(current)Object.assign(current,candidate);}});else if(!result.ok)toast(result.message,'error');}
     else if(drag.kind==='move'){if(!pointInsideCanvas(event.clientX,event.clientY)){if(removeObject(drag.object.id))toast('Предмет удалён: он вынесен за границу поля.','ok');}else{const current=state.level.objects.find(object=>object.id===drag.object.id),candidate=moveCandidateFromDrag(drag);if(current&&candidate&&(candidate.x!==current.x||candidate.y!==current.y)){const verdict=placementPreviewVerdict(candidate,[current.id]);if(verdict.ok)mutate('Предмет перемещён',()=>{current.x=candidate.x;current.y=candidate.y;if(Array.isArray(candidate.props?.path))current.props.path=candidate.props.path;});else toast(verdict.message,'error');}}}
     else if(drag.kind==='pathEndpoint'){const current=state.level.objects.find(object=>object.id===drag.object.id);const end=pathEndpointFromDrag(drag);const previous=pathEnd(drag.object);if(current&&(end.x!==previous.x||end.y!==previous.y)){const placement=pathEndpointPlacement(current,end);if(placement.ok)mutate('Конечная точка маршрута перемещена',()=>{current.props.path=routeForObject(current,end);});else toast(`Конечная точка маршрута: ${placement.message}`,'error');}}
-    else if(drag.kind==='pathNode'){
-      const current=state.level.objects.find(object=>object.id===drag.object.id),previous=drag.object.props.path[drag.nodeIndex];
-      drag.current=pointerGridPoint(event);drag.outside=!pointInsideCanvas(event.clientX,event.clientY);
-      if(current&&previous&&drag.insertedNode){
-        const candidate=pathNodeCandidateFromDrag(drag);
-        if(!drag.outside&&candidate.moved&&candidate.placement.ok){
-          mutate('Узел маршрута добавлен',()=>{current.props.path=candidate.path;});
-          state.activeTramInsertion={id:current.id,index:drag.nodeIndex};
-        }else{state.activeTramInsertion=null;if(!drag.outside&&candidate.moved&&!candidate.placement.ok)toast('Узел не добавлен: '+candidate.placement.message,'error');}
-      }else if(current&&previous&&drag.outside){
-        const removal=tramNodeRemoval(current,drag.nodeIndex);state.activeTramInsertion=null;
-        if(removal.ok){mutate('Узел маршрута удалён',()=>{current.props.path=removal.path;});toast('Узел удалён: он вынесен за границу поля.','ok');}
-        else toast('Узел не удалён: '+removal.message,'error');
-      }else if(current&&previous){
-        const next=pathNodeFromDrag(drag);
-        if(next.x!==previous.x||next.y!==previous.y){const candidatePath=current.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута перемещён',()=>{current.props.path=candidatePath;});}
-      }
-    }
+    else if(drag.kind==='pathNode'){const current=state.level.objects.find(object=>object.id===drag.object.id),next=pathNodeFromDrag(drag),previous=drag.object.props.path[drag.nodeIndex];if(current&&previous&&drag.insertedNode){const candidatePath=drag.object.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута добавлен',()=>{current.props.path=candidatePath;});}else if(current&&previous&&(next.x!==previous.x||next.y!==previous.y)){const candidatePath=current.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута перемещён',()=>{current.props.path=candidatePath;});}}
     else if(drag.kind==='wireDetach'){const source=state.level.objects.find(object=>object.id===drag.sourceId),sameSocket=pointInsideCanvas(event.clientX,event.clientY)&&String(linkTargetAt(pointerGridPoint(event),event.pointerType)?.linkDescriptor||'')===String(drag.descriptor||drag.targetId);if(source&&!sameSocket){mutate('Связь удалена',()=>{source.props.targets=(source.props?.targets||[]).filter(value=>String(value)!==String(drag.descriptor||drag.targetId));});toast('Провод отключён.','ok');}}
     canvas.classList.remove('will-delete');if(state.tool==='select')canvas.style.cursor='grab';
     renderCanvas();
@@ -2552,23 +2414,7 @@
 
   function positionSelectionUi(object,def){const root=$('contextToolbar'),handles=$('resizeHandles'),stage=$('canvasStage'),cell=cellPixels(),left=canvas.offsetLeft+object.x*cell,top=canvas.offsetTop+object.y*cell,width=object.w*cell,height=object.h*cell,resizable=!def.fixedSize&&!!def.resize&&!PROTECTED_TYPES.has(object.type);handles.hidden=!resizable;if(resizable){handles.style.left=`${left}px`;handles.style.top=`${top}px`;handles.style.width=`${width}px`;handles.style.height=`${height}px`;for(const button of handles.querySelectorAll('button'))button.hidden=false;}if(root.hidden)return;const gap=14,endpointLaneHeight=LINK_ENDPOINT_OFFSET+LINK_ENDPOINT_CONTROL_SIZE/2,inset=canvasStageInset(),stageWidth=Math.max(stage.clientWidth,canvas.offsetLeft+canvas.width+inset),stageHeight=Math.max(stage.clientHeight,canvas.offsetTop+canvas.height+inset),rootWidth=root.offsetWidth||46,rootHeight=root.offsetHeight||46,centerX=left+width/2,centerY=top+height/2;let side='above',rootLeft=clamp(centerX-rootWidth/2,4,Math.max(4,stageWidth-rootWidth-4)),rootTop=top-gap-rootHeight;if(rootTop<4){side='below';rootTop=top+height+gap+endpointLaneHeight;}if(rootTop+rootHeight>stageHeight-4){const canRight=left+width+gap+rootWidth<=stageWidth-4;side=canRight?'right':'left';rootLeft=canRight?left+width+gap:Math.max(4,left-gap-rootWidth);rootTop=clamp(centerY-rootHeight/2,4,Math.max(4,stageHeight-rootHeight-4));}root.style.transform='none';root.style.left=`${rootLeft}px`;root.style.top=`${rootTop}px`;root.dataset.side=side;root.style.setProperty('--context-anchor-x',`${clamp(centerX-rootLeft,8,Math.max(8,rootWidth-8))}px`);root.style.setProperty('--context-anchor-y',`${clamp(centerY-rootTop,8,Math.max(8,rootHeight-8))}px`);const controlOffset=LINK_ENDPOINT_CONTROL_SIZE/2,endpointBounds={left:canvas.offsetLeft,top:canvas.offsetTop,right:canvas.offsetLeft+state.level.size.width*cell,bottom:canvas.offsetTop+state.level.size.height*cell},sockets=linkSocketEntries(object,left,top,width,height,endpointBounds),firstSocket=sockets[0],socketGap=sockets[1]?sockets[1].cx-firstSocket.cx:LINK_SOCKET_GAP,plug=linkSocketGeometry(object,left,top,width,height,endpointBounds);root.style.setProperty('--socket-left',`${firstSocket.cx-rootLeft-controlOffset}px`);root.style.setProperty('--socket-top',`${firstSocket.cy-rootTop-controlOffset}px`);root.style.setProperty('--socket-gap',`${socketGap}px`);root.style.setProperty('--plug-left',`${plug.cx-rootLeft-controlOffset}px`);root.style.setProperty('--plug-top',`${plug.cy-rootTop-controlOffset}px`);}
 
-  function beginDomResize(event){
-    const object=selectedObject();
-    if(!object||state.domResize||state.drag||state.pan||state.pinch||state.mobilePaletteDrag||state.wireDrag||state.touchObjectIntent)return;
-    // At small zoom a resize hitbox can cover a visible route circle. Let the
-    // nearest visible center win, preserving the actual resize corner target.
-    if(object.type==='smartPlatform'&&state.tool==='select'&&pointInsideCanvas(event.clientX,event.clientY)){
-      const route=tramRouteHandleAt(pointerGridPoint(event),event.pointerType),rect=event.currentTarget.getBoundingClientRect();
-      const cornerDistance=Math.hypot(event.clientX-rect.left-rect.width/2,event.clientY-rect.top-rect.height/2);
-      if(route?.object.id===object.id&&route.distance*cellPixels()<=7&&route.distance*cellPixels()<cornerDistance){
-        event.preventDefault();event.stopPropagation();handlePointerDown(event,route);return;
-      }
-    }
-    event.preventDefault();event.stopPropagation();
-    const handle=event.currentTarget.dataset.resizeHandle,activate=()=>{state.domResize={pointerId:event.pointerId,handle,object:deepClone(object),preview:deepClone(object)};renderCanvas();};
-    safelyCapturePointer(event.currentTarget,event.pointerId);
-    if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();
-  }
+  function beginDomResize(event){const object=selectedObject();if(!object||state.domResize||state.drag||state.pan||state.pinch||state.mobilePaletteDrag||state.wireDrag||state.touchObjectIntent)return;event.preventDefault();event.stopPropagation();const handle=event.currentTarget.dataset.resizeHandle,activate=()=>{state.domResize={pointerId:event.pointerId,handle,object:deepClone(object),preview:deepClone(object)};renderCanvas();};safelyCapturePointer(event.currentTarget,event.pointerId);if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();}
   function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const requestedLength=Math.max(Math.abs(dx),Math.abs(dy));const length=clamp(Math.round(requestedLength),3,6);next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=clamp(Math.round(requested),3,8);next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}if(drag.object.type==='pushBlock'){const requested=Math.max(next.w,next.h),size=[2,4,8].reduce((best,value)=>Math.abs(value-requested)<Math.abs(best-requested)?value:best,2);next.w=size;next.h=size;next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-size:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-size:drag.object.y;}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
   function updateDomResize(event){if(!state.domResize||state.domResize.pointerId!==event.pointerId)return;state.domResize.preview=resizePreviewFromPointer(event.clientX,event.clientY);renderCanvas();}
   function cancelDomResize(event=null){if(!state.domResize||(event&&state.domResize.pointerId!==event.pointerId))return;state.domResize=null;renderCanvas();}
@@ -2589,12 +2435,12 @@
     for(let a=0;a<level.objects.length;a++)for(let b=a+1;b<level.objects.length;b++){const first=level.objects[a],second=level.objects[b],overlap=staticPlacementFootprints(first).some(firstFootprint=>staticPlacementFootprints(second).some(secondFootprint=>rectsOverlap(firstFootprint,secondFootprint)&&!overlapAllowed(firstFootprint,secondFootprint)));if(overlap)add('error',`Предметы «${TYPE_DEFS[first.type]?.label}» и «${TYPE_DEFS[second.type]?.label}» занимают одно место.`,second.id);}
     const portalGroups=new Map(),portalColors=new Map();for(const portal of level.objects.filter(object=>object.type==='portal')){const key=portal.props?.pairId||'';if(!portalGroups.has(key))portalGroups.set(key,[]);portalGroups.get(key).push(portal);}for(const [key,pair] of portalGroups){if(!key||pair.length!==2)add('error','Каждый портал должен иметь ровно один парный конец.',pair[0]?.id);const color=pair[0]?.props?.color;if(color&&portalColors.has(color)&&portalColors.get(color)!==key)add('error','Две разные пары порталов не могут иметь одинаковый цвет.',pair[0]?.id);else if(color)portalColors.set(color,key);}
     for(const button of level.objects.filter(object=>object.type==='button')){const uniqueTargets=new Set();for(const target of button.props?.targets||[]){if(typeof target!=='string'){add('error','Связь кнопки должна быть строковым идентификатором розетки.',button.id);continue;}const descriptor=target,targetId=targetDescriptorId(descriptor),targetObject=objectsById.get(targetId);if(!targetObject)add('error','Кнопка связана с удалённым предметом.',button.id);else if(!targetDescriptorAllowed(descriptor,targetObject))add('error','Кнопка связана с неподдерживаемой розеткой предмета.',button.id);if(uniqueTargets.has(descriptor))add('error','Одна и та же розетка не может быть подключена к кнопке дважды.',button.id);uniqueTargets.add(descriptor);}}
-    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const pathGridStep=moving.type==='smartPlatform'?TRAM_ROUTE_GRID_STEP:GRID_STEP,invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/pathGridStep-Math.round(point.x/pathGridStep))>1e-8||Math.abs(point.y/pathGridStep-Math.round(point.y/pathGridStep))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
-    const budget=calculateBudget(level);if(level.objects.length>512)add('error','Больше 512 авторских объектов.');if((budget.counts.coin||0)>coinLimit(level))add('error',`Монет больше допустимых ${coinLimit(level)} для карты ${level.size.width}×${level.size.height}.`);if(budget.dynamic>48)add('error','Больше 48 динамических платформ, дверей и конвейеров.');if((budget.counts.crusherWall||0)>8)add('error','Больше 8 прессов.');if((budget.counts.pushBlock||0)>12)add('error','Больше 12 тяжёлых кубов.');if(portalGroups.size>6)add('error','Больше 6 пар порталов: уникальных цветов не хватит.');if((budget.counts.button||0)>32)add('error','Больше 32 кнопок.');if(budget.links>64)add('error','Больше 64 связей кнопок.');if(budget.routePoints>128)add('error','Больше 128 точек маршрутов.');if(budget.generators>8)add('error','Больше 8 генераторов.');if(budget.enemies>40)add('error','Больше 40 заранее размещённых врагов.');if(budget.bytes>512*1024)add('error','Файл уровня больше 512 КБ.');if(budget.score>100)add('error',`Нагрузка ${budget.score}: выше стартового hard cap 100.`);else if(budget.score>70)add('warning',`Нагрузка ${budget.score}: жёлтая зона, нужен тест слабого устройства.`);
+    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/GRID_STEP-Math.round(point.x/GRID_STEP))>1e-8||Math.abs(point.y/GRID_STEP-Math.round(point.y/GRID_STEP))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
+    const budget=calculateBudget(level);if(level.objects.length>512)add('error','Больше 512 авторских объектов.');if((budget.counts.coin||0)>coinLimit(level))add('error',`Монет больше допустимых ${coinLimit(level)} для карты ${level.size.width}×${level.size.height}.`);if(budget.dynamic>48)add('error','Больше 48 динамических платформ, дверей и конвейеров.');if((budget.counts.crusherWall||0)>8)add('error','Больше 8 прессов.');if((budget.counts.pushBlock||0)>12)add('error','Больше 12 тяжёлых кубов.');if(portalGroups.size>6)add('error','Больше 6 пар порталов: уникальных цветов не хватит.');if((budget.counts.button||0)>32)add('error','Больше 32 кнопок.');if(budget.links>64)add('error','Больше 64 связей кнопок.');if(budget.routePoints>128)add('error','Больше 128 точек маршрутов.');if(budget.generators>8)add('error','Больше 8 генераторов.');if(budget.enemies>40)add('error','Больше 40 заранее размещённых врагов.');if(budget.bytes>512*1024)add('error','Файл уровня больше 512 КБ.');
     if(!issues.length)add('ok','Критических ошибок не найдено. Теперь уровень надо пройти в игре.');state.issues=issues;renderIssues();updateBudget(budget);if(selectChecks)selectInspectorTab('checks');return issues;}
 
   function renderIssues(){const list=$('issuesList');list.innerHTML='';const errors=state.issues.filter(issue=>issue.severity==='error').length,warnings=state.issues.filter(issue=>issue.severity==='warning').length;$('issueBadge').textContent=String(errors+warnings);$('checksHeadline').textContent=errors?`${errors} критических ошибок`:warnings?`${warnings} предупреждений`:'Базовая проверка пройдена';$('checksDescription').textContent=errors?'Исправьте ошибки перед Play.':warnings?'Уровень можно запускать, но бюджет надо проверить.':'Это ещё не доказывает проходимость — нажмите Play.';for(const issue of state.issues){const item=document.createElement('li');item.className=`issue ${issue.severity}`;item.textContent=issue.message;if(issue.objectId){const button=document.createElement('button');button.type='button';button.textContent='Показать предмет';button.addEventListener('click',()=>{state.selectedId=issue.objectId;selectInspectorTab('object');refreshAll();scrollSelectedIntoView();});item.append(button);}list.append(item);}}
-  function updateBudget(budget=calculateBudget()){const percent=clamp(budget.score,0,110);$('budgetBar').style.width=`${Math.min(100,percent)}%`;$('budgetBar').className=budget.score>100?'error':budget.score>70?'warning':'';$('budgetBar').title=`Нагрузка ${budget.score} / 100 (стартовая модель, не измеренный предел)`;const portalPairs=new Set(state.level.objects.filter(object=>object.type==='portal').map(object=>object.props?.pairId).filter(Boolean)).size;const cap=coinLimit();const entries=[['Нагрузка',budget.score,100,70],['Объекты',state.level.objects.length,512,435],['Монеты',budget.counts.coin||0,cap,Math.max(1,Math.floor(cap*.85))],['Динамика',budget.dynamic,48,41],['Враги',budget.enemies,40,34],['Генераторы',budget.generators,8,7],['Пары порталов',portalPairs,8,7],['Связи',budget.links,64,55]];const root=$('budgetDetails');if(root){root.innerHTML='';for(const [label,value,limit,warn] of entries){const chip=document.createElement('div');chip.className=`budget-chip ${value>limit?'error':value>=warn?'warning':''}`;const name=document.createElement('span');name.textContent=label;const count=document.createElement('b');count.textContent=`${value}/${limit}`;chip.append(name,count);root.append(chip);}}const badge=document.querySelector('[data-palette-id="coin"] .coin-cap');if(badge)badge.textContent=`${budget.counts.coin||0}/${cap}`;}
+  function updateBudget(budget=calculateBudget()){const percent=budget.score<=0?0:Math.min(100,Math.max(4,100*(1-Math.exp(-budget.score/100))));$('budgetBar').style.width=`${percent}%`;$('budgetBar').className='informational';$('budgetBar').title=`Нагрузка ${budget.score} (справочный показатель; Play не ограничивает)`;const portalPairs=new Set(state.level.objects.filter(object=>object.type==='portal').map(object=>object.props?.pairId).filter(Boolean)).size;const cap=coinLimit();const entries=[['Нагрузка',budget.score,null,null],['Объекты',state.level.objects.length,512,435],['Монеты',budget.counts.coin||0,cap,Math.max(1,Math.floor(cap*.85))],['Динамика',budget.dynamic,48,41],['Враги',budget.enemies,40,34],['Генераторы',budget.generators,8,7],['Пары порталов',portalPairs,8,7],['Связи',budget.links,64,55]];const root=$('budgetDetails');if(root){root.innerHTML='';for(const [label,value,limit,warn] of entries){const chip=document.createElement('div');const informational=label==='Нагрузка';chip.className=`budget-chip ${informational?'informational':value>limit?'error':value>=warn?'warning':''}`;const name=document.createElement('span');name.textContent=label;const count=document.createElement('b');count.textContent=informational?String(value):`${value}/${limit}`;chip.append(name,count);root.append(chip);}}const badge=document.querySelector('[data-palette-id="coin"] .coin-cap');if(badge)badge.textContent=`${budget.counts.coin||0}/${cap}`;}
 
   function updatePlayAvailability(issues=state.issues){const errors=(issues||[]).filter(issue=>issue.severity==='error'),button=$('playButton');if(!button)return;button.classList.toggle('blocked',errors.length>0);button.setAttribute('aria-disabled',String(errors.length>0));button.title=errors.length?`Нельзя запустить: ${errors[0].message}`:'Проверить уровень в игре';}
   function refreshStatus(){if(!state.level)return;$('objectCountStatus').textContent=`${state.level.objects.length} объектов`;updateHistoryButtons();updateSaveState();updateBudget();const proof=state.slot?.clearProofs?.[state.difficulty];const valid=proof&&proof.levelHash===stableHash(state.level);$('clearStatus').textContent=valid?'✓ Пройдено автором без смерти':'Авторское прохождение не засчитано';$('clearStatus').classList.toggle('clear-mark',!!valid);refreshPlayerHeader();}
@@ -2922,7 +2768,7 @@
     if(command&&event.key.toLowerCase()==='d'&&!editing){event.preventDefault();duplicateSelected();return;}
     if(command&&event.key.toLowerCase()==='c'&&!editing){const object=selectedObject();if(object){state.objectClipboard=deepClone(object);toast('Предмет скопирован.');}return;}
     if(command&&event.key.toLowerCase()==='v'&&!editing&&state.objectClipboard){event.preventDefault();let source=deepClone(state.objectClipboard);const oldX=source.x,oldY=source.y;source.id=nextObjectId(source.type);source.x=clamp(source.x+1,0,state.level.size.width-source.w);source.y=clamp(source.y+1,0,state.level.size.height-source.h);if(PATH_ENDPOINT_TYPES.has(source.type))shiftPath(source,source.x-oldX,source.y-oldY);if(source.type==='portal'){source.props.pairId=nextPortalPairId();source=nearestPortalPasteCandidate(source);}const placement=source&&canPlace(source,[],source.type==='smartPlatform'?{checkOwnPair:false}:{});if(placement?.ok)addPlacedObject(source);else toast('Для вставки нет свободного места.','error');return;}
-    if(editing)return;if(event.code==='Space'){state.spaceHeld=true;event.preventDefault();}if(event.key.toLowerCase()==='v')setTool('select');if(event.key.toLowerCase()==='e')setTool('erase');if(event.key.toLowerCase()==='r')rotateSelected();if(event.key.toLowerCase()==='p')playLevel();if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();if(state.selectedId)removeObject(state.selectedId);}if(event.key==='Escape'){resetCanvasGestureState({restoreSelection:true});state.selectedId=null;setTool('select');refreshAll();}if(event.key==='+'||event.key==='=')setZoom(state.zoom+.1);if(event.key==='-')setZoom(state.zoom-.1);
+    if(editing)return;if(event.code==='Space'){state.spaceHeld=true;event.preventDefault();}if(event.key.toLowerCase()==='v')setTool('select');if(event.key.toLowerCase()==='e')setTool('erase');if(event.key.toLowerCase()==='r')rotateSelected();if(event.key.toLowerCase()==='p')playLevel();if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();if(state.selectedId)removeObject(state.selectedId);}if(event.key==='Escape'){state.drag=null;state.selectedId=null;setTool('select');refreshAll();}if(event.key==='+'||event.key==='=')setZoom(state.zoom+.1);if(event.key==='-')setZoom(state.zoom-.1);
   }
 
   function bindUi(){renderPalette();renderMobilePalette();updateGridMarkingButton();
@@ -2946,18 +2792,14 @@
     document.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'&&event.isPrimary&&viewport.contains(event.target)&&state.pointers.size&&!state.pointers.has(event.pointerId))resetCanvasGestureState({restoreSelection:true});},{capture:true});
     viewport.addEventListener('pointerdown',handlePointerDown);viewport.addEventListener('pointermove',handlePointerMove);viewport.addEventListener('pointerup',handlePointerUp);viewport.addEventListener('pointercancel',cancelCanvasPointer);viewport.addEventListener('lostpointercapture',event=>{if(event.target===viewport)cancelCanvasPointer(event);});viewport.addEventListener('pointerleave',()=>{if(!state.drag&&!state.pan&&!state.pinch&&!state.desktopPaletteDrag){state.hoverPoint=null;$('cursorReadout').style.display='none';renderCanvas();}});canvas.addEventListener('contextmenu',event=>event.preventDefault());canvas.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='copy';if(state.desktopPaletteDrag){state.hoverPoint=pointerGridPoint(event);renderCanvas();}});canvas.addEventListener('dragleave',event=>{if(state.desktopPaletteDrag&&!canvas.contains(event.relatedTarget)){state.hoverPoint=null;renderCanvas();}});canvas.addEventListener('drop',event=>{event.preventDefault();const id=event.dataTransfer.getData('text/nubu-tool')||state.desktopPaletteDrag?.paletteId,item=PALETTE_BY_ID.get(id),point=pointerGridPoint(event);state.desktopPaletteDrag=null;state.hoverPoint=null;if(!item){renderCanvas();return;}if(addPlacedObject(makeObjectFromTool(item,{x:point.x,y:point.y,w:1,h:1}))&&item.type!=='solid')setTool('select');else renderCanvas();});
     viewport.addEventListener('wheel',event=>{if(!(event.ctrlKey||event.metaKey)){if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();return;}event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(state.zoom+(event.deltaY<0?.1:-.1),{x:event.clientX-rect.left,y:event.clientY-rect.top});},{passive:false});viewport.addEventListener('gesturestart',beginNativeGesture,{passive:false});viewport.addEventListener('gesturechange',updateNativeGesture,{passive:false});viewport.addEventListener('gestureend',endNativeGesture,{passive:false});
-    const editableTouchTarget=target=>target?.closest?.('input,textarea,[contenteditable="true"]');
-    document.addEventListener('contextmenu',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
-    document.addEventListener('selectstart',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
-    document.addEventListener('dblclick',event=>{if(!editableTouchTarget(event.target))event.preventDefault();},{passive:false});
+    document.addEventListener('contextmenu',event=>event.preventDefault());
+    document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
     for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
-    const nativeTouchInteraction=target=>target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,button,label,a,[role="button"],input,textarea,select,[contenteditable="true"]')||target?.matches?.('.modal');
-    // Canvas pan/pinch is owned by pointer handlers. Cancel from touchstart so
-    // a stationary hold cannot begin browser selection or double-tap zoom.
-    for(const type of ['touchstart','touchmove'])document.addEventListener(type,event=>{if((event.touches?.length||0)>1||!nativeTouchInteraction(event.target))event.preventDefault();},{passive:false,capture:true});
-    document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey){event.preventDefault();return;}if(Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
+    document.addEventListener('touchstart',event=>{const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"],.panel-control');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();},{passive:false,capture:true});
+    document.addEventListener('touchmove',event=>{const nativeInteraction=event.target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,button,label,a,[role="button"],input,textarea,select');if((event.touches?.length||0)>1||!nativeInteraction)event.preventDefault();},{passive:false,capture:true});
+    document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
     window.addEventListener('pointermove',updatePanelControlTouch,{passive:false});window.addEventListener('pointerup',endPanelControlTouch,{passive:false});window.addEventListener('pointercancel',cancelPanelControlTouch,{passive:false});window.addEventListener('pointermove',updateMobilePaletteGesture,{passive:false});window.addEventListener('pointerup',endMobilePaletteGesture,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteGesture,{passive:false});window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
-    window.addEventListener('blur',()=>{if(state.drag?.kind==='pathNode')resetCanvasGestureState({restoreSelection:true});clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
+    window.addEventListener('blur',()=>{clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
     window.addEventListener('message',async event=>{
       if(event.origin!==window.location.origin||!event.data?.type)return;
       if(event.data.type==='nubu:set-background-work-paused'){
