@@ -1,7 +1,7 @@
 const PRECACHE_ENTRIES = [
   {
     "url": "./build-manifest.json",
-    "revision": "1598713cbb694903"
+    "revision": "3985239d9878a99e"
   },
   {
     "url": "./campaign/ep1/ep1-01-easy.level.json",
@@ -292,6 +292,582 @@ const PRECACHE_ENTRIES = [
     "revision": "26bf1304e4c16b7f"
   },
   {
+    "url": "./campaign/ep2/ep2-01-easy.level.json",
+    "revision": "1c052b4e62fd7213"
+  },
+  {
+    "url": "./campaign/ep2/ep2-01-hard.level.json",
+    "revision": "e7b8907eae030108"
+  },
+  {
+    "url": "./campaign/ep2/ep2-01-medium.level.json",
+    "revision": "dab910b5f45455c4"
+  },
+  {
+    "url": "./campaign/ep2/ep2-02-easy.level.json",
+    "revision": "b29d93a5089bbb70"
+  },
+  {
+    "url": "./campaign/ep2/ep2-02-hard.level.json",
+    "revision": "bc762f54ff369d53"
+  },
+  {
+    "url": "./campaign/ep2/ep2-02-medium.level.json",
+    "revision": "89382c873f2d3d8a"
+  },
+  {
+    "url": "./campaign/ep2/ep2-03-easy.level.json",
+    "revision": "6251466ea7d7cdc1"
+  },
+  {
+    "url": "./campaign/ep2/ep2-03-hard.level.json",
+    "revision": "0ef0d1b6d0ad63cf"
+  },
+  {
+    "url": "./campaign/ep2/ep2-03-medium.level.json",
+    "revision": "6507e77c585bb483"
+  },
+  {
+    "url": "./campaign/ep2/ep2-04-easy.level.json",
+    "revision": "d451f7edff08566b"
+  },
+  {
+    "url": "./campaign/ep2/ep2-04-hard.level.json",
+    "revision": "438849d7e7a3f254"
+  },
+  {
+    "url": "./campaign/ep2/ep2-04-medium.level.json",
+    "revision": "2f707172afdd794a"
+  },
+  {
+    "url": "./campaign/ep2/ep2-05-easy.level.json",
+    "revision": "620e3f80d487560e"
+  },
+  {
+    "url": "./campaign/ep2/ep2-05-hard.level.json",
+    "revision": "e42bccb64e1d481a"
+  },
+  {
+    "url": "./campaign/ep2/ep2-05-medium.level.json",
+    "revision": "92ff3ecb6e6837ce"
+  },
+  {
+    "url": "./campaign/ep2/ep2-06-easy.level.json",
+    "revision": "95325b976ec2ea88"
+  },
+  {
+    "url": "./campaign/ep2/ep2-06-hard.level.json",
+    "revision": "3b7499e0e608f1d3"
+  },
+  {
+    "url": "./campaign/ep2/ep2-06-medium.level.json",
+    "revision": "2c5375e559d61509"
+  },
+  {
+    "url": "./campaign/ep2/ep2-07-easy.level.json",
+    "revision": "7952f6eb99100e5b"
+  },
+  {
+    "url": "./campaign/ep2/ep2-07-hard.level.json",
+    "revision": "c2e5f5ec4009dc36"
+  },
+  {
+    "url": "./campaign/ep2/ep2-07-medium.level.json",
+    "revision": "03e4f6b792445365"
+  },
+  {
+    "url": "./campaign/ep2/ep2-08-easy.level.json",
+    "revision": "dafdf2ee07d78c2e"
+  },
+  {
+    "url": "./campaign/ep2/ep2-08-hard.level.json",
+    "revision": "28b0223d1e7e64b5"
+  },
+  {
+    "url": "./campaign/ep2/ep2-08-medium.level.json",
+    "revision": "97a8047769f1ffba"
+  },
+  {
+    "url": "./campaign/ep2/ep2-09-easy.level.json",
+    "revision": "23337e20854727ff"
+  },
+  {
+    "url": "./campaign/ep2/ep2-09-hard.level.json",
+    "revision": "d1c6cdefdb964d18"
+  },
+  {
+    "url": "./campaign/ep2/ep2-09-medium.level.json",
+    "revision": "6c05ba091adb1cd6"
+  },
+  {
+    "url": "./campaign/ep2/ep2-10-easy.level.json",
+    "revision": "292d6248798fd520"
+  },
+  {
+    "url": "./campaign/ep2/ep2-10-hard.level.json",
+    "revision": "e8364b6ca6d7916b"
+  },
+  {
+    "url": "./campaign/ep2/ep2-10-medium.level.json",
+    "revision": "ea5c0919ec2d588e"
+  },
+  {
+    "url": "./campaign/ep2/ep2-11-easy.level.json",
+    "revision": "8475745361613ac0"
+  },
+  {
+    "url": "./campaign/ep2/ep2-11-hard.level.json",
+    "revision": "3753e2bb551eafda"
+  },
+  {
+    "url": "./campaign/ep2/ep2-11-medium.level.json",
+    "revision": "1901d74f74c64cba"
+  },
+  {
+    "url": "./campaign/ep2/ep2-12-easy.level.json",
+    "revision": "e010a8753e3f4402"
+  },
+  {
+    "url": "./campaign/ep2/ep2-12-hard.level.json",
+    "revision": "1deef093a096ad99"
+  },
+  {
+    "url": "./campaign/ep2/ep2-12-medium.level.json",
+    "revision": "df1397cdd4d4a674"
+  },
+  {
+    "url": "./campaign/ep2/ep2-13-easy.level.json",
+    "revision": "fc38ce462b3e9534"
+  },
+  {
+    "url": "./campaign/ep2/ep2-13-hard.level.json",
+    "revision": "411e8bdb60d11fad"
+  },
+  {
+    "url": "./campaign/ep2/ep2-13-medium.level.json",
+    "revision": "4183415c5d0085cb"
+  },
+  {
+    "url": "./campaign/ep2/ep2-14-easy.level.json",
+    "revision": "0aeadf1bab62c28d"
+  },
+  {
+    "url": "./campaign/ep2/ep2-14-hard.level.json",
+    "revision": "7e1fd5c9796ca287"
+  },
+  {
+    "url": "./campaign/ep2/ep2-14-medium.level.json",
+    "revision": "cb29d50d88840522"
+  },
+  {
+    "url": "./campaign/ep2/ep2-15-easy.level.json",
+    "revision": "1cfe0d562f36d8f9"
+  },
+  {
+    "url": "./campaign/ep2/ep2-15-hard.level.json",
+    "revision": "e60a3731aee244b8"
+  },
+  {
+    "url": "./campaign/ep2/ep2-15-medium.level.json",
+    "revision": "7849b39e5811f235"
+  },
+  {
+    "url": "./campaign/ep2/ep2-16-easy.level.json",
+    "revision": "937f7949994147f4"
+  },
+  {
+    "url": "./campaign/ep2/ep2-16-hard.level.json",
+    "revision": "eba1c59987e1e628"
+  },
+  {
+    "url": "./campaign/ep2/ep2-16-medium.level.json",
+    "revision": "126e80948135b835"
+  },
+  {
+    "url": "./campaign/ep2/ep2-17-easy.level.json",
+    "revision": "bbcb9cac75f8a754"
+  },
+  {
+    "url": "./campaign/ep2/ep2-17-hard.level.json",
+    "revision": "aa43456d7f25a651"
+  },
+  {
+    "url": "./campaign/ep2/ep2-17-medium.level.json",
+    "revision": "134aae6d6812b08f"
+  },
+  {
+    "url": "./campaign/ep2/ep2-18-easy.level.json",
+    "revision": "f565368ec7966f46"
+  },
+  {
+    "url": "./campaign/ep2/ep2-18-hard.level.json",
+    "revision": "fe7dd50d9603b6a4"
+  },
+  {
+    "url": "./campaign/ep2/ep2-18-medium.level.json",
+    "revision": "b4236a9fefc41971"
+  },
+  {
+    "url": "./campaign/ep2/ep2-19-easy.level.json",
+    "revision": "a7d1357e3cfaa314"
+  },
+  {
+    "url": "./campaign/ep2/ep2-19-hard.level.json",
+    "revision": "3a74edabddde9412"
+  },
+  {
+    "url": "./campaign/ep2/ep2-19-medium.level.json",
+    "revision": "5d4b7d2dd136f045"
+  },
+  {
+    "url": "./campaign/ep2/ep2-20-easy.level.json",
+    "revision": "0ad7550b280d1a67"
+  },
+  {
+    "url": "./campaign/ep2/ep2-20-hard.level.json",
+    "revision": "96a07915b1fb8410"
+  },
+  {
+    "url": "./campaign/ep2/ep2-20-medium.level.json",
+    "revision": "06ea43e53c0f0594"
+  },
+  {
+    "url": "./campaign/ep2/ep2-21-easy.level.json",
+    "revision": "e73487ebebe7af16"
+  },
+  {
+    "url": "./campaign/ep2/ep2-21-hard.level.json",
+    "revision": "5a5a4c32ff6ad3c4"
+  },
+  {
+    "url": "./campaign/ep2/ep2-21-medium.level.json",
+    "revision": "361ad85323c42a42"
+  },
+  {
+    "url": "./campaign/ep2/ep2-22-easy.level.json",
+    "revision": "8287568cf520c979"
+  },
+  {
+    "url": "./campaign/ep2/ep2-22-hard.level.json",
+    "revision": "6105c9047f07b62b"
+  },
+  {
+    "url": "./campaign/ep2/ep2-22-medium.level.json",
+    "revision": "30d1593d87360400"
+  },
+  {
+    "url": "./campaign/ep2/ep2-23-easy.level.json",
+    "revision": "c3943281670cdb7f"
+  },
+  {
+    "url": "./campaign/ep2/ep2-23-hard.level.json",
+    "revision": "4d712e71d1f1a09d"
+  },
+  {
+    "url": "./campaign/ep2/ep2-23-medium.level.json",
+    "revision": "926cc816e0f44656"
+  },
+  {
+    "url": "./campaign/ep2/ep2-24-easy.level.json",
+    "revision": "15ae02c52d19c923"
+  },
+  {
+    "url": "./campaign/ep2/ep2-24-hard.level.json",
+    "revision": "a9e22dbb84604184"
+  },
+  {
+    "url": "./campaign/ep2/ep2-24-medium.level.json",
+    "revision": "6df6df86fd233d98"
+  },
+  {
+    "url": "./campaign/lobby/lobby-01-easy.level.json",
+    "revision": "45b8279d94c1e98a"
+  },
+  {
+    "url": "./campaign/lobby/lobby-01-hard.level.json",
+    "revision": "38c4d2216dc5fa80"
+  },
+  {
+    "url": "./campaign/lobby/lobby-01-medium.level.json",
+    "revision": "8e393050d4807afe"
+  },
+  {
+    "url": "./campaign/lobby/lobby-02-easy.level.json",
+    "revision": "3c65dd8bbd0eee0a"
+  },
+  {
+    "url": "./campaign/lobby/lobby-02-hard.level.json",
+    "revision": "c16da161504ac0b6"
+  },
+  {
+    "url": "./campaign/lobby/lobby-02-medium.level.json",
+    "revision": "d0a371c9951045ce"
+  },
+  {
+    "url": "./campaign/lobby/lobby-03-easy.level.json",
+    "revision": "3e26af1c118b7373"
+  },
+  {
+    "url": "./campaign/lobby/lobby-03-hard.level.json",
+    "revision": "2da50b614ba246f3"
+  },
+  {
+    "url": "./campaign/lobby/lobby-03-medium.level.json",
+    "revision": "5746998740959709"
+  },
+  {
+    "url": "./campaign/lobby/lobby-04-easy.level.json",
+    "revision": "57f6f8c3e51163f3"
+  },
+  {
+    "url": "./campaign/lobby/lobby-04-hard.level.json",
+    "revision": "a37f7484b1d7b2d6"
+  },
+  {
+    "url": "./campaign/lobby/lobby-04-medium.level.json",
+    "revision": "4c40db9859f264ef"
+  },
+  {
+    "url": "./campaign/lobby/lobby-05-easy.level.json",
+    "revision": "726cdc9d902c14cf"
+  },
+  {
+    "url": "./campaign/lobby/lobby-05-hard.level.json",
+    "revision": "5aaf06b2f65be57c"
+  },
+  {
+    "url": "./campaign/lobby/lobby-05-medium.level.json",
+    "revision": "6d06d7153161d5bb"
+  },
+  {
+    "url": "./campaign/lobby/lobby-06-easy.level.json",
+    "revision": "411c7ced99be7f1f"
+  },
+  {
+    "url": "./campaign/lobby/lobby-06-hard.level.json",
+    "revision": "683b2a6f3014d40f"
+  },
+  {
+    "url": "./campaign/lobby/lobby-06-medium.level.json",
+    "revision": "b14fc524f34945d6"
+  },
+  {
+    "url": "./campaign/lobby/lobby-07-easy.level.json",
+    "revision": "a6d18950a37bdb77"
+  },
+  {
+    "url": "./campaign/lobby/lobby-07-hard.level.json",
+    "revision": "001480ee1cf308ca"
+  },
+  {
+    "url": "./campaign/lobby/lobby-07-medium.level.json",
+    "revision": "52f87804b8ce478a"
+  },
+  {
+    "url": "./campaign/lobby/lobby-08-easy.level.json",
+    "revision": "0badc93c13b656fc"
+  },
+  {
+    "url": "./campaign/lobby/lobby-08-hard.level.json",
+    "revision": "a5b69423d5ea6eee"
+  },
+  {
+    "url": "./campaign/lobby/lobby-08-medium.level.json",
+    "revision": "7d4a33114e3e9639"
+  },
+  {
+    "url": "./campaign/lobby/lobby-09-easy.level.json",
+    "revision": "e4be3eea2991c0e1"
+  },
+  {
+    "url": "./campaign/lobby/lobby-09-hard.level.json",
+    "revision": "d7475091eda2adb7"
+  },
+  {
+    "url": "./campaign/lobby/lobby-09-medium.level.json",
+    "revision": "b14a1ae83000bc27"
+  },
+  {
+    "url": "./campaign/lobby/lobby-10-easy.level.json",
+    "revision": "a66f091e00e65acd"
+  },
+  {
+    "url": "./campaign/lobby/lobby-10-hard.level.json",
+    "revision": "d9e18f81995c6db3"
+  },
+  {
+    "url": "./campaign/lobby/lobby-10-medium.level.json",
+    "revision": "8d9699e88f8919f6"
+  },
+  {
+    "url": "./campaign/lobby/lobby-11-easy.level.json",
+    "revision": "2fa2b28e5d7f9b92"
+  },
+  {
+    "url": "./campaign/lobby/lobby-11-hard.level.json",
+    "revision": "5f4ec70577d6a6d0"
+  },
+  {
+    "url": "./campaign/lobby/lobby-11-medium.level.json",
+    "revision": "32c1166a25891107"
+  },
+  {
+    "url": "./campaign/lobby/lobby-12-easy.level.json",
+    "revision": "2658b3e249b15bb7"
+  },
+  {
+    "url": "./campaign/lobby/lobby-12-hard.level.json",
+    "revision": "437c6e7887079263"
+  },
+  {
+    "url": "./campaign/lobby/lobby-12-medium.level.json",
+    "revision": "203309dbb01aa299"
+  },
+  {
+    "url": "./campaign/lobby/lobby-13-easy.level.json",
+    "revision": "91646c08942d1054"
+  },
+  {
+    "url": "./campaign/lobby/lobby-13-hard.level.json",
+    "revision": "0f0ff3b1755b0eab"
+  },
+  {
+    "url": "./campaign/lobby/lobby-13-medium.level.json",
+    "revision": "e1c419c0d30b4266"
+  },
+  {
+    "url": "./campaign/lobby/lobby-14-easy.level.json",
+    "revision": "4a97e3932c2d4c6e"
+  },
+  {
+    "url": "./campaign/lobby/lobby-14-hard.level.json",
+    "revision": "8926238caa81c7ef"
+  },
+  {
+    "url": "./campaign/lobby/lobby-14-medium.level.json",
+    "revision": "e3df50e1732523ae"
+  },
+  {
+    "url": "./campaign/lobby/lobby-15-easy.level.json",
+    "revision": "2ff58d37955e478e"
+  },
+  {
+    "url": "./campaign/lobby/lobby-15-hard.level.json",
+    "revision": "3d16268460677e99"
+  },
+  {
+    "url": "./campaign/lobby/lobby-15-medium.level.json",
+    "revision": "4ec58180e4c08861"
+  },
+  {
+    "url": "./campaign/lobby/lobby-16-easy.level.json",
+    "revision": "c0ac2dd231ee6358"
+  },
+  {
+    "url": "./campaign/lobby/lobby-16-hard.level.json",
+    "revision": "f3553602d97199cd"
+  },
+  {
+    "url": "./campaign/lobby/lobby-16-medium.level.json",
+    "revision": "eee0174f3147398f"
+  },
+  {
+    "url": "./campaign/lobby/lobby-17-easy.level.json",
+    "revision": "5a67f284110929e9"
+  },
+  {
+    "url": "./campaign/lobby/lobby-17-hard.level.json",
+    "revision": "14fd6cdcc754105a"
+  },
+  {
+    "url": "./campaign/lobby/lobby-17-medium.level.json",
+    "revision": "d36b331454973560"
+  },
+  {
+    "url": "./campaign/lobby/lobby-18-easy.level.json",
+    "revision": "f8837d3cae605cca"
+  },
+  {
+    "url": "./campaign/lobby/lobby-18-hard.level.json",
+    "revision": "f1bbc3362a03eefb"
+  },
+  {
+    "url": "./campaign/lobby/lobby-18-medium.level.json",
+    "revision": "7e921cb45028c568"
+  },
+  {
+    "url": "./campaign/lobby/lobby-19-easy.level.json",
+    "revision": "05811f9e66c832de"
+  },
+  {
+    "url": "./campaign/lobby/lobby-19-hard.level.json",
+    "revision": "7f4cc80a84378188"
+  },
+  {
+    "url": "./campaign/lobby/lobby-19-medium.level.json",
+    "revision": "9fe870206f97d54c"
+  },
+  {
+    "url": "./campaign/lobby/lobby-20-easy.level.json",
+    "revision": "6348ca0f0a4c7303"
+  },
+  {
+    "url": "./campaign/lobby/lobby-20-hard.level.json",
+    "revision": "b8e23289ed15b987"
+  },
+  {
+    "url": "./campaign/lobby/lobby-20-medium.level.json",
+    "revision": "462437087001351e"
+  },
+  {
+    "url": "./campaign/lobby/lobby-21-easy.level.json",
+    "revision": "4c2e8df140500d7b"
+  },
+  {
+    "url": "./campaign/lobby/lobby-21-hard.level.json",
+    "revision": "006d2f9cc7a416af"
+  },
+  {
+    "url": "./campaign/lobby/lobby-21-medium.level.json",
+    "revision": "1ccadbef577561cb"
+  },
+  {
+    "url": "./campaign/lobby/lobby-22-easy.level.json",
+    "revision": "17c90a4445098729"
+  },
+  {
+    "url": "./campaign/lobby/lobby-22-hard.level.json",
+    "revision": "22a961f1b1f27c9d"
+  },
+  {
+    "url": "./campaign/lobby/lobby-22-medium.level.json",
+    "revision": "c49165df17a2a9b5"
+  },
+  {
+    "url": "./campaign/lobby/lobby-23-easy.level.json",
+    "revision": "c4cc4c2e73793221"
+  },
+  {
+    "url": "./campaign/lobby/lobby-23-hard.level.json",
+    "revision": "9971d516848b1d3b"
+  },
+  {
+    "url": "./campaign/lobby/lobby-23-medium.level.json",
+    "revision": "7281d07197d4af0f"
+  },
+  {
+    "url": "./campaign/lobby/lobby-24-easy.level.json",
+    "revision": "1617cd66b08dd164"
+  },
+  {
+    "url": "./campaign/lobby/lobby-24-hard.level.json",
+    "revision": "95ee2681a4c16d11"
+  },
+  {
+    "url": "./campaign/lobby/lobby-24-medium.level.json",
+    "revision": "eb36d33cea731855"
+  },
+  {
     "url": "./editor/campaign/ep1/ep1-01-easy.level.json",
     "revision": "e2de162c018a8666"
   },
@@ -580,12 +1156,588 @@ const PRECACHE_ENTRIES = [
     "revision": "26bf1304e4c16b7f"
   },
   {
+    "url": "./editor/campaign/ep2/ep2-01-easy.level.json",
+    "revision": "1c052b4e62fd7213"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-01-hard.level.json",
+    "revision": "e7b8907eae030108"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-01-medium.level.json",
+    "revision": "dab910b5f45455c4"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-02-easy.level.json",
+    "revision": "b29d93a5089bbb70"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-02-hard.level.json",
+    "revision": "bc762f54ff369d53"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-02-medium.level.json",
+    "revision": "89382c873f2d3d8a"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-03-easy.level.json",
+    "revision": "6251466ea7d7cdc1"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-03-hard.level.json",
+    "revision": "0ef0d1b6d0ad63cf"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-03-medium.level.json",
+    "revision": "6507e77c585bb483"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-04-easy.level.json",
+    "revision": "d451f7edff08566b"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-04-hard.level.json",
+    "revision": "438849d7e7a3f254"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-04-medium.level.json",
+    "revision": "2f707172afdd794a"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-05-easy.level.json",
+    "revision": "620e3f80d487560e"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-05-hard.level.json",
+    "revision": "e42bccb64e1d481a"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-05-medium.level.json",
+    "revision": "92ff3ecb6e6837ce"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-06-easy.level.json",
+    "revision": "95325b976ec2ea88"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-06-hard.level.json",
+    "revision": "3b7499e0e608f1d3"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-06-medium.level.json",
+    "revision": "2c5375e559d61509"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-07-easy.level.json",
+    "revision": "7952f6eb99100e5b"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-07-hard.level.json",
+    "revision": "c2e5f5ec4009dc36"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-07-medium.level.json",
+    "revision": "03e4f6b792445365"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-08-easy.level.json",
+    "revision": "dafdf2ee07d78c2e"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-08-hard.level.json",
+    "revision": "28b0223d1e7e64b5"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-08-medium.level.json",
+    "revision": "97a8047769f1ffba"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-09-easy.level.json",
+    "revision": "23337e20854727ff"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-09-hard.level.json",
+    "revision": "d1c6cdefdb964d18"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-09-medium.level.json",
+    "revision": "6c05ba091adb1cd6"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-10-easy.level.json",
+    "revision": "292d6248798fd520"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-10-hard.level.json",
+    "revision": "e8364b6ca6d7916b"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-10-medium.level.json",
+    "revision": "ea5c0919ec2d588e"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-11-easy.level.json",
+    "revision": "8475745361613ac0"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-11-hard.level.json",
+    "revision": "3753e2bb551eafda"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-11-medium.level.json",
+    "revision": "1901d74f74c64cba"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-12-easy.level.json",
+    "revision": "e010a8753e3f4402"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-12-hard.level.json",
+    "revision": "1deef093a096ad99"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-12-medium.level.json",
+    "revision": "df1397cdd4d4a674"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-13-easy.level.json",
+    "revision": "fc38ce462b3e9534"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-13-hard.level.json",
+    "revision": "411e8bdb60d11fad"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-13-medium.level.json",
+    "revision": "4183415c5d0085cb"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-14-easy.level.json",
+    "revision": "0aeadf1bab62c28d"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-14-hard.level.json",
+    "revision": "7e1fd5c9796ca287"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-14-medium.level.json",
+    "revision": "cb29d50d88840522"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-15-easy.level.json",
+    "revision": "1cfe0d562f36d8f9"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-15-hard.level.json",
+    "revision": "e60a3731aee244b8"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-15-medium.level.json",
+    "revision": "7849b39e5811f235"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-16-easy.level.json",
+    "revision": "937f7949994147f4"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-16-hard.level.json",
+    "revision": "eba1c59987e1e628"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-16-medium.level.json",
+    "revision": "126e80948135b835"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-17-easy.level.json",
+    "revision": "bbcb9cac75f8a754"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-17-hard.level.json",
+    "revision": "aa43456d7f25a651"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-17-medium.level.json",
+    "revision": "134aae6d6812b08f"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-18-easy.level.json",
+    "revision": "f565368ec7966f46"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-18-hard.level.json",
+    "revision": "fe7dd50d9603b6a4"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-18-medium.level.json",
+    "revision": "b4236a9fefc41971"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-19-easy.level.json",
+    "revision": "a7d1357e3cfaa314"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-19-hard.level.json",
+    "revision": "3a74edabddde9412"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-19-medium.level.json",
+    "revision": "5d4b7d2dd136f045"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-20-easy.level.json",
+    "revision": "0ad7550b280d1a67"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-20-hard.level.json",
+    "revision": "96a07915b1fb8410"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-20-medium.level.json",
+    "revision": "06ea43e53c0f0594"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-21-easy.level.json",
+    "revision": "e73487ebebe7af16"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-21-hard.level.json",
+    "revision": "5a5a4c32ff6ad3c4"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-21-medium.level.json",
+    "revision": "361ad85323c42a42"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-22-easy.level.json",
+    "revision": "8287568cf520c979"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-22-hard.level.json",
+    "revision": "6105c9047f07b62b"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-22-medium.level.json",
+    "revision": "30d1593d87360400"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-23-easy.level.json",
+    "revision": "c3943281670cdb7f"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-23-hard.level.json",
+    "revision": "4d712e71d1f1a09d"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-23-medium.level.json",
+    "revision": "926cc816e0f44656"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-24-easy.level.json",
+    "revision": "15ae02c52d19c923"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-24-hard.level.json",
+    "revision": "a9e22dbb84604184"
+  },
+  {
+    "url": "./editor/campaign/ep2/ep2-24-medium.level.json",
+    "revision": "6df6df86fd233d98"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-01-easy.level.json",
+    "revision": "45b8279d94c1e98a"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-01-hard.level.json",
+    "revision": "38c4d2216dc5fa80"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-01-medium.level.json",
+    "revision": "8e393050d4807afe"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-02-easy.level.json",
+    "revision": "3c65dd8bbd0eee0a"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-02-hard.level.json",
+    "revision": "c16da161504ac0b6"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-02-medium.level.json",
+    "revision": "d0a371c9951045ce"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-03-easy.level.json",
+    "revision": "3e26af1c118b7373"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-03-hard.level.json",
+    "revision": "2da50b614ba246f3"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-03-medium.level.json",
+    "revision": "5746998740959709"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-04-easy.level.json",
+    "revision": "57f6f8c3e51163f3"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-04-hard.level.json",
+    "revision": "a37f7484b1d7b2d6"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-04-medium.level.json",
+    "revision": "4c40db9859f264ef"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-05-easy.level.json",
+    "revision": "726cdc9d902c14cf"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-05-hard.level.json",
+    "revision": "5aaf06b2f65be57c"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-05-medium.level.json",
+    "revision": "6d06d7153161d5bb"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-06-easy.level.json",
+    "revision": "411c7ced99be7f1f"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-06-hard.level.json",
+    "revision": "683b2a6f3014d40f"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-06-medium.level.json",
+    "revision": "b14fc524f34945d6"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-07-easy.level.json",
+    "revision": "a6d18950a37bdb77"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-07-hard.level.json",
+    "revision": "001480ee1cf308ca"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-07-medium.level.json",
+    "revision": "52f87804b8ce478a"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-08-easy.level.json",
+    "revision": "0badc93c13b656fc"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-08-hard.level.json",
+    "revision": "a5b69423d5ea6eee"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-08-medium.level.json",
+    "revision": "7d4a33114e3e9639"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-09-easy.level.json",
+    "revision": "e4be3eea2991c0e1"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-09-hard.level.json",
+    "revision": "d7475091eda2adb7"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-09-medium.level.json",
+    "revision": "b14a1ae83000bc27"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-10-easy.level.json",
+    "revision": "a66f091e00e65acd"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-10-hard.level.json",
+    "revision": "d9e18f81995c6db3"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-10-medium.level.json",
+    "revision": "8d9699e88f8919f6"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-11-easy.level.json",
+    "revision": "2fa2b28e5d7f9b92"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-11-hard.level.json",
+    "revision": "5f4ec70577d6a6d0"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-11-medium.level.json",
+    "revision": "32c1166a25891107"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-12-easy.level.json",
+    "revision": "2658b3e249b15bb7"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-12-hard.level.json",
+    "revision": "437c6e7887079263"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-12-medium.level.json",
+    "revision": "203309dbb01aa299"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-13-easy.level.json",
+    "revision": "91646c08942d1054"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-13-hard.level.json",
+    "revision": "0f0ff3b1755b0eab"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-13-medium.level.json",
+    "revision": "e1c419c0d30b4266"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-14-easy.level.json",
+    "revision": "4a97e3932c2d4c6e"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-14-hard.level.json",
+    "revision": "8926238caa81c7ef"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-14-medium.level.json",
+    "revision": "e3df50e1732523ae"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-15-easy.level.json",
+    "revision": "2ff58d37955e478e"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-15-hard.level.json",
+    "revision": "3d16268460677e99"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-15-medium.level.json",
+    "revision": "4ec58180e4c08861"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-16-easy.level.json",
+    "revision": "c0ac2dd231ee6358"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-16-hard.level.json",
+    "revision": "f3553602d97199cd"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-16-medium.level.json",
+    "revision": "eee0174f3147398f"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-17-easy.level.json",
+    "revision": "5a67f284110929e9"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-17-hard.level.json",
+    "revision": "14fd6cdcc754105a"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-17-medium.level.json",
+    "revision": "d36b331454973560"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-18-easy.level.json",
+    "revision": "f8837d3cae605cca"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-18-hard.level.json",
+    "revision": "f1bbc3362a03eefb"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-18-medium.level.json",
+    "revision": "7e921cb45028c568"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-19-easy.level.json",
+    "revision": "05811f9e66c832de"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-19-hard.level.json",
+    "revision": "7f4cc80a84378188"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-19-medium.level.json",
+    "revision": "9fe870206f97d54c"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-20-easy.level.json",
+    "revision": "6348ca0f0a4c7303"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-20-hard.level.json",
+    "revision": "b8e23289ed15b987"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-20-medium.level.json",
+    "revision": "462437087001351e"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-21-easy.level.json",
+    "revision": "4c2e8df140500d7b"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-21-hard.level.json",
+    "revision": "006d2f9cc7a416af"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-21-medium.level.json",
+    "revision": "1ccadbef577561cb"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-22-easy.level.json",
+    "revision": "17c90a4445098729"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-22-hard.level.json",
+    "revision": "22a961f1b1f27c9d"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-22-medium.level.json",
+    "revision": "c49165df17a2a9b5"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-23-easy.level.json",
+    "revision": "c4cc4c2e73793221"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-23-hard.level.json",
+    "revision": "9971d516848b1d3b"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-23-medium.level.json",
+    "revision": "7281d07197d4af0f"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-24-easy.level.json",
+    "revision": "1617cd66b08dd164"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-24-hard.level.json",
+    "revision": "95ee2681a4c16d11"
+  },
+  {
+    "url": "./editor/campaign/lobby/lobby-24-medium.level.json",
+    "revision": "eb36d33cea731855"
+  },
+  {
     "url": "./editor/editor.js",
-    "revision": "1f6c1b9f11ea4182"
+    "revision": "88a44afb466d88fc"
   },
   {
     "url": "./editor/index.html",
-    "revision": "51575de15a4909a4"
+    "revision": "c42be131f25c7ef1"
   },
   {
     "url": "./editor/nubu-level.schema.json",
@@ -597,7 +1749,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/styles.css",
-    "revision": "eaada1145d9129f2"
+    "revision": "350ef2a54261906b"
   },
   {
     "url": "./icons/icon-192.png",
@@ -613,7 +1765,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./index.html",
-    "revision": "8fd234d0cdd2fcf9"
+    "revision": "c8d0fdca35c39770"
   },
   {
     "url": "./manifest.webmanifest",
@@ -635,7 +1787,7 @@ const SCOPE_KEY = SCOPE_URL.pathname
   .replace(/^\/+|\/+$/g, '')
   .replace(/[^a-z0-9_-]+/gi, '-') || 'root';
 const CACHE_PREFIX = `nubu2600-app-${SCOPE_KEY}-`;
-const CACHE_NAME = `${CACHE_PREFIX}1ad8003ea443172e`;
+const CACHE_NAME = `${CACHE_PREFIX}e1065907b0697557`;
 const ROOT_DOCUMENT_URL = new URL('index.html', SCOPE_URL).href;
 const EDITOR_DOCUMENT_URL = new URL('editor/index.html', SCOPE_URL).href;
 const PRECACHE_URLS = new Set(PRECACHE_ENTRIES.map(entry => new URL(entry.url, SCOPE_URL).href));

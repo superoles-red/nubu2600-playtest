@@ -1,0 +1,242 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 2,
+  "id": "ep2-18-medium",
+  "title": "Э2 · С18 · Уходящий мост",
+  "episode": 2,
+  "sequence": 18,
+  "role": "develop",
+  "size": {
+    "width": 80,
+    "height": 20
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 2,
+      "y": 0
+    },
+    {
+      "x": 3,
+      "y": 0
+    }
+  ],
+  "theme": "service-shafts",
+  "learningGoal": "Практическая комната по плану EP2.",
+  "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
+  "objects": [
+    {
+      "id": "solid-1",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-2",
+      "type": "solid",
+      "x": 20,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-3",
+      "type": "solid",
+      "x": 40,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-4",
+      "type": "solid",
+      "x": 60,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 0,
+      "y": 15,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "semantics": "playerBody",
+        "anchor": "centerTop"
+      }
+    },
+    {
+      "id": "oneWay-5",
+      "type": "oneWay",
+      "x": 4,
+      "y": 15,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "movingPlatform-6",
+      "type": "movingPlatform",
+      "x": 10,
+      "y": 15,
+      "w": 6,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "path": [
+          {
+            "x": 10,
+            "y": 15
+          },
+          {
+            "x": 27,
+            "y": 15
+          }
+        ],
+        "loop": true,
+        "enabled": true,
+        "moving": true,
+        "speedCellsPerSecond": 3,
+        "repeatSpacing": 80
+      }
+    },
+    {
+      "id": "oneWay-7",
+      "type": "oneWay",
+      "x": 33,
+      "y": 15,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fragilePlatform-8",
+      "type": "fragilePlatform",
+      "x": 40,
+      "y": 12,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "oneWay-9",
+      "type": "oneWay",
+      "x": 46,
+      "y": 9,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "blinkPlatform-10",
+      "type": "blinkPlatform",
+      "x": 54,
+      "y": 9,
+      "w": 6,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "mode": "cycle",
+        "cycle": 4.5,
+        "phase": 0,
+        "startActive": true
+      }
+    },
+    {
+      "id": "oneWay-11",
+      "type": "oneWay",
+      "x": 61,
+      "y": 9,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 67,
+      "y": 9,
+      "w": 13,
+      "h": 9,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit",
+      "type": "exit",
+      "x": 75,
+      "y": 6,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "label-13",
+      "type": "label",
+      "x": 20,
+      "y": 3,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "Сойди на постоянный причал",
+        "mode": "player",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "entry-wj",
+      "type": "pickup",
+      "x": 4,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "pickupType": "WJ"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 2,
+    "source": "ep2-authored-graybox-v1",
+    "difficulty": "medium",
+    "librarySection": "campaign-2",
+    "placeholder": false,
+    "prerequisites": [
+      "WJ"
+    ],
+    "requiresCampaignIntegration": true
+  }
+}

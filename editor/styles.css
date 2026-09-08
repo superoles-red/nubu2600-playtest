@@ -477,8 +477,11 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 }
 
 /* 2026-08-27: две универсальные компоновки, без отдельного desktop-breakpoint. */
-html, body, .app-shell { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
+html, body, .app-shell { overscroll-behavior: none; }
+/* Native buttons and their child text need their own long-press protection. */
+* { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+:where(button, label, a, [role="button"], input, textarea, select, .modal) { touch-action: manipulation; }
 .command-bar { z-index: 82; }
 .size-rail { z-index: 12; }
 .interaction-hint { z-index: 94; }
@@ -3354,4 +3357,18 @@ body {
   #libraryModal .library-source-line #librarySourceSelect { padding-inline:4px 0 !important; text-transform:none; }
   #libraryModal .library-source-line #gridMarkingButton { padding-inline:2px !important; font-size:var(--ui-type-meta) !important; white-space:normal !important; }
   #libraryModal .library-source-line #toggleHintsButton { width:100% !important; min-width:0 !important; padding-inline:2px !important; gap:2px !important; flex-direction:column; }
+}
+
+/* Campaign section names keep their full width on portrait phones. Secondary
+   grid/hint controls share the next row; the close target keeps its own inset. */
+@media (max-width:640px) and (orientation:portrait) {
+  #libraryModal:has(#newUserLevelButton[hidden]) .library-source-line {
+    grid-template-columns:minmax(90px,1fr) minmax(110px,1fr) 34px !important;
+    grid-template-rows:52px 52px !important;
+    gap:4px !important;
+  }
+  #libraryModal:has(#newUserLevelButton[hidden]) .library-source-title { grid-column:1 / 3 !important; grid-row:1 !important; }
+  #libraryModal:has(#newUserLevelButton[hidden]) #libraryLobbyButton { grid-column:3 !important; grid-row:1 !important; }
+  #libraryModal:has(#newUserLevelButton[hidden]) #gridMarkingButton { grid-column:1 !important; grid-row:2 !important; height:52px !important; min-height:52px !important; }
+  #libraryModal:has(#newUserLevelButton[hidden]) #toggleHintsButton { grid-column:2 / 4 !important; grid-row:2 !important; }
 }

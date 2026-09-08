@@ -1,0 +1,197 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 2,
+  "id": "ep2-03-medium",
+  "title": "Э2 · С03 · Верхняя обратная линия",
+  "episode": 2,
+  "sequence": 3,
+  "role": "develop",
+  "size": {
+    "width": 60,
+    "height": 20
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 2,
+      "y": 0
+    }
+  ],
+  "theme": "service-shafts",
+  "learningGoal": "Практическая комната по плану EP2.",
+  "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
+  "objects": [
+    {
+      "id": "solid-1",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-2",
+      "type": "solid",
+      "x": 20,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-3",
+      "type": "solid",
+      "x": 40,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 1,
+      "y": 15,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "semantics": "playerBody",
+        "anchor": "centerTop"
+      }
+    },
+    {
+      "id": "solid-4",
+      "type": "solid",
+      "x": 0,
+      "y": 7,
+      "w": 48,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-5",
+      "type": "oneWay",
+      "x": 49,
+      "y": 15,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-6",
+      "type": "solid",
+      "x": 58,
+      "y": 2,
+      "w": 2,
+      "h": 16,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-7",
+      "type": "oneWay",
+      "x": 54,
+      "y": 9,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-8",
+      "type": "oneWay",
+      "x": 51,
+      "y": 6,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-9",
+      "type": "oneWay",
+      "x": 39,
+      "y": 6,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fragilePlatform-10",
+      "type": "fragilePlatform",
+      "x": 44,
+      "y": 6,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "exit",
+      "type": "exit",
+      "x": 2,
+      "y": 4,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "label-11",
+      "type": "label",
+      "x": 23,
+      "y": 11,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "Подъём справа → возврат сверху",
+        "mode": "player",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "entry-wj",
+      "type": "pickup",
+      "x": 5,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "pickupType": "WJ"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 2,
+    "source": "ep2-authored-graybox-v1",
+    "difficulty": "medium",
+    "librarySection": "campaign-2",
+    "placeholder": false,
+    "prerequisites": [
+      "WJ"
+    ],
+    "requiresCampaignIntegration": true
+  }
+}

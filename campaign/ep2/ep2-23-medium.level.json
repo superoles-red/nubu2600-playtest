@@ -1,0 +1,153 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 2,
+  "id": "ep2-23-medium",
+  "title": "Э2 · С23 · Модуль зацепа",
+  "episode": 2,
+  "sequence": 23,
+  "role": "postboss",
+  "size": {
+    "width": 40,
+    "height": 20
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    }
+  ],
+  "theme": "service-shafts",
+  "learningGoal": "Практическая комната по плану EP2.",
+  "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
+  "objects": [
+    {
+      "id": "solid-1",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-2",
+      "type": "solid",
+      "x": 20,
+      "y": 18,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 1,
+      "y": 15,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "semantics": "playerBody",
+        "anchor": "centerTop"
+      }
+    },
+    {
+      "id": "reward-gr",
+      "type": "pickup",
+      "x": 7,
+      "y": 15,
+      "w": 2,
+      "h": 2,
+      "layer": "gameplay",
+      "props": {
+        "pickupType": "GR"
+      }
+    },
+    {
+      "id": "solid-3",
+      "type": "solid",
+      "x": 14,
+      "y": 12,
+      "w": 6,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-4",
+      "type": "solid",
+      "x": 29,
+      "y": 12,
+      "w": 3,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-5",
+      "type": "oneWay",
+      "x": 22,
+      "y": 15,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-6",
+      "type": "oneWay",
+      "x": 24,
+      "y": 11,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit",
+      "type": "exit",
+      "x": 35,
+      "y": 15,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "label-7",
+      "type": "label",
+      "x": 1,
+      "y": 4,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "Модуль зацепа GR",
+        "mode": "player",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 2,
+    "source": "ep2-authored-graybox-v1",
+    "difficulty": "medium",
+    "librarySection": "campaign-2",
+    "placeholder": false,
+    "prerequisites": [
+      "WJ"
+    ],
+    "requiresCampaignIntegration": true
+  }
+}

@@ -18,6 +18,8 @@
   const GEOMETRY_EPSILON = 1e-8;
   const MOBILE_PLAYER_BREAKPOINT = 1024;
   const GRID_STEP = 1;
+  // Tram route nodes and potential handles are authored on whole cells.
+  const TRAM_ROUTE_GRID_STEP = 1;
   const PLAYTEST_KEY = 'nubu2600.editor.playtest.v1';
   const RESULT_KEY = 'nubu2600.editor.playtest.result.v1';
   const PLAYTEST_RETURN_PARAM = 'playtestReturn';
@@ -37,6 +39,13 @@
   const DELETED_SLOT_TOMBSTONES_KEY = 'nubu2600.editor.deleted-slots.v1';
   const STORAGE_TIMEOUT_MS = 6000;
   const CAMPAIGN_LEVEL_COUNT = 24;
+  const LIBRARY_SECTIONS = Object.freeze({
+    'campaign-1': { title:'Эпизод 1', selector:'1', prefix:'campaign-ep1', folder:'ep1', episode:1 },
+    'campaign-2': { title:'Эпизод 2', selector:'2', prefix:'campaign-ep2', folder:'ep2', episode:2 },
+    lobby: { title:'Лобби', selector:'lobby', prefix:'lobby', folder:'lobby', episode:1 },
+  });
+  const librarySectionLoads = new Map();
+  let libraryRenderRequestId = 0;
   const CAMPAIGN_BACKGROUND_WORKERS = 2;
   const DIFFICULTIES = ['easy', 'medium', 'hard'];
   const DIFFICULTY_LABELS = { easy: 'Лёгкая', medium: 'Средняя', hard: 'Сложная' };
@@ -50,6 +59,9 @@
   const LINK_ENDPOINT_OFFSET = 19;
   const LINK_SOCKET_GAP = 34;
   const TRAM_MIN_NODE_DISTANCE = 3;
+  const TRAM_SUGGESTION_RADIUS = 5;
+  const TRAM_MIN_ANGLE = 30;
+  const TRAM_MAX_CROSSINGS = 1;
   const TRAM_BEND_COLOR = '#67d7ff';
   const TRAM_INSERTION_COLOR = '#ffd56b';
   const INVALID_PREVIEW_COLOR = '#ff3348';
@@ -79,12 +91,12 @@
   const TYPE_HELP = {
     spawn:'Вход игрока. Отсюда начинается уровень.', exit:'Выход. При касании уровень завершается.', secretExit:'Секретный выход. Зелёная дверь ведёт в секретную комнату эпизода. Только для карт автора.', developerNote:'Комментарий разработчику. В игре не появляется и не имеет игровых свойств.',
     solid:'Надёжная стена или пол. Перетащите на карту и измените размер за углы.', oneWay:'Простая платформа: держит сверху, снизу пропускает.',
-    fragilePlatform:'Ломается под игроком и всегда восстанавливается через 4 секунды.', blinkPlatform:'Без провода мигает по циклу; с проводом управляется кнопкой.', movingPlatform:'Лифт движется к конечной точке в одном из восьми направлений.', smartPlatform:'Трамвай ходит по замкнутому маршруту с промежуточными узлами.',
+    fragilePlatform:'Ломается под игроком и всегда восстанавливается через 4 секунды.', blinkPlatform:'Без провода мигает по циклу; с проводом управляется кнопкой.', movingPlatform:'Лифт движется к конечной точке в одном из восьми направлений.', smartPlatform:'Тяните узлы к бледным точкам. Жёлтая точка добавляет узел. Углы ≥30°, пересечений ≤1.',
     fallingPlatform:'Начинает падать, когда на неё наступают.', conveyor:'Перемещает игрока и предметы в выбранную сторону.', bouncePad:'Подбрасывает игрока вверх.', driftField:'Парящее поле. Единственный предмет, который можно накладывать на другие типы.',
     spike:'Один зуб занимает клетку по длине и половину клетки по высоте. Автоматически прилипает к опоре.', crusherWall:'Пресс всегда повторяет маршрут; к нему можно добавить шипы.', door:'Проход, который открывается кнопкой.',
     button:'Кнопка T переключает, H работает пока нажата. От неё можно провести несколько связей.', portal:'Сразу создаётся пара. Цвет выбирается автоматически, стрелка показывает направление выхода.',
     playerCannon:'Пушка игрока. В автоматическом режиме вращается по восьми направлениям, в ручном управляется кнопками направления.', flyerSpawner:'Единый генератор: тип создаваемого объекта меняется рядом с ним.', enemyGoomba:'Ходит по поверхности.', enemyFlyer:'Летит в заданном направлении на выбранную дистанцию.', enemyLeech:'Цепляется к поверхности.', enemySpikeCube:'Опасный куб с шипами.',
-    pushBlock:'Падающий куб. Без настроек: при приближении игрока падает вниз.', coin:'Монета. Лимит зависит от площади уровня: 5 на каждые 20×20 клеток.', collectible:'Сюжетный коллекционный предмет.', pickup:'Бонус-способность: зацеп, отскок, двойной прыжок, джетпак, парение или инверсия.', unlockSwitch:'Сюжетная кнопка гравитации.', heartVendor:'Сюжетный автомат сердечек с ценой 30 монет.', label:'Фоновая бегущая строка без столкновений: имя игрока, сообщение или эмодзи.',
+    pushBlock:'Падающий куб. Без настроек: при приближении игрока падает вниз.', coin:'Монета. Лимит зависит от площади уровня: 5 на каждые 20×20 клеток.', collectible:'Сюжетный коллекционный предмет.', pickup:'Бонус-способность: зацеп, отскок, двойной прыжок, джетпак, парение или инверсия.', unlockSwitch:'Сюжетная кнопка гравитации.', heartVendor:'Сюжетный автомат сердечек с ценой 30 монет.', label:'Баннер над монолитом, под Полем, игроком и предметами. Без столкновений.',
   };
 
   const TYPE_DEFS = {
@@ -639,13 +651,13 @@
     const tx=state.db.transaction(ARCHIVE_STORE_NAME,'readwrite'),store=tx.objectStore(ARCHIVE_STORE_NAME),completion=transactionDone(tx);
     for(const record of valid){const get=store.get(record.key);get.onsuccess=()=>{if(!get.result)store.put(record);};}await completion;
   }
-  function oldCampaignLayout(slot){return slot?.kind==='campaign'&&Number(slot.episode||1)===1&&slot.metadata?.campaignLayoutVersion!==CAMPAIGN_LAYOUT_VERSION&&!DIFFICULTIES.every(difficulty=>slot.difficulties?.[difficulty]?.metadata?.campaign?.layoutVersion===CAMPAIGN_LAYOUT_VERSION);}
+  function oldCampaignLayout(slot){return slot?.kind==='campaign'&&librarySectionForKey(slot.key)==='campaign-1'&&Number(slot.episode||1)===1&&slot.metadata?.campaignLayoutVersion!==CAMPAIGN_LAYOUT_VERSION&&!DIFFICULTIES.every(difficulty=>slot.difficulties?.[difficulty]?.metadata?.campaign?.layoutVersion===CAMPAIGN_LAYOUT_VERSION);}
   async function migrateCampaignLayout(){
     let emergencyRaw=null;try{emergencyRaw=localStorage.getItem(EMERGENCY_DRAFT_KEY);}catch(error){}
     const tx=state.db.transaction([STORE_NAME,ARCHIVE_STORE_NAME],'readwrite'),slots=tx.objectStore(STORE_NAME),archives=tx.objectStore(ARCHIVE_STORE_NAME),completion=transactionDone(tx);let archivedCount=0,archivedEmergency=false;
     const read=slots.getAll();read.onsuccess=()=>{
       const oldSlots=read.result.filter(oldCampaignLayout);
-      let emergency=null;try{const parsed=JSON.parse(emergencyRaw||'null');if(campaignSequenceFromKey(parsed?.slotKey)&&parsed?.level?.kind==='nubu.level'&&(oldSlots.some(slot=>slot.key===parsed.slotKey)||parsed.level.metadata?.campaign?.layoutVersion!==CAMPAIGN_LAYOUT_VERSION)){emergency=parsed;archivedEmergency=true;}}catch(error){}
+      let emergency=null;try{const parsed=JSON.parse(emergencyRaw||'null');if(librarySectionForKey(parsed?.slotKey)==='campaign-1'&&campaignSequenceFromKey(parsed?.slotKey)&&parsed?.level?.kind==='nubu.level'&&(oldSlots.some(slot=>slot.key===parsed.slotKey)||parsed.level.metadata?.campaign?.layoutVersion!==CAMPAIGN_LAYOUT_VERSION)){emergency=parsed;archivedEmergency=true;}}catch(error){}
       if(!oldSlots.length&&!emergency)return;
       const archivedAt=Date.now(),record={key:`ep1-layout1-${archivedAt}-${stableHash(oldSlots)}`,episode:1,layoutVersion:1,archivedAt,reason:'Перенумерация эпизода 1: 20 уровней и 4 специальные комнаты',slots:oldSlots,...(emergency?{emergencyDraft:emergency}:{})};
       archives.add(record);for(const slot of oldSlots)slots.delete(slot.key);archivedCount=oldSlots.length+(emergency&&!oldSlots.some(slot=>slot.key===emergency.slotKey)?1:0);
@@ -743,37 +755,44 @@
     await refreshUserSlots();scheduleLibraryMirror();renderLibrary();toast(`Восстановлено наборов карт: ${restoredSlots.length}.${legacy.length?` Прежние карты сохранены в архив: ${legacy.length}.`:''}`,'ok');
   }catch(error){scheduleLibraryMirror();toast(`Не удалось восстановить библиотеку: ${error.message}`,'error');}}
 
-  function campaignBaseUrl() {
+  function campaignBaseUrl(section = LIBRARY_SECTIONS['campaign-1']) {
     const decoded = decodeURIComponent(window.location.pathname);
     return decoded.includes('/tools/level-editor/')
-      ? new URL('../../02 Разработка/levels/campaign/ep1/', window.location.href)
-      : new URL('campaign/ep1/', window.location.href);
+      ? new URL(`../../02 Разработка/levels/campaign/${section.folder}/`, window.location.href)
+      : new URL(`campaign/${section.folder}/`, window.location.href);
+  }
+
+  function librarySectionForKey(key) {
+    return Object.entries(LIBRARY_SECTIONS).find(([, section]) => new RegExp(`^${section.prefix}-\\d{2}$`).test(String(key || '')))?.[0] || null;
   }
 
   function campaignSequenceFromKey(key) {
-    const match=/^campaign-ep1-(\d{2})$/.exec(String(key||'')),sequence=Number(match?.[1]);
+    const section=librarySectionForKey(key),sequence=section?Number(String(key).slice(-2)):NaN;
     return Number.isInteger(sequence)&&sequence>=1&&sequence<=CAMPAIGN_LEVEL_COUNT?sequence:null;
   }
 
-  function campaignSlotKey(sequence) { return `campaign-ep1-${String(sequence).padStart(2,'0')}`; }
+  function campaignSlotKey(sequence, source = 'campaign-1') { return `${LIBRARY_SECTIONS[source].prefix}-${String(sequence).padStart(2,'0')}`; }
 
   function campaignSourceVersion() {
     const buildId=inheritedBuildId();
     return buildId?String(buildId).slice(0,80):'';
   }
 
-  async function fetchCampaignLevel(sequence, difficulty) {
-    const url = new URL(`ep1-${String(sequence).padStart(2, '0')}-${difficulty}.level.json`, campaignBaseUrl());
+  async function fetchCampaignLevel(sequence, difficulty, source = 'campaign-1') {
+    const section = LIBRARY_SECTIONS[source];
+    if (!section) throw new Error('Неизвестный раздел библиотеки.');
+    const url = new URL(`${section.folder}-${String(sequence).padStart(2, '0')}-${difficulty}.level.json`, campaignBaseUrl(section));
     const explicitVersion=explicitBuildId();
     if(explicitVersion)url.searchParams.set('build',explicitVersion);
     const response = await fetch(url, { cache: explicitVersion?'force-cache':'default' });
     if (!response.ok) throw new Error(`Не удалось загрузить ${url.pathname}: ${response.status}`);
-    return normalizeLevel(await response.json(), { episode: 1, sequence, difficulty });
+    return normalizeLevel(await response.json(), { episode: section.episode, sequence, difficulty });
   }
 
   async function ensureCampaignSlot(key,{preferredDifficulty='easy',fast=false}={}) {
     const sequence=campaignSequenceFromKey(key);
     if(!sequence)return null;
+    const source=librarySectionForKey(key),section=LIBRARY_SECTIONS[source];
     const inflight=state.campaignSlotLoads.get(key);
     if(inflight)return inflight;
     const existing=await dbGet(key),sourceVersion=campaignSourceVersion(),storedSourceVersion=String(existing?.metadata?.campaignSourceVersion||'');
@@ -784,11 +803,12 @@
     const operation=(async()=>{
       const priority=DIFFICULTIES.includes(preferredDifficulty)?preferredDifficulty:'easy';
       const difficulties=fast?[priority]:DIFFICULTIES;
-      const loaded=await Promise.all(difficulties.map(difficulty=>fetchCampaignLevel(sequence,difficulty)));
+      const loaded=await Promise.all(difficulties.map(difficulty=>fetchCampaignLevel(sequence,difficulty,source)));
       const loadedByDifficulty=Object.fromEntries(difficulties.map((difficulty,index)=>[difficulty,loaded[index]]));
       const fallback=loadedByDifficulty.easy||loaded[0];
       const levels=Object.fromEntries(DIFFICULTIES.map(difficulty=>[difficulty,loadedByDifficulty[difficulty]||cloneForDifficulty(fallback,difficulty)]));
-      const slot=makeSlot(key,'campaign',1,sequence,levels);
+      const slot=makeSlot(key,'campaign',section.episode,sequence,levels);
+      slot.librarySection=source;
       slot.metadata={...(slot.metadata||{}),campaignSourceVersion:sourceVersion||'unversioned',campaignPristineSeed:true,campaignLayoutVersion:CAMPAIGN_LAYOUT_VERSION,campaignComplete:!fast};
       if(fast)slot.metadata.campaignPendingDifficulties=DIFFICULTIES.filter(difficulty=>!loadedByDifficulty[difficulty]);
       await dbInstallCampaignSeed(slot,{expectedSourceVersion:refreshPristine?storedSourceVersion:null,allowPartialRefresh:!fast});
@@ -797,6 +817,25 @@
     state.campaignSlotLoads.set(key,operation);
     try{return await operation;}
     finally{if(state.campaignSlotLoads.get(key)===operation)state.campaignSlotLoads.delete(key);}
+  }
+
+  // New authoring sections are loaded on demand, so the first EP1 map still opens quickly.
+  async function ensureLibrarySection(source) {
+    if (source === 'campaign-1' || !LIBRARY_SECTIONS[source]) return;
+    if (librarySectionLoads.has(source)) return librarySectionLoads.get(source);
+    const operation = (async () => {
+      let cursor = 1;
+      await Promise.all(Array.from({length:CAMPAIGN_BACKGROUND_WORKERS}, async () => {
+        while (cursor <= CAMPAIGN_LEVEL_COUNT) {
+          const sequence = cursor++;
+          await ensureCampaignSlot(campaignSlotKey(sequence, source));
+        }
+      }));
+      scheduleLibraryMirror();
+    })();
+    librarySectionLoads.set(source, operation);
+    try { await operation; }
+    finally { librarySectionLoads.delete(source); }
   }
 
   function updateCampaignSeedStatus(status,{total=state.campaignSeedTotal,processed=state.campaignSeedProcessed,loaded=state.campaignSeedLoaded,failed=state.campaignSeedFailed}={}) {
@@ -1164,15 +1203,16 @@
   function refreshSelectors(preferredEpisode = null) {
     const episode = $('episodeSelect');
     const previousEpisode = episode.value;
-    episode.innerHTML = '<option value="1">Эпизод 1</option>' + (state.userSlots.length ? '<option value="user">Мои</option>' : '');
-    const requestedEpisode = preferredEpisode || (state.slot ? (state.slot.kind === 'user' ? 'user' : '1') : previousEpisode);
-    episode.value = requestedEpisode === 'user' && state.userSlots.length ? 'user' : '1';
+    episode.innerHTML = Object.values(LIBRARY_SECTIONS).map(section=>`<option value="${section.selector}">${section.title}</option>`).join('') + (state.userSlots.length ? '<option value="user">Мои</option>' : '');
+    const activeSource=librarySectionForKey(state.slotKey),requestedEpisode = preferredEpisode || (state.slot ? (state.slot.kind === 'user' ? 'user' : LIBRARY_SECTIONS[activeSource]?.selector) : previousEpisode);
+    episode.value = [...episode.options].some(option=>option.value===requestedEpisode) ? requestedEpisode : '1';
     const levelSelect = $('levelSelect');
     levelSelect.innerHTML = '';
     if (episode.value === 'user') {
       for (const slot of state.userSlots) { const option = document.createElement('option'); option.value = slot.key; option.textContent = slot.title || 'Без названия'; levelSelect.append(option); }
     } else {
-      for (let sequence = 1; sequence <= CAMPAIGN_LEVEL_COUNT; sequence++) { const option = document.createElement('option'); option.value = campaignSlotKey(sequence); option.textContent = `Слот ${sequence}${state.slot?.key===option.value?` · ${state.level?.title||state.slot.title}`:''}`; levelSelect.append(option); }
+      const source=Object.keys(LIBRARY_SECTIONS).find(key=>LIBRARY_SECTIONS[key].selector===episode.value)||'campaign-1';
+      for (let sequence = 1; sequence <= CAMPAIGN_LEVEL_COUNT; sequence++) { const option = document.createElement('option'); option.value = campaignSlotKey(sequence,source); option.textContent = `Слот ${sequence}${state.slot?.key===option.value?` · ${state.level?.title||state.slot.title}`:''}`; levelSelect.append(option); }
     }
     if (state.slotKey && [...levelSelect.options].some(option => option.value === state.slotKey)) levelSelect.value = state.slotKey;
   }
@@ -1504,42 +1544,91 @@
 
   function tramRouteNodeHit(object, point, pointerType = 'mouse') {
     if (object?.type !== 'smartPlatform') return -1;
-    const path = Array.isArray(object.props?.path) ? object.props.path : [];
     const radius = (pointerType === 'touch' ? 25 : 15) / cellPixels();
-    for (let index = path.length - 1; index >= 1; index--) {
-      const node = path[index];
-      if (Math.hypot(point.rawX-node.x-object.w/2, point.rawY-node.y-object.h/2) <= radius) return index;
+    let best = -1, distance = Infinity;
+    for (let index = 1; index < (object.props?.path?.length || 0); index++) {
+      const node = object.props.path[index];
+      const next = Math.hypot(point.rawX-node.x-object.w/2, point.rawY-node.y-object.h/2);
+      if (next <= radius && next < distance) { best = index; distance = next; }
     }
-    return -1;
+    return best;
   }
 
-  function tramPathIssue(object,path,level=state.level) {
+  function tramRouteSegments(object, path) {
+    const count = object.props?.loop !== false && path.length > 2 ? path.length : path.length - 1;
+    return Array.from({length:count}, (_, index) => [path[index], path[(index+1)%path.length]]);
+  }
+
+  function tramCrossing(a, b, c, d) {
+    const ab={x:b.x-a.x,y:b.y-a.y},cd={x:d.x-c.x,y:d.y-c.y};
+    const cross=(u,v)=>u.x*v.y-u.y*v.x,den=cross(ab,cd);
+    if(Math.abs(den)<1e-8)return null;
+    const ac={x:c.x-a.x,y:c.y-a.y},t=cross(ac,cd)/den,u=cross(ac,ab)/den;
+    if(t < -1e-8 || t > 1+1e-8 || u < -1e-8 || u > 1+1e-8)return null;
+    const cosine=Math.abs(ab.x*cd.x+ab.y*cd.y)/(Math.hypot(ab.x,ab.y)*Math.hypot(cd.x,cd.y));
+    return {x:a.x+t*ab.x,y:a.y+t*ab.y,angle:Math.acos(clamp(cosine,-1,1))*180/Math.PI};
+  }
+
+  function tramRouteStyleIssue(object, path) {
+    if(!Array.isArray(path)||path.length<3)return '';
+    const loop=object.props?.loop!==false;
+    for(let index=loop?0:1;index<(loop?path.length:path.length-1);index++){
+      const node=path[index],prev=path[(index+path.length-1)%path.length],next=path[(index+1)%path.length];
+      const a={x:prev.x-node.x,y:prev.y-node.y},b={x:next.x-node.x,y:next.y-node.y};
+      const cosine=(a.x*b.x+a.y*b.y)/(Math.hypot(a.x,a.y)*Math.hypot(b.x,b.y));
+      const angle=Math.acos(clamp(cosine,-1,1))*180/Math.PI;
+      if(angle<TRAM_MIN_ANGLE-1e-6)return `Угол на узле трамвая должен быть не меньше ${TRAM_MIN_ANGLE}°.`;
+    }
+    const segments=tramRouteSegments(object,path);let crossings=0;
+    for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++){
+      if(second===first+1||(loop&&first===0&&second===segments.length-1))continue;
+      const crossing=tramCrossing(...segments[first],...segments[second]);
+      if(!crossing)continue;
+      if(crossing.angle<TRAM_MIN_ANGLE-1e-6)return `Линии трамвая должны пересекаться под углом не меньше ${TRAM_MIN_ANGLE}°.`;
+      if(++crossings>TRAM_MAX_CROSSINGS)return 'Оставьте не больше одного пересечения в маршруте трамвая.';
+    }
+    return '';
+  }
+
+  function tramPathIssue(object,path,level=state.level,{checkStyle=true}={}) {
     if(!Array.isArray(path)||path.length<2)return'У трамвая должно быть хотя бы два узла.';
+    if(object.props?.loop!==false&&path.length<3)return'В замкнутом маршруте должно оставаться хотя бы три узла.';
     for(const point of path)if(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...object,x:point.x,y:point.y}))return'Узел трамвая выходит за доступную область уровня.';
+    for(const point of path)if(Math.abs(point.x-Math.round(point.x))>GEOMETRY_EPSILON||Math.abs(point.y-Math.round(point.y))>GEOMETRY_EPSILON)return'Каждый настоящий узел трамвая должен стоять на целой клетке.';
     if(!pathInsideLevelShape(level,object,path))return'Маршрут трамвая проходит через отсутствующую панель.';
     for(let first=0;first<path.length;first++)for(let second=first+1;second<path.length;second++)if(Math.hypot(path[first].x-path[second].x,path[first].y-path[second].y)<TRAM_MIN_NODE_DISTANCE-.001)return`Между любыми узлами трамвая должно оставаться минимум ${TRAM_MIN_NODE_DISTANCE} клетки.`;
-    const closed=[...path,path[0]],segments=[];for(let index=1;index<closed.length;index++)segments.push([closed[index-1],closed[index]]);
+    const segments=tramRouteSegments(object,path);
     for(let first=0;first<segments.length;first++)for(let second=first+1;second<segments.length;second++)if(tramSegmentsOverlap(...segments[first],...segments[second]))return'Маршрут трамвая не может накладываться сам на себя; пересечение поперёк разрешено.';
-    return'';
+    return checkStyle?tramRouteStyleIssue(object,path):'';
   }
 
   const tramInsertionCache=new WeakMap();
   function tramInsertionPoints(object,path=object?.props?.path,level=state.level) {
     if(object?.type!=='smartPlatform'||!Array.isArray(path)||path.length<2)return[];
-    const occupied=level.objects.filter(candidate=>candidate.id!==object.id).map(candidate=>`${candidate.id}:${candidate.x},${candidate.y},${candidate.w},${candidate.h}:${Array.isArray(candidate.props?.path)?candidate.props.path.map(point=>`${point.x},${point.y}`).join(';'):''}`).join('|');
-    const cacheable=level===state.level&&path===object.props?.path,cacheKey=cacheable?`${level.size.width}x${level.size.height}:${object.w}x${object.h}:${path.map(point=>`${point.x},${point.y}`).join(';')}:${occupied}`:'',cached=cacheable?tramInsertionCache.get(object):null;
+    const cacheable=level===state.level&&path===object.props?.path;
+    const cacheKey=cacheable?JSON.stringify([level.schemaVersion,level.size,level.panels,object.x,object.y,object.w,object.h,object.props?.loop,path,
+      level.objects.filter(candidate=>candidate.id!==object.id).map(candidate=>[candidate.id,candidate.type,candidate.x,candidate.y,candidate.w,candidate.h,candidate.props])]):'';
+    const cached=cacheable?tramInsertionCache.get(object):null;
     if(cached?.key===cacheKey)return cached.handles;
     if(tramPathIssue(object,path,level))return[];
-    const handles=[],seen=new Set();
-    for(let index=0;index<path.length;index++){
-      const a=path[index],b=path[(index+1)%path.length],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+    const handles=[],seen=new Set(),segments=tramRouteSegments(object,path);
+    for(let index=0;index<segments.length;index++){
+      const [a,b]=segments[index],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
       if(length<TRAM_MIN_NODE_DISTANCE*2-.001)continue;
-      const distances=new Set([length/2]);for(let distance=TRAM_MIN_NODE_DISTANCE;distance<=length-TRAM_MIN_NODE_DISTANCE+.001;distance+=TRAM_MIN_NODE_DISTANCE)distances.add(distance);
-      for(const distance of [...distances].sort((first,second)=>first-second)){
-        const point={x:clamp(snap(a.x+dx*distance/length,1),0,level.size.width-object.w),y:clamp(snap(a.y+dy*distance/length,1),0,level.size.height-object.h)},key=`${point.x}:${point.y}`;
-        const candidate={...object,x:point.x,y:point.y},placement=canPlaceInLevel(level,candidate,[object.id],{checkOwnPair:false});
-        if(seen.has(key)||!placement.ok||path.some(node=>Math.hypot(node.x-point.x,node.y-point.y)<TRAM_MIN_NODE_DISTANCE-.001)||path.some(node=>rectsOverlap({...object,x:node.x,y:node.y},candidate)))continue;
-        seen.add(key);handles.push({index:index+1,point,distanceAlong:distance});
+      // The handle stays on the string; only its possible saved position snaps.
+      const distances=[length/2];
+      for(let offset=.5;offset<=length/2-TRAM_MIN_NODE_DISTANCE+.5;offset+=.5)distances.push(length/2-offset,length/2+offset);
+      const visited=new Set();
+      for(const distance of distances){
+        const point={x:a.x+dx*distance/length,y:a.y+dy*distance/length},key=`${point.x}:${point.y}`;
+        const placementPoint={x:snap(point.x,1),y:snap(point.y,1)},placementKey=`${placementPoint.x}:${placementPoint.y}`;
+        if(seen.has(key)||visited.has(placementKey))continue;
+        visited.add(placementKey);
+        const candidatePath=path.map(node=>({...node}));candidatePath.splice(index+1,0,placementPoint);
+        const candidateObject={...object,props:{...object.props,path:candidatePath}};
+        if(!pairedPathPlacement(candidateObject,candidatePath,level).ok)continue;
+        seen.add(key);handles.push({index:index+1,segmentIndex:index,slot:1,count:1,point,placementPoint,distanceAlong:distance});
+        break;
       }
     }
     if(cacheable)tramInsertionCache.set(object,{key:cacheKey,handles});
@@ -1556,21 +1645,94 @@
   }
 
   function tramRouteHandleAt(point,pointerType='mouse') {
-    const trams=[...state.level.objects].filter(object=>object.type==='smartPlatform').reverse();
-    for(const object of trams){const nodeIndex=tramRouteNodeHit(object,point,pointerType);if(nodeIndex>=1)return{object,nodeIndex};}
-    for(const object of trams){const segment=tramRouteSegmentHit(object,point,pointerType);if(segment)return{object,segment};}
-    return null;
+    const hits=[];
+    for(const object of [...state.level.objects].reverse().filter(object=>object.type==='smartPlatform')){
+      const nodeIndex=tramRouteNodeHit(object,point,pointerType);
+      if(nodeIndex>=1){const node=object.props.path[nodeIndex];hits.push({object,nodeIndex,distance:Math.hypot(point.rawX-node.x-object.w/2,point.rawY-node.y-object.h/2)});}
+      const segment=tramRouteSegmentHit(object,point,pointerType);
+      if(segment)hits.push({object,segment,distance:segment.distance});
+    }
+    // Real nodes win ties, but a larger touch halo cannot steal a nearer yellow dot.
+    hits.sort((a,b)=>a.distance-b.distance||Number(!!a.segment)-Number(!!b.segment));
+    return hits[0]||null;
+  }
+
+  function pathNodeCandidateFromDrag(drag) {
+    const point=drag.current||drag.start,object=drag.object,origin=object.props.path[drag.nodeIndex];
+    const dx=point.rawX-drag.start.rawX,dy=point.rawY-drag.start.rawY;
+    drag.nodeMoved=!!drag.nodeMoved||Math.hypot(dx,dy)*cellPixels()>3;
+    const requested=drag.insertedNode
+      ? drag.nodeMoved?{x:snap(point.rawX-drag.offsetX,TRAM_ROUTE_GRID_STEP),y:snap(point.rawY-drag.offsetY,TRAM_ROUTE_GRID_STEP)}:{...origin}
+      : {x:clamp(origin.x+snap(dx,1),0,state.level.size.width-object.w),y:clamp(origin.y+snap(dy,1),0,state.level.size.height-object.h)};
+    const path=object.props.path.map((node,index)=>index===drag.nodeIndex?requested:node);
+    const onGrid=[requested.x,requested.y].every(value=>Math.abs(value/TRAM_ROUTE_GRID_STEP-Math.round(value/TRAM_ROUTE_GRID_STEP))<1e-8);
+    const candidateObject={...object,props:{...object.props,path}};
+    const placement=onGrid?pairedPathPlacement(candidateObject,path):{ok:false,message:'Поставьте узел на сетку уровня.'};
+    drag.requestedNode={...requested};drag.nodePlacement=placement;
+    drag.previewValid=!!(drag.nodeMoved&&placement.ok&&!drag.outside);
+    return{point:requested,path,placement,moved:drag.nodeMoved};
   }
 
   function pathNodeFromDrag(drag) {
-    const point=drag.current||drag.start,object=drag.object;
-    const requested={x:clamp(snap(point.rawX-drag.offsetX,1),0,state.level.size.width-object.w),y:clamp(snap(point.rawY-drag.offsetY,1),0,state.level.size.height-object.h)};
-    const candidatePath=object.props.path.map((node,index)=>index===drag.nodeIndex?requested:node),placement=pairedPathPlacement(object,candidatePath);
-    if(placement.ok)drag.lastValidNode={...requested};
-    return{...(drag.lastValidNode||object.props.path[drag.nodeIndex])};
+    const candidate=pathNodeCandidateFromDrag(drag);
+    if(drag.insertedNode)return{...candidate.point};
+    if(candidate.placement.ok)drag.lastValidNode={...candidate.point};
+    return{...(drag.lastValidNode||drag.object.props.path[drag.nodeIndex])};
+  }
+
+  function tramNodeSuggestions(drag) {
+    const center=pathNodeFromDrag(drag),radius=TRAM_SUGGESTION_RADIUS;
+    const key=`${center.x}:${center.y}`;
+    if(drag.suggestionsCache?.key===key)return drag.suggestionsCache.points;
+    const points=[];
+    for(let y=Math.ceil(center.y-radius);y<=Math.floor(center.y+radius);y++)for(let x=Math.ceil(center.x-radius);x<=Math.floor(center.x+radius);x++){
+      const distance=(x-center.x)**2+(y-center.y)**2;
+      if(distance<1e-8||distance>radius*radius+1e-8)continue;
+      const point={x,y};
+      const path=drag.object.props.path.map((node,index)=>index===drag.nodeIndex?point:node);
+      const candidateObject={...drag.object,props:{...drag.object.props,path}};
+      if(pairedPathPlacement(candidateObject,path).ok)points.push(point);
+    }
+    drag.suggestionsCache={key,points};return points;
+  }
+
+  function tramNodeRemoval(object,nodeIndex) {
+    if(!object||nodeIndex<=0||nodeIndex>=object.props.path.length)return{ok:false,message:'Начало маршрута переносится вместе с трамваем.'};
+    if(object.props.path.length<=2)return{ok:false,message:'В маршруте должно остаться хотя бы два узла.'};
+    const path=object.props.path.filter((_,index)=>index!==nodeIndex).map(point=>({...point}));
+    const placement=pairedPathPlacement({...object,props:{...object.props,path}},path);
+    return{...placement,path};
+  }
+
+  function tramPathForRender(object) {
+    const drag=state.drag;
+    if(drag?.kind==='pathNode'&&drag.object.id===object.id){
+      const next=pathNodeFromDrag(drag);
+      if(drag.insertedNode)return drag.previewValid?drag.object.props.path.map((node,index)=>index===drag.nodeIndex?next:node):object.props.path;
+      if(drag.deleteCandidate){const removal=tramNodeRemoval(object,drag.nodeIndex);return removal.ok?removal.path:object.props.path;}
+      return object.props.path.map((node,index)=>index===drag.nodeIndex?next:node);
+    }
+    if(drag?.kind==='move'&&drag.object.id===object.id&&!drag.deleteCandidate){const target=movePreviewRectFromDrag(drag),dx=target.x-drag.object.x,dy=target.y-drag.object.y;return drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}
+    return object.props.path;
   }
 
   function tramSegmentsOverlap(a,b,c,d){const abx=b.x-a.x,aby=b.y-a.y,acx=c.x-a.x,acy=c.y-a.y,adx=d.x-a.x,ady=d.y-a.y;if(Math.abs(abx*acy-aby*acx)>.001||Math.abs(abx*ady-aby*adx)>.001)return false;const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);return Math.min(first[1],second[1])-Math.max(first[0],second[0])>.001;}
+
+  function tramCross(a,b,c){return(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
+  function tramPointOnSegment(point,a,b){return Math.abs(tramCross(a,b,point))<=GEOMETRY_EPSILON&&point.x>=Math.min(a.x,b.x)-GEOMETRY_EPSILON&&point.x<=Math.max(a.x,b.x)+GEOMETRY_EPSILON&&point.y>=Math.min(a.y,b.y)-GEOMETRY_EPSILON&&point.y<=Math.max(a.y,b.y)+GEOMETRY_EPSILON;}
+  function tramSegmentsIntersect(a,b,c,d){
+    const abC=tramCross(a,b,c),abD=tramCross(a,b,d),cdA=tramCross(c,d,a),cdB=tramCross(c,d,b);
+    if(((abC>GEOMETRY_EPSILON&&abD< -GEOMETRY_EPSILON)||(abC< -GEOMETRY_EPSILON&&abD>GEOMETRY_EPSILON))&&((cdA>GEOMETRY_EPSILON&&cdB< -GEOMETRY_EPSILON)||(cdA< -GEOMETRY_EPSILON&&cdB>GEOMETRY_EPSILON)))return true;
+    return (Math.abs(abC)<=GEOMETRY_EPSILON&&tramPointOnSegment(c,a,b))||(Math.abs(abD)<=GEOMETRY_EPSILON&&tramPointOnSegment(d,a,b))||(Math.abs(cdA)<=GEOMETRY_EPSILON&&tramPointOnSegment(a,c,d))||(Math.abs(cdB)<=GEOMETRY_EPSILON&&tramPointOnSegment(b,c,d));
+  }
+  function tramSegmentsShareOnlyEndpoint(a,b,c,d,shared){
+    const abx=b.x-a.x,aby=b.y-a.y;
+    if(Math.abs(tramCross(a,b,c))<=GEOMETRY_EPSILON&&Math.abs(tramCross(a,b,d))<=GEOMETRY_EPSILON){
+      const axis=Math.abs(abx)>=Math.abs(aby)?'x':'y',first=[a[axis],b[axis]].sort((x,y)=>x-y),second=[c[axis],d[axis]].sort((x,y)=>x-y);
+      return Math.min(first[1],second[1])-Math.max(first[0],second[0])<=GEOMETRY_EPSILON;
+    }
+    return tramPointOnSegment(shared,a,b)&&tramPointOnSegment(shared,c,d);
+  }
 
   function runtimeTramPath(object,points=object?.props?.path){const route=Array.isArray(points)?points.map(point=>({x:Number(point.x),y:Number(point.y)})):[];return object?.props?.clockwise===false&&route.length>2?[route[0],...route.slice(1).reverse()]:route;}
   function tramRuntimeInstances(object,points=object?.props?.path){const route=runtimeTramPath(object,points);if(!route.length)return[];const loop=object?.props?.loop!==false,segmentCount=loop?route.length:Math.max(0,route.length-1),segments=[];let routeLength=0;for(let index=0;index<segmentCount;index++){const from=route[index],to=route[(index+1)%route.length],length=Math.hypot(to.x-from.x,to.y-from.y);segments.push({from,to,length});routeLength+=length;}const spacing=Math.max(0,Number(object?.props?.spacingCells)||0),count=loop&&spacing>0?Math.max(1,Math.round(routeLength/spacing)):1;return Array.from({length:count},(_,index)=>{let remaining=count===1?0:routeLength*index/count;for(let segmentIndex=0;segmentIndex<segments.length;segmentIndex++){const segment=segments[segmentIndex],length=segment.length||1;if(remaining<=length||segmentIndex===segments.length-1){const progress=clamp(remaining/length,0,1);return{index,count,distance:count===1?0:routeLength*index/count,x:segment.from.x+(segment.to.x-segment.from.x)*progress,y:segment.from.y+(segment.to.y-segment.from.y)*progress};}remaining-=length;}return{index,count,distance:0,x:route[0].x,y:route[0].y};});}
@@ -1591,14 +1753,12 @@
     for(const object of state.level.objects){
       if(!PATH_ENDPOINT_TYPES.has(object.type))continue;
       const end=pathEndForRender(object);
-      let points=object.type==='smartPlatform'?(object.props?.path||routeForObject(object,end)):[{x:object.x,y:object.y},end];
-      if(object.type==='smartPlatform'&&state.drag?.kind==='pathNode'&&state.drag.object.id===object.id){const next=pathNodeFromDrag(state.drag);points=(state.drag.insertedNode?state.drag.object.props.path:points).map((node,index)=>index===state.drag.nodeIndex?next:node);}
-      if(object.type==='smartPlatform'&&state.drag?.kind==='move'&&state.drag.object.id===object.id&&!state.drag.deleteCandidate){const target=movePreviewRectFromDrag(state.drag),dx=target.x-state.drag.object.x,dy=target.y-state.drag.object.y;points=state.drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}
+      const points=object.type==='smartPlatform'?tramPathForRender(object):[{x:object.x,y:object.y},end];
       const color=object.type==='smartPlatform'?(pairedPathPlacement(object,points).ok?TYPE_DEFS[object.type].color:'#ff6974'):(pathEndpointPlacement(object,end).ok?TYPE_DEFS[object.type].color:'#ff6974');
       ctx.strokeStyle=color;ctx.setLineDash([5,4]);ctx.beginPath();points.forEach((point,index)=>{const x=(point.x+object.w/2)*cell,y=(point.y+object.h/2)*cell;if(index)ctx.lineTo(x,y);else ctx.moveTo(x,y);});if(object.type==='smartPlatform'&&points.length>2)ctx.closePath();ctx.stroke();
       if(object.type==='smartPlatform'){
         ctx.setLineDash([]);
-        for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index,cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.save();ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':active?TRAM_INSERTION_COLOR:index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();ctx.restore();}
+
         const centers=points.map(point=>({cx:(point.x+object.w/2)*cell,cy:(point.y+object.h/2)*cell})),ordered=object.props?.clockwise===false?[centers[0],...centers.slice(1).reverse()]:centers;
         for(let index=0;index<ordered.length;index++)drawWireArrowlets(ordered[index],ordered[(index+1)%ordered.length],color,{size:4,outline:false});
         for(const instance of tramRuntimeInstances(object,points).slice(1)){const gx=instance.x,gy=instance.y,x=gx*cell,y=gy*cell,w=object.w*cell,h=object.h*cell;drawObjectShape(ctx,{...object,x:gx,y:gy},x,y,w,h,{preview:true,color,plainPlatform:true});}
@@ -1611,9 +1771,38 @@
     ctx.restore();
   }
 
+  function drawTramNodeCircles(object,points,cell,color) {
+    for(let index=0;index<points.length;index++){const point=points[index],invalid=color==='#ff6974',active=state.activeTramInsertion?.id===object.id&&state.activeTramInsertion.index===index&&!(state.drag?.object?.id===object.id&&(state.drag.deleteCandidate||(state.drag.insertedNode&&!state.drag.previewValid))),cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;ctx.save();ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=invalid?'#ff6974':active&&state.drag?.insertedNode?TRAM_INSERTION_COLOR:index===0?color:TRAM_BEND_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=invalid?'#ffe1e4':index===0?'#08100d':color;ctx.stroke();ctx.restore();}
+    if(state.drag?.kind==='pathNode'&&state.drag.object.id===object.id&&!state.drag.outside){
+      const point=pathNodeFromDrag(state.drag),cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
+      ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);ctx.strokeStyle=TRAM_INSERTION_COLOR;ctx.lineWidth=2;ctx.stroke();
+    }
+  }
+
   function drawTramInsertionHandles(cell) {
-    ctx.save();
-    for(const object of state.level.objects.filter(candidate=>candidate.type==='smartPlatform')){let path=object.props.path;if(state.drag?.kind==='pathNode'&&state.drag.object.id===object.id){const next=pathNodeFromDrag(state.drag);path=(state.drag.insertedNode?state.drag.object.props.path:path).map((point,index)=>index===state.drag.nodeIndex?next:point);}else if(state.drag?.kind==='move'&&state.drag.object.id===object.id&&!state.drag.deleteCandidate){const target=movePreviewRectFromDrag(state.drag),dx=target.x-state.drag.object.x,dy=target.y-state.drag.object.y;path=state.drag.object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}for(const handle of tramInsertionPoints(object,path)){const cx=(handle.point.x+object.w/2)*cell,cy=(handle.point.y+object.h/2)*cell,hovered=!!state.hoverPoint&&Math.hypot((state.hoverPoint.rawX-handle.point.x-object.w/2)*cell,(state.hoverPoint.rawY-handle.point.y-object.h/2)*cell)<=12;ctx.save();ctx.shadowColor=TRAM_INSERTION_COLOR;ctx.shadowBlur=hovered?10:5;ctx.beginPath();ctx.arc(cx,cy,hovered?6.5:5,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=hovered?2.5:1.5;ctx.strokeStyle=hovered?'#f5fff9':'#08100d';ctx.stroke();ctx.restore();}}
+    ctx.save();ctx.setLineDash([]);
+    const drag=state.drag?.kind==='pathNode'?state.drag:null;
+    for(const object of state.level.objects.filter(candidate=>candidate.type==='smartPlatform')){
+      const path=tramPathForRender(object),editing=drag?.object.id===object.id;
+      if(!drag)for(const handle of tramInsertionPoints(object,path)){
+        const cx=(handle.point.x+object.w/2)*cell,cy=(handle.point.y+object.h/2)*cell;
+        const hovered=!!state.hoverPoint&&Math.hypot((state.hoverPoint.rawX-handle.point.x-object.w/2)*cell,(state.hoverPoint.rawY-handle.point.y-object.h/2)*cell)<=12;
+        ctx.beginPath();ctx.arc(cx,cy,hovered?6.5:5,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=hovered?2.5:1.5;ctx.strokeStyle=hovered?'#f5fff9':'#08100d';ctx.stroke();
+      }
+      drawTramNodeCircles(object,path,cell,TYPE_DEFS.smartPlatform.color);
+      if(!editing)continue;
+      if(!drag.outside)for(const point of tramNodeSuggestions(drag)){
+        const cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
+        ctx.beginPath();ctx.arc(cx,cy,Math.min(3.5,cell*.2),0,Math.PI*2);ctx.fillStyle='rgba(255,213,107,.26)';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,237,179,.45)';ctx.stroke();
+      }
+      if(drag.insertedNode&&!drag.previewValid){
+        const point=drag.requestedNode||drag.object.props.path[drag.nodeIndex],cx=clamp((point.x+object.w/2)*cell,7,canvas.width-7),cy=clamp((point.y+object.h/2)*cell,7,canvas.height-7);
+        ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=drag.nodeMoved?'#ff6974':TYPE_DEFS.smartPlatform.color;ctx.stroke();
+      }else if(drag.deleteCandidate){
+        const point=object.props.path[drag.nodeIndex],cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
+        ctx.beginPath();ctx.moveTo(cx-7,cy-7);ctx.lineTo(cx+7,cy+7);ctx.moveTo(cx+7,cy-7);ctx.lineTo(cx-7,cy+7);ctx.strokeStyle='#ff6974';ctx.lineWidth=3;ctx.stroke();
+      }
+    }
     ctx.restore();
   }
 
@@ -1630,12 +1819,18 @@
 
   function drawSelectedLinkEndpointStems(cell){const object=selectedObject();if(!object)return;if(object.type==='button')drawLinkEndpointStem(linkSocketGeometry(object,object.x*cell,object.y*cell,object.w*cell,object.h*cell),'#65ff9a',2.5);if(LINKABLE_TYPES.has(object.type))for(const socket of linkSocketEntries(object,object.x*cell,object.y*cell,object.w*cell,object.h*cell))drawLinkEndpointStem(socket,connectionColor(`${object.id}${socket.suffix}`),2.5);}
 
+  function objectDrawOrder(object) {
+    if(object.type==='solid')return -3;
+    if(object.type==='label')return -2;
+    return LAYER_ORDER[object.layer]??99;
+  }
+
   function renderCanvas() {
     if (!state.level) return;
     resizeCanvas();
     const cell = cellPixels(), width = state.level.size.width * cell, height = state.level.size.height * cell;
     ctx.clearRect(0,0,width,height);drawPanelBackdrop(cell,width,height);drawGrid(cell,width,height);drawConnections(cell);drawWireDrag();
-    const objects = [...state.level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99));
+    const objects = [...state.level.objects].sort((a,b)=>objectDrawOrder(a)-objectDrawOrder(b));
     for (const object of objects) drawObjectShape(ctx,object,object.x*cell,object.y*cell,object.w*cell,object.h*cell,{selected:selectedObjectIds().has(object.id)||state.selectedWire?.sourceId===object.id||state.selectedWire?.targetId===object.id});
     if(state.drag?.kind==='selectRect'){const rect=normalizedGridRect(state.drag.start,state.drag.current||state.drag.start);ctx.save();ctx.fillStyle='rgba(103,215,255,.12)';ctx.strokeStyle='#67d7ff';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.fillRect(rect.x*cell,rect.y*cell,rect.w*cell,rect.h*cell);ctx.strokeRect(rect.x*cell+.5,rect.y*cell+.5,rect.w*cell-1,rect.h*cell-1);ctx.restore();}
     drawSelectedLinkEndpointStems(cell);
@@ -1868,12 +2063,12 @@
     return[start,{x:start.x+dx*side,y:start.y+dy*side},{x:start.x+(dx+perpendicular.x)*side,y:start.y+(dy+perpendicular.y)*side},{x:start.x+perpendicular.x*side,y:start.y+perpendicular.y*side}];
   }
 
-  function pairedPathPlacement(object,path,level=state.level) {
+  function pairedPathPlacement(object,path,level=state.level,{checkStyle=true}={}) {
     if(!Array.isArray(path)||path.length<2)return{ok:false,message:'Не удалось построить полную вторую позицию предмета.'};
     if(Math.abs(path[0].x-object.x)>.001||Math.abs(path[0].y-object.y)>.001)return{ok:false,message:'Маршрут должен начинаться в основной позиции предмета.'};
     const mainPlacement=canPlaceInLevel(level,object,[object.id],{checkOwnPair:false});if(!mainPlacement.ok)return mainPlacement;
     if(object.type==='smartPlatform'){
-      const issue=tramPathIssue(object,path,level);if(issue)return{ok:false,message:issue};
+      const issue=tramPathIssue(object,path,level,{checkStyle});if(issue)return{ok:false,message:issue};
     }
     if(!pathInsideLevelShape(level,object,path))return{ok:false,message:'Маршрут проходит через отсутствующую панель.'};
     const occupied=[{...object}];
@@ -1970,7 +2165,7 @@
   }
   function placementPreviewVerdict(candidate,ignoreIds=[],level=state.level){if(!candidate)return{ok:false,message:'Нет предмета для проверки.'};if(candidate.authoringPairError)return{ok:false,message:candidate.authoringPairError};const ignored=new Set(ignoreIds);if(UNIQUE_TYPES.has(candidate.type)&&level.objects.some(object=>object.type===candidate.type&&!ignored.has(object.id)))return{ok:false,message:`${TYPE_DEFS[candidate.type].label} уже есть на уровне.`};if(candidate.type==='pickup'&&candidate.props?.abilityGroup==='gravity'&&level.objects.some(object=>object.type==='pickup'&&object.props?.abilityGroup==='gravity'&&!ignored.has(object.id)))return{ok:false,message:'На уровне может быть только один предмет гравитации.'};if(candidate.type==='coin'&&level.objects.filter(object=>object.type==='coin'&&!ignored.has(object.id)).length>=coinLimit(level))return{ok:false,message:'Достигнут лимит монет.'};if(PATH_ENDPOINT_TYPES.has(candidate.type))return pairedPathPlacement(candidate,candidate.props?.path,level);if(candidate.type==='portal'&&!level.objects.some(object=>object.id===candidate.id))return portalPairPlacement(candidate,level,ignoreIds);return canPlaceInLevel(level,candidate,ignoreIds);}
 
-  function objectAt(point,pointerType='mouse'){const sorted=[...state.level.objects].sort((a,b)=>{const layer=(LAYER_ORDER[b.layer]??99)-(LAYER_ORDER[a.layer]??99);return layer||state.level.objects.indexOf(b)-state.level.objects.indexOf(a);}),exact=sorted.find(object=>staticPlacementFootprints(object).some(footprint=>point.rawX>=footprint.x&&point.rawX<footprint.x+footprint.w&&point.rawY>=footprint.y&&point.rawY<footprint.y+footprint.h));if(exact||pointerType!=='touch')return exact||null;const radius=TOUCH_OBJECT_HIT_RADIUS/cellPixels(),near=sorted.map((object,index)=>{const distance=Math.min(...staticPlacementFootprints(object).map(footprint=>{const dx=Math.max(footprint.x-point.rawX,0,point.rawX-(footprint.x+footprint.w)),dy=Math.max(footprint.y-point.rawY,0,point.rawY-(footprint.y+footprint.h));return Math.hypot(dx,dy);}));return{object,index,distance,area:object.w*object.h};}).filter(entry=>entry.distance<=radius).sort((a,b)=>a.distance-b.distance||a.area-b.area||a.index-b.index);return near[0]?.object||null;}
+  function objectAt(point,pointerType='mouse'){const sorted=[...state.level.objects].sort((a,b)=>{const layer=objectDrawOrder(b)-objectDrawOrder(a);return layer||state.level.objects.indexOf(b)-state.level.objects.indexOf(a);}),exact=sorted.find(object=>staticPlacementFootprints(object).some(footprint=>point.rawX>=footprint.x&&point.rawX<footprint.x+footprint.w&&point.rawY>=footprint.y&&point.rawY<footprint.y+footprint.h));if(exact||pointerType!=='touch')return exact||null;const radius=TOUCH_OBJECT_HIT_RADIUS/cellPixels(),near=sorted.map((object,index)=>{const distance=Math.min(...staticPlacementFootprints(object).map(footprint=>{const dx=Math.max(footprint.x-point.rawX,0,point.rawX-(footprint.x+footprint.w)),dy=Math.max(footprint.y-point.rawY,0,point.rawY-(footprint.y+footprint.h));return Math.hypot(dx,dy);}));return{object,index,distance,area:object.w*object.h};}).filter(entry=>entry.distance<=radius).sort((a,b)=>a.distance-b.distance||a.area-b.area||a.index-b.index);return near[0]?.object||null;}
 
   function linkTargetAt(point,pointerType='mouse') {
     const cell=cellPixels(),x=point.rawX*cell,y=point.rawY*cell,hitRadius=pointerType==='touch'?24:14;
@@ -2221,12 +2416,12 @@
     renderCanvas();
   }
 
-  function handlePointerDown(event){
+  function handlePointerDown(event,routeHandleOverride=null){
     if(!state.ready)return;
     const touch=event.pointerType==='touch';
     if(touch&&event.isPrimary&&state.pointers.size&&!state.pointers.has(event.pointerId))resetCanvasGestureState({restoreSelection:true});
     if(touch&&state.pointers.size){const registered=state.pointers.has(event.pointerId);event.preventDefault();state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});if(!registered)safelyCapturePointer(viewport,event.pointerId);if(state.pointers.size>=2&&!state.pinch)beginPinch();return;}
-    if(state.domResize||state.mobilePaletteDrag||state.wireDrag||event.target?.closest?.('button,input,select,textarea,label,.context-toolbar,.resize-handles'))return;
+    if(state.domResize||state.mobilePaletteDrag||state.wireDrag||(!routeHandleOverride&&event.target?.closest?.('button,input,select,textarea,label,.context-toolbar,.resize-handles')))return;
     if(touch){event.preventDefault();captureTouchSelectionSnapshot();}
     state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     safelyCapturePointer(viewport,event.pointerId);
@@ -2237,7 +2432,7 @@
       if(event.button===0||event.button===undefined){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       return;
     }
-    const point=pointerGridPoint(event),wireHit=state.tool==='select'?wireAtPoint(point,event.pointerType):null;
+    const point=pointerGridPoint(event),wireHit=!routeHandleOverride&&state.tool==='select'?wireAtPoint(point,event.pointerType):null;
     if(wireHit?.edge==='target'||wireHit?.edge==='source'){
       const startsNewWire=wireHit.edge==='source',title=startsNewWire?'Новый провод':'Провод выбран',message=startsNewWire?'Потяните вилку к новой розетке. Уже подключённые провода останутся на месте.':`Потяните край к другой розетке или отпустите в стороне, чтобы отключить: ${TYPE_DEFS[wireHit.source.type].label} → ${TYPE_DEFS[wireHit.target.type].label}.`;
       state.selectedWire=startsNewWire?null:{sourceId:wireHit.source.id,targetId:wireHit.target.id,descriptor:wireHit.descriptor};state.selectedId=wireHit.source.id;showHintText(title,message);
@@ -2250,8 +2445,8 @@
       if(event.pointerType==='touch'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       refreshAll();return;
     }
-    const tramHandle=tramRouteHandleAt(point,event.pointerType);
-    if((event.button===2||state.tool==='erase')&&tramHandle?.nodeIndex>0){toast('Основные узлы трамвая нельзя удалить — их можно только перетянуть.');return;}
+    const tramHandle=routeHandleOverride||tramRouteHandleAt(point,event.pointerType);
+    if((event.button===2||state.tool==='erase')&&tramHandle?.nodeIndex>0){toast('Чтобы удалить узел трамвая, перетащите его за границу поля.');return;}
     if(event.button===2){eraseRegion({x:point.x,y:point.y,w:1,h:1});return;}
     if(event.button===1||state.spaceHeld||state.tool==='pan'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');return;}
     if(event.button!==0)return;
@@ -2268,7 +2463,16 @@
       }
       if(tramHandle){
         endpointObject=tramHandle.object;state.selectedId=endpointObject.id;state.selectedWire=null;
-        const activate=()=>{let nodeIndex=tramHandle.nodeIndex??-1,insertedNode=false,dragObject=endpointObject;if(tramHandle.segment){const segment=tramHandle.segment,candidatePath=endpointObject.props.path.map(node=>({...node}));candidatePath.splice(segment.index,0,segment.point);const placement=pairedPathPlacement(endpointObject,candidatePath);if(!placement.ok){toast(`Узел маршрута не добавлен: ${placement.message}`,'error');return;}dragObject=deepClone(endpointObject);dragObject.props.path=candidatePath;nodeIndex=segment.index;insertedNode=true;}if(nodeIndex<1)return;state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};const node=dragObject.props.path[nodeIndex];state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:deepClone(dragObject),start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:{...node},insertedNode};canvas.style.cursor='grabbing';renderCanvas();};
+        const activate=()=>{
+          let nodeIndex=tramHandle.nodeIndex??-1,insertedNode=false,dragObject=deepClone(endpointObject);
+          if(tramHandle.segment){const segment=tramHandle.segment;dragObject.props.path.splice(segment.index,0,{...segment.point});nodeIndex=segment.index;insertedNode=true;}
+          if(nodeIndex<1)return;
+          state.activeTramInsertion={id:endpointObject.id,index:nodeIndex};
+          const node=dragObject.props.path[nodeIndex];
+          state.drag={kind:'pathNode',pointerId:event.pointerId,nodeIndex,pointerType:event.pointerType,object:dragObject,start:point,current:point,offsetX:point.rawX-node.x,offsetY:point.rawY-node.y,lastValidNode:insertedNode?null:{...node},insertedNode,nodeMoved:false,outside:false,deleteCandidate:false,previewValid:false};
+          showHintText(insertedNode?'Новый узел трамвая':'Узел трамвая',insertedNode?'Потяните кружок и отпустите в свободном месте. Нажатие без переноса не меняет маршрут.':'Перетяните узел. Чтобы удалить его, вынесите за границу поля.');
+          canvas.style.cursor='grabbing';renderCanvas();
+        };
         if(event.pointerType==='touch'){refreshInspector();renderContextToolbar();renderCanvas();beginTouchCanvasIntent(event,activate);}else activate();
         return;
       }
@@ -2294,7 +2498,7 @@
 
   function handlePointerMove(event){if(!state.ready||!state.level)return;if(state.pointers.has(event.pointerId))state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});updateFieldTapCandidate(event);if(state.pinch){updatePinch();return;}const intent=state.touchObjectIntent;if(intent?.pointerId===event.pointerId){intent.lastX=event.clientX;intent.lastY=event.clientY;if(Math.hypot(event.clientX-intent.startX,event.clientY-intent.startY)>TOUCH_OBJECT_GESTURE_SLOP){clearTouchObjectIntent();state.pan={pointerId:event.pointerId,x:intent.startX,y:intent.startY,scrollLeft:intent.scrollLeft,scrollTop:intent.scrollTop};viewport.classList.add('dragging');viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);}return;}if(state.pan&&state.pan.pointerId!==event.pointerId||state.drag&&state.drag.pointerId!==event.pointerId)return;const point=pointerGridPoint(event);state.hoverPoint=point;$('cursorReadout').style.display='none';$('cursorStatus').textContent='';
     if(state.pan){viewport.scrollLeft=state.pan.scrollLeft-(event.clientX-state.pan.x);viewport.scrollTop=state.pan.scrollTop-(event.clientY-state.pan.y);return;}
-    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'){state.drag.deleteCandidate=!pointInsideCanvas(event.clientX,event.clientY);canvas.classList.toggle('will-delete',state.drag.deleteCandidate);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode'||state.drag.kind==='moveGroup')canvas.style.cursor='grabbing';renderCanvas();}
+    if(state.drag){state.drag.current=point;if(state.drag.kind==='move'||state.drag.kind==='pathNode'){state.drag.outside=!pointInsideCanvas(event.clientX,event.clientY);state.drag.deleteCandidate=state.drag.outside&&(state.drag.kind==='move'||!state.drag.insertedNode);canvas.classList.toggle('will-delete',state.drag.outside);}if(state.drag.kind==='pathEndpoint'||state.drag.kind==='pathNode'||state.drag.kind==='moveGroup')canvas.style.cursor='grabbing';renderCanvas();}
     else {const hovered=objectAt(point,event.pointerType),wire=state.tool==='select'?wireAtPoint(point,event.pointerType):null,tram=state.tool==='select'?tramRouteHandleAt(point,event.pointerType):null;if(state.tool==='select'){canvas.style.cursor=wire?'pointer':tram||pathGhostObjectAt(point)||pathEndpointHit(selectedObject(),point,event.pointerType)?'grab':hovered?'pointer':'grab';showInteractionHint(hovered);}}
   }
 
@@ -2305,7 +2509,24 @@
     else if(drag.kind==='moveGroup'){const result=groupMovePreview(drag);if(result.ok&&result.changed)mutate('Группа предметов перемещена',()=>{for(const candidate of result.candidates){const current=state.level.objects.find(object=>object.id===candidate.id);if(current)Object.assign(current,candidate);}});else if(!result.ok)toast(result.message,'error');}
     else if(drag.kind==='move'){if(!pointInsideCanvas(event.clientX,event.clientY)){if(removeObject(drag.object.id))toast('Предмет удалён: он вынесен за границу поля.','ok');}else{const current=state.level.objects.find(object=>object.id===drag.object.id),candidate=moveCandidateFromDrag(drag);if(current&&candidate&&(candidate.x!==current.x||candidate.y!==current.y)){const verdict=placementPreviewVerdict(candidate,[current.id]);if(verdict.ok)mutate('Предмет перемещён',()=>{current.x=candidate.x;current.y=candidate.y;if(Array.isArray(candidate.props?.path))current.props.path=candidate.props.path;});else toast(verdict.message,'error');}}}
     else if(drag.kind==='pathEndpoint'){const current=state.level.objects.find(object=>object.id===drag.object.id);const end=pathEndpointFromDrag(drag);const previous=pathEnd(drag.object);if(current&&(end.x!==previous.x||end.y!==previous.y)){const placement=pathEndpointPlacement(current,end);if(placement.ok)mutate('Конечная точка маршрута перемещена',()=>{current.props.path=routeForObject(current,end);});else toast(`Конечная точка маршрута: ${placement.message}`,'error');}}
-    else if(drag.kind==='pathNode'){const current=state.level.objects.find(object=>object.id===drag.object.id),next=pathNodeFromDrag(drag),previous=drag.object.props.path[drag.nodeIndex];if(current&&previous&&drag.insertedNode){const candidatePath=drag.object.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута добавлен',()=>{current.props.path=candidatePath;});}else if(current&&previous&&(next.x!==previous.x||next.y!==previous.y)){const candidatePath=current.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута перемещён',()=>{current.props.path=candidatePath;});}}
+    else if(drag.kind==='pathNode'){
+      const current=state.level.objects.find(object=>object.id===drag.object.id),previous=drag.object.props.path[drag.nodeIndex];
+      drag.current=pointerGridPoint(event);drag.outside=!pointInsideCanvas(event.clientX,event.clientY);
+      if(current&&previous&&drag.insertedNode){
+        const candidate=pathNodeCandidateFromDrag(drag);
+        if(!drag.outside&&candidate.moved&&candidate.placement.ok){
+          mutate('Узел маршрута добавлен',()=>{current.props.path=candidate.path;});
+          state.activeTramInsertion={id:current.id,index:drag.nodeIndex};
+        }else{state.activeTramInsertion=null;if(!drag.outside&&candidate.moved&&!candidate.placement.ok)toast('Узел не добавлен: '+candidate.placement.message,'error');}
+      }else if(current&&previous&&drag.outside){
+        const removal=tramNodeRemoval(current,drag.nodeIndex);state.activeTramInsertion=null;
+        if(removal.ok){mutate('Узел маршрута удалён',()=>{current.props.path=removal.path;});toast('Узел удалён: он вынесен за границу поля.','ok');}
+        else toast('Узел не удалён: '+removal.message,'error');
+      }else if(current&&previous){
+        const next=pathNodeFromDrag(drag);
+        if(next.x!==previous.x||next.y!==previous.y){const candidatePath=current.props.path.map((point,index)=>index===drag.nodeIndex?next:point);mutate('Узел маршрута перемещён',()=>{current.props.path=candidatePath;});}
+      }
+    }
     else if(drag.kind==='wireDetach'){const source=state.level.objects.find(object=>object.id===drag.sourceId),sameSocket=pointInsideCanvas(event.clientX,event.clientY)&&String(linkTargetAt(pointerGridPoint(event),event.pointerType)?.linkDescriptor||'')===String(drag.descriptor||drag.targetId);if(source&&!sameSocket){mutate('Связь удалена',()=>{source.props.targets=(source.props?.targets||[]).filter(value=>String(value)!==String(drag.descriptor||drag.targetId));});toast('Провод отключён.','ok');}}
     canvas.classList.remove('will-delete');if(state.tool==='select')canvas.style.cursor='grab';
     renderCanvas();
@@ -2414,7 +2635,23 @@
 
   function positionSelectionUi(object,def){const root=$('contextToolbar'),handles=$('resizeHandles'),stage=$('canvasStage'),cell=cellPixels(),left=canvas.offsetLeft+object.x*cell,top=canvas.offsetTop+object.y*cell,width=object.w*cell,height=object.h*cell,resizable=!def.fixedSize&&!!def.resize&&!PROTECTED_TYPES.has(object.type);handles.hidden=!resizable;if(resizable){handles.style.left=`${left}px`;handles.style.top=`${top}px`;handles.style.width=`${width}px`;handles.style.height=`${height}px`;for(const button of handles.querySelectorAll('button'))button.hidden=false;}if(root.hidden)return;const gap=14,endpointLaneHeight=LINK_ENDPOINT_OFFSET+LINK_ENDPOINT_CONTROL_SIZE/2,inset=canvasStageInset(),stageWidth=Math.max(stage.clientWidth,canvas.offsetLeft+canvas.width+inset),stageHeight=Math.max(stage.clientHeight,canvas.offsetTop+canvas.height+inset),rootWidth=root.offsetWidth||46,rootHeight=root.offsetHeight||46,centerX=left+width/2,centerY=top+height/2;let side='above',rootLeft=clamp(centerX-rootWidth/2,4,Math.max(4,stageWidth-rootWidth-4)),rootTop=top-gap-rootHeight;if(rootTop<4){side='below';rootTop=top+height+gap+endpointLaneHeight;}if(rootTop+rootHeight>stageHeight-4){const canRight=left+width+gap+rootWidth<=stageWidth-4;side=canRight?'right':'left';rootLeft=canRight?left+width+gap:Math.max(4,left-gap-rootWidth);rootTop=clamp(centerY-rootHeight/2,4,Math.max(4,stageHeight-rootHeight-4));}root.style.transform='none';root.style.left=`${rootLeft}px`;root.style.top=`${rootTop}px`;root.dataset.side=side;root.style.setProperty('--context-anchor-x',`${clamp(centerX-rootLeft,8,Math.max(8,rootWidth-8))}px`);root.style.setProperty('--context-anchor-y',`${clamp(centerY-rootTop,8,Math.max(8,rootHeight-8))}px`);const controlOffset=LINK_ENDPOINT_CONTROL_SIZE/2,endpointBounds={left:canvas.offsetLeft,top:canvas.offsetTop,right:canvas.offsetLeft+state.level.size.width*cell,bottom:canvas.offsetTop+state.level.size.height*cell},sockets=linkSocketEntries(object,left,top,width,height,endpointBounds),firstSocket=sockets[0],socketGap=sockets[1]?sockets[1].cx-firstSocket.cx:LINK_SOCKET_GAP,plug=linkSocketGeometry(object,left,top,width,height,endpointBounds);root.style.setProperty('--socket-left',`${firstSocket.cx-rootLeft-controlOffset}px`);root.style.setProperty('--socket-top',`${firstSocket.cy-rootTop-controlOffset}px`);root.style.setProperty('--socket-gap',`${socketGap}px`);root.style.setProperty('--plug-left',`${plug.cx-rootLeft-controlOffset}px`);root.style.setProperty('--plug-top',`${plug.cy-rootTop-controlOffset}px`);}
 
-  function beginDomResize(event){const object=selectedObject();if(!object||state.domResize||state.drag||state.pan||state.pinch||state.mobilePaletteDrag||state.wireDrag||state.touchObjectIntent)return;event.preventDefault();event.stopPropagation();const handle=event.currentTarget.dataset.resizeHandle,activate=()=>{state.domResize={pointerId:event.pointerId,handle,object:deepClone(object),preview:deepClone(object)};renderCanvas();};safelyCapturePointer(event.currentTarget,event.pointerId);if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();}
+  function beginDomResize(event){
+    const object=selectedObject();
+    if(!object||state.domResize||state.drag||state.pan||state.pinch||state.mobilePaletteDrag||state.wireDrag||state.touchObjectIntent)return;
+    // At small zoom a resize hitbox can cover a visible route circle. Let the
+    // nearest visible center win, preserving the actual resize corner target.
+    if(object.type==='smartPlatform'&&state.tool==='select'&&pointInsideCanvas(event.clientX,event.clientY)){
+      const route=tramRouteHandleAt(pointerGridPoint(event),event.pointerType),rect=event.currentTarget.getBoundingClientRect();
+      const cornerDistance=Math.hypot(event.clientX-rect.left-rect.width/2,event.clientY-rect.top-rect.height/2);
+      if(route?.object.id===object.id&&route.distance*cellPixels()<=7&&route.distance*cellPixels()<cornerDistance){
+        event.preventDefault();event.stopPropagation();handlePointerDown(event,route);return;
+      }
+    }
+    event.preventDefault();event.stopPropagation();
+    const handle=event.currentTarget.dataset.resizeHandle,activate=()=>{state.domResize={pointerId:event.pointerId,handle,object:deepClone(object),preview:deepClone(object)};renderCanvas();};
+    safelyCapturePointer(event.currentTarget,event.pointerId);
+    if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();
+  }
   function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const requestedLength=Math.max(Math.abs(dx),Math.abs(dy));const length=clamp(Math.round(requestedLength),3,6);next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=clamp(Math.round(requested),3,8);next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}if(drag.object.type==='pushBlock'){const requested=Math.max(next.w,next.h),size=[2,4,8].reduce((best,value)=>Math.abs(value-requested)<Math.abs(best-requested)?value:best,2);next.w=size;next.h=size;next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-size:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-size:drag.object.y;}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
   function updateDomResize(event){if(!state.domResize||state.domResize.pointerId!==event.pointerId)return;state.domResize.preview=resizePreviewFromPointer(event.clientX,event.clientY);renderCanvas();}
   function cancelDomResize(event=null){if(!state.domResize||(event&&state.domResize.pointerId!==event.pointerId))return;state.domResize=null;renderCanvas();}
@@ -2435,7 +2672,7 @@
     for(let a=0;a<level.objects.length;a++)for(let b=a+1;b<level.objects.length;b++){const first=level.objects[a],second=level.objects[b],overlap=staticPlacementFootprints(first).some(firstFootprint=>staticPlacementFootprints(second).some(secondFootprint=>rectsOverlap(firstFootprint,secondFootprint)&&!overlapAllowed(firstFootprint,secondFootprint)));if(overlap)add('error',`Предметы «${TYPE_DEFS[first.type]?.label}» и «${TYPE_DEFS[second.type]?.label}» занимают одно место.`,second.id);}
     const portalGroups=new Map(),portalColors=new Map();for(const portal of level.objects.filter(object=>object.type==='portal')){const key=portal.props?.pairId||'';if(!portalGroups.has(key))portalGroups.set(key,[]);portalGroups.get(key).push(portal);}for(const [key,pair] of portalGroups){if(!key||pair.length!==2)add('error','Каждый портал должен иметь ровно один парный конец.',pair[0]?.id);const color=pair[0]?.props?.color;if(color&&portalColors.has(color)&&portalColors.get(color)!==key)add('error','Две разные пары порталов не могут иметь одинаковый цвет.',pair[0]?.id);else if(color)portalColors.set(color,key);}
     for(const button of level.objects.filter(object=>object.type==='button')){const uniqueTargets=new Set();for(const target of button.props?.targets||[]){if(typeof target!=='string'){add('error','Связь кнопки должна быть строковым идентификатором розетки.',button.id);continue;}const descriptor=target,targetId=targetDescriptorId(descriptor),targetObject=objectsById.get(targetId);if(!targetObject)add('error','Кнопка связана с удалённым предметом.',button.id);else if(!targetDescriptorAllowed(descriptor,targetObject))add('error','Кнопка связана с неподдерживаемой розеткой предмета.',button.id);if(uniqueTargets.has(descriptor))add('error','Одна и та же розетка не может быть подключена к кнопке дважды.',button.id);uniqueTargets.add(descriptor);}}
-    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/GRID_STEP-Math.round(point.x/GRID_STEP))>1e-8||Math.abs(point.y/GRID_STEP-Math.round(point.y/GRID_STEP))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path),routePlacement=routeIssue?null:pairedPathPlacement(moving,path);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
+    for(const moving of level.objects.filter(object=>PATH_ENDPOINT_TYPES.has(object.type))){const path=moving.props?.path;if(!Array.isArray(path)||path.length<2){add('error','У движущегося предмета нет конечной точки.',moving.id);continue;}const pathGridStep=moving.type==='smartPlatform'?TRAM_ROUTE_GRID_STEP:GRID_STEP,invalidPoint=path.find(point=>!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||!rectInsideLevelShape(level,{...moving,x:point?.x,y:point?.y})||Math.abs(point.x/pathGridStep-Math.round(point.x/pathGridStep))>1e-8||Math.abs(point.y/pathGridStep-Math.round(point.y/pathGridStep))>1e-8);if(invalidPoint)add('error','Точка маршрута выходит за доступную область или не привязана к сетке.',moving.id);if(!pathInsideLevelShape(level,moving,path))add('error','Маршрут проходит через отсутствующую панель.',moving.id);if(!Number.isFinite(path[0]?.x)||!Number.isFinite(path[0]?.y)||Math.abs(path[0].x-moving.x)>1e-8||Math.abs(path[0].y-moving.y)>1e-8)add('error','Маршрут должен начинаться в позиции предмета.',moving.id);if(moving.type==='smartPlatform'){const routeIssue=tramPathIssue(moving,path,state.level,{checkStyle:false}),routePlacement=routeIssue?null:pairedPathPlacement(moving,path,state.level,{checkStyle:false});const styleIssue=tramRouteStyleIssue(moving,path);if(styleIssue)add('warning',styleIssue,moving.id);if(routeIssue)add('error',routeIssue,moving.id);else if(!routePlacement.ok)add('error',`Маршрут трамвая: ${routePlacement.message}`,moving.id);}else{const placement=pathEndpointPlacement(moving,pathEnd(moving));if(!placement.ok)add('error',`Конечная точка маршрута: ${placement.message}`,moving.id);}}
     const budget=calculateBudget(level);if(level.objects.length>512)add('error','Больше 512 авторских объектов.');if((budget.counts.coin||0)>coinLimit(level))add('error',`Монет больше допустимых ${coinLimit(level)} для карты ${level.size.width}×${level.size.height}.`);if(budget.dynamic>48)add('error','Больше 48 динамических платформ, дверей и конвейеров.');if((budget.counts.crusherWall||0)>8)add('error','Больше 8 прессов.');if((budget.counts.pushBlock||0)>12)add('error','Больше 12 тяжёлых кубов.');if(portalGroups.size>6)add('error','Больше 6 пар порталов: уникальных цветов не хватит.');if((budget.counts.button||0)>32)add('error','Больше 32 кнопок.');if(budget.links>64)add('error','Больше 64 связей кнопок.');if(budget.routePoints>128)add('error','Больше 128 точек маршрутов.');if(budget.generators>8)add('error','Больше 8 генераторов.');if(budget.enemies>40)add('error','Больше 40 заранее размещённых врагов.');if(budget.bytes>512*1024)add('error','Файл уровня больше 512 КБ.');
     if(!issues.length)add('ok','Критических ошибок не найдено. Теперь уровень надо пройти в игре.');state.issues=issues;renderIssues();updateBudget(budget);if(selectChecks)selectInspectorTab('checks');return issues;}
 
@@ -2469,7 +2706,7 @@
 
   async function copyDifficulty(){const target=$('copyDifficultySelect').value;if(target===state.difficulty)return;const ok=await confirmAction('Скопировать карту?',`${difficultyTitle(target)} карта будет полностью заменена текущей ${difficultyTitle(state.difficulty).toLowerCase()} картой. После этого они редактируются независимо.`);if(!ok)return;const previous=deepClone(state.slot.difficulties[target]),revisions=Array.isArray(state.slot.revisions)?state.slot.revisions:[];revisions.push({difficulty:target,savedAt:Date.now(),hash:stableHash(previous),level:previous});state.slot.revisions=revisions.slice(-10);state.slot.difficulties[target]=cloneForDifficulty(state.level,target);invalidateSlotVerification(state.slot,target);state.dirty=true;await saveNow({revision:true});toast(`Создана отдельная ${difficultyTitle(target).toLowerCase()} карта.`,'ok');}
 
-  async function restoreTemplate(){const ok=await confirmAction('Вернуть исходную заготовку?','Текущая карта этой сложности будет заменена. В истории IndexedDB останется до 10 точек восстановления.');if(!ok)return;await saveNow({revision:true});let level;if(state.slot.kind==='campaign')level=await fetchCampaignLevel(state.slot.sequence,state.difficulty);else level=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,true,{schemaVersion:state.level.schemaVersion,panels:state.level.panels});state.level=level;state.slot.difficulties[state.difficulty]=level;invalidateSlotVerification(state.slot,state.difficulty);state.selectedId=null;state.dirty=true;resetHistory('Восстановлен шаблон');scheduleSave();refreshAll();fitLevel();}
+  async function restoreTemplate(){const ok=await confirmAction('Вернуть исходную заготовку?','Текущая карта этой сложности будет заменена. В истории IndexedDB останется до 10 точек восстановления.');if(!ok)return;await saveNow({revision:true});let level;if(state.slot.kind==='campaign')level=await fetchCampaignLevel(state.slot.sequence,state.difficulty,librarySectionForKey(state.slotKey));else level=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,true,{schemaVersion:state.level.schemaVersion,panels:state.level.panels});state.level=level;state.slot.difficulties[state.difficulty]=level;invalidateSlotVerification(state.slot,state.difficulty);state.selectedId=null;state.dirty=true;resetHistory('Восстановлен шаблон');scheduleSave();refreshAll();fitLevel();}
   async function clearLevel(){const ok=await confirmAction('Очистить карту?','Останутся только вход и выход. Форма поля сохранится. Это действие попадёт в историю и автосохранение.');if(!ok)return;const blank=makeBlankLevel(state.level.size.width,state.level.size.height,state.level.title,state.difficulty,false,{schemaVersion:state.level.schemaVersion,panels:state.level.panels});blank.id=state.level.id;blank.episode=state.level.episode;blank.sequence=state.level.sequence;blank.designerNotes=state.level.designerNotes;mutate('Карта очищена',()=>{state.level=blank;state.slot.difficulties[state.difficulty]=blank;state.selectedId=null;});}
 
   async function createUserSlot(random=false){await refreshUserSlots();const drafts=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft');if(drafts.length>=MAX_DRAFT_LEVELS){toast(`В работе уже ${MAX_DRAFT_LEVELS} уровней. Опубликуйте или удалите один из них.`,'error');return;}const width=20,height=20;const number=Math.max(0,...state.userSlots.map(slot=>Number(slot.sequence)||0))+1;const title=`Мой уровень ${number}`;const easy=random?makeRandomLevel(width,height,title,'easy'):makeBlankLevel(width,height,title,'easy',true);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const slot=makeSlot(key,'user',0,number,{easy,medium:cloneForDifficulty(easy,'medium'),hard:cloneForDifficulty(easy,'hard')});await dbPut(slot);scheduleLibraryMirror();await refreshUserSlots();closeLibrary();await loadSlot(key,'easy');toast(random?'Создана случайная заготовка 20×20.':'Создан новый уровень 20×20.','ok');}
@@ -2659,7 +2896,7 @@
   async function shareCurrentLevel(){await saveNow({revision:true});const payload=makeLevelTransferPayload();const blob=new Blob([`${JSON.stringify(payload,null,2)}\n`],{type:'application/json'}),fileName=`${slug(state.level.title)}.nubu-level.json`;if(navigator.share&&typeof File==='function'){const file=new File([blob],fileName,{type:'application/json'});if(navigator.canShare?.({files:[file]})){await navigator.share({title:state.level.title,files:[file]});toast('Уровень передан через системное меню.','ok');return;}}const url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileName;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Файл уровня скачан. Его можно открыть на другом устройстве.','ok');}
   async function receiveSharedLevel(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{const payload=JSON.parse(await file.text());await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='draft').length>=MAX_DRAFT_LEVELS)throw new Error(`В работе уже ${MAX_DRAFT_LEVELS} уровней.`);const key=`user-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,sequence=Math.max(0,...state.userSlots.map(item=>Number(item.sequence)||0))+1,slot=normalizeLevelTransferPayload(payload,key,sequence);await dbPut(slot);closeLibrary();await loadSlot(key,'easy');toast('Уровень получен и сохранён как новый черновик.','ok');}catch(error){toast(`Не удалось получить уровень: ${error.message}`,'error');}}
 
-  async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?`campaign-${state.slot.episode||1}`:'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');requestAnimationFrame(updateLibraryScrollCue);}
+  async function openLibrary(){await state.libraryWriteQueue;await saveNow();if(state.slot){$('librarySourceSelect').value=state.slot.kind==='campaign'?(librarySectionForKey(state.slotKey)||'campaign-1'):'user';state.librarySelectedKey=state.slotKey;state.libraryDifficulty=state.difficulty;state.libraryUserFilter=state.slot.kind==='user'?playerSlotStatus(state.slot).key:'draft';}state.libraryNeedsScroll=true;$('libraryDifficultySelect').value=state.libraryDifficulty;await renderLibrary();$('libraryModal').classList.add('open');$('libraryModal').setAttribute('aria-hidden','false');requestAnimationFrame(updateLibraryScrollCue);}
   function closeLibrary(){$('libraryModal').classList.remove('open');$('libraryModal').setAttribute('aria-hidden','true');$('libraryScrollCue').hidden=true;}
   function libraryLevelFor(slot){return slot?.difficulties?.[slot.kind==='campaign'?state.libraryDifficulty:'easy']||slot?.difficulties?.easy;}
   function levelFieldCount(level){
@@ -2697,7 +2934,11 @@
     drawLevelThumbnail($('librarySelectedPreview'),level);
   }
   async function renderLibrary({anchorKey=null,resetScroll=false}={}){
-    await refreshUserSlots();const root=$('libraryList'),campaignRoot=$('campaignLibraryList'),source=$('librarySourceSelect').value||'user',showUsers=source==='user',all=await dbGetAll(),episode=Number(source.split('-')[1])||1;
+    const requestId=++libraryRenderRequestId,source=$('librarySourceSelect').value||'user',showUsers=source==='user',section=LIBRARY_SECTIONS[source];
+    if(section&&source!=='campaign-1')await ensureLibrarySection(source);
+    await refreshUserSlots();const all=await dbGetAll();
+    if(requestId!==libraryRenderRequestId||source!==($('librarySourceSelect').value||'user'))return;
+    const root=$('libraryList'),campaignRoot=$('campaignLibraryList');
     // Finish storage reads before emptying the list, or the browser clamps its scroll position to zero.
     const archiveCount=await requestToPromise(state.db.transaction(ARCHIVE_STORE_NAME,'readonly').objectStore(ARCHIVE_STORE_NAME).count());
     const scroller=$('libraryScroll'),oldCard=anchorKey?[...(showUsers?root:campaignRoot).children].find(card=>card.dataset.key===anchorKey):null;
@@ -2705,14 +2946,14 @@
     $('libraryCopyMapButton').hidden=showUsers;$('libraryPasteMapButton').hidden=showUsers;
     const panel=$('librarySelected');if(panel)$('libraryScroll').append(panel);panel.hidden=true;state.librarySelectedSlot=null;root.innerHTML='';campaignRoot.innerHTML='';
     const drafts=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='draft'),published=state.userSlots.filter(slot=>playerSlotStatus(slot).key==='submitted');
-    $('libraryHeading').textContent=showUsers?'Мои уровни':`Эпизод ${episode}`;$('libraryDescription').textContent=showUsers?'Черновики и опубликованные уровни на этом устройстве.':`Уровни эпизода ${episode}; выберите сложность и карту.`;
+    $('libraryHeading').textContent=showUsers?'Мои уровни':section.title;$('libraryDescription').textContent=showUsers?'Черновики и опубликованные уровни на этом устройстве.':`${section.title}: 24 карты и три сложности. Выберите карту для редактирования.`;
     $('draftSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS}`;$('publishedSlotCount').textContent=`${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('userSlotCount').textContent=`${drafts.length} / ${MAX_DRAFT_LEVELS} · ${published.length} / ${MAX_PUBLISHED_LEVELS}`;$('publicationLimitBeacon').hidden=published.length<MAX_PUBLISHED_LEVELS;
     $('libraryDifficultySelect').value=state.libraryDifficulty;root.hidden=!showUsers;campaignRoot.hidden=showUsers;$('campaignLibrarySection').hidden=showUsers;$('userLibraryFilters').hidden=!showUsers;$('newUserLevelButton').hidden=!showUsers;$('exportLibraryButton').hidden=showUsers;$('exportCampaignArchiveButton').hidden=!archiveCount;
     document.querySelectorAll('[data-library-filter]').forEach(button=>{const active=button.dataset.libraryFilter===state.libraryUserFilter;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
     let slots,container;
-    if(showUsers){slots=state.libraryUserFilter==='submitted'?published:drafts;container=root;}else{slots=all.filter(slot=>slot.kind==='campaign'&&Number(slot.episode||1)===episode).sort((a,b)=>a.sequence-b.sequence);container=campaignRoot;$('libraryEpisodeSelect').value=String(episode);}
+    if(showUsers){slots=state.libraryUserFilter==='submitted'?published:drafts;container=root;}else{slots=all.filter(slot=>slot.kind==='campaign'&&librarySectionForKey(slot.key)===source).sort((a,b)=>a.sequence-b.sequence);container=campaignRoot;$('libraryEpisodeSelect').value=section.selector;}
     if(!slots.some(slot=>slot.key===state.librarySelectedKey))state.librarySelectedKey=slots.find(slot=>slot.key===state.slotKey)?.key||null;
-    if(!slots.length){const empty=document.createElement('div');empty.className='empty-state';empty.textContent=showUsers?(state.libraryUserFilter==='submitted'?'Опубликованных уровней пока нет.':'Черновиков пока нет. Создайте новый уровень.'):'В этом эпизоде пока нет уровней.';container.append(empty);}
+    if(!slots.length){const empty=document.createElement('div');empty.className='empty-state';empty.textContent=showUsers?(state.libraryUserFilter==='submitted'?'Опубликованных уровней пока нет.':'Черновиков пока нет. Создайте новый уровень.'):'В этом разделе пока нет карт.';container.append(empty);}
     let selectedCard=null,selectedSlot=null;
     for(const slot of slots){const card=makeLibraryCard(slot,{campaign:!showUsers});container.append(card);if(slot.key===state.librarySelectedKey){selectedCard=card;selectedSlot=slot;}}
     renderLibrarySelection(selectedSlot,showUsers,selectedCard);
@@ -2730,12 +2971,12 @@
   function syncActiveSlotAfterLibraryWrite(slot,difficulty,label){if(state.slotKey!==slot.key)return false;clearTimeout(state.saveTimer);const visibleLevel=state.level;state.slot=deepClone(slot);state.dirty=false;if(state.difficulty!==difficulty){state.slot.difficulties[state.difficulty]=visibleLevel;refreshSelectors();refreshAll();return false;}state.level=normalizeLevel(deepClone(state.slot.difficulties[difficulty]),{episode:slot.episode||1,sequence:slot.sequence||1,difficulty});state.slot.difficulties[difficulty]=state.level;state.selectedId=null;state.selectedWire=null;state.linkSourceId=null;state.testSpawn=null;state.issues=[];state.activePaletteId=null;state.tool='select';resetHistory(label);refreshSelectors();refreshAll();requestAnimationFrame(fitLevel);return true;}
   async function copySelectedLibraryMap(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key),level=slot?.difficulties?.[difficulty]||slot?.difficulties?.easy;if(!level)return;const payload={kind:'nubu.map-clipboard',version:1,copiedAt:Date.now(),level:deepClone(level)};state.mapClipboard=payload;try{localStorage.setItem(MAP_CLIPBOARD_KEY,JSON.stringify(payload));}catch(error){}toast(`Карта ${level.size.width}×${level.size.height} скопирована.`,'ok');});}
   async function replaceSelectedMapFromClipboard(){const selected=state.librarySelectedSlot;if(selected?.kind!=='campaign')return;const key=selected.key,difficulty=state.libraryDifficulty;await state.libraryWriteQueue;let payload=state.mapClipboard;try{payload=payload||JSON.parse(localStorage.getItem(MAP_CLIPBOARD_KEY)||'null');}catch(error){}if(payload?.kind!=='nubu.map-clipboard'||payload.level?.kind!=='nubu.level'){toast('Сначала скопируйте карту в библиотеке.','error');return;}const sourceTitle=payload.level.title||'без названия',targetTitle=selected.difficulties?.[difficulty]?.title||selected.title,ok=await confirmAction('Заменить выбранную карту?',`${difficultyTitle(difficulty)} карта «${targetTitle}» будет заменена копией «${sourceTitle}» ${payload.level.size.width}×${payload.level.size.height}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(slot?.kind!=='campaign')throw new Error('Выбранный уровень больше не существует.');const current=slot.difficulties[difficulty],next=normalizeLevel({...deepClone(payload.level),id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(payload.level.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot,difficulty);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,'Карта заменена из библиотеки');await renderLibrary();toast('Выбранная карта заменена копией.','ok');});}
-  function exportSelectedCampaignLevel(){const slot=state.librarySelectedSlot,level=libraryLevelFor(slot);if(slot?.kind!=='campaign'||!level)return;const blob=new Blob([`${JSON.stringify(level,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`ep${slot.episode}-${String(slot.sequence).padStart(2,'0')}-${state.libraryDifficulty}.level.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан ${anchor.download}. Сохраните его в iCloud.`,'ok');}
+  function exportSelectedCampaignLevel(){const slot=state.librarySelectedSlot,level=libraryLevelFor(slot);if(slot?.kind!=='campaign'||!level)return;const blob=new Blob([`${JSON.stringify(level,null,2)}\n`],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`${LIBRARY_SECTIONS[librarySectionForKey(slot.key)]?.folder||`ep${slot.episode}`}-${String(slot.sequence).padStart(2,'0')}-${state.libraryDifficulty}.level.json`;document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан ${anchor.download}. Сохраните его в iCloud.`,'ok');}
   async function importSelectedCampaignLevel(event){const file=event.target.files?.[0];event.target.value='';const selected=state.librarySelectedSlot,difficulty=state.libraryDifficulty;if(!file||selected?.kind!=='campaign')return;const key=selected.key,title=selected.title;try{if(file.size>512*1024)throw new Error('файл больше 512 КБ');const raw=JSON.parse(await file.text());if(raw?.kind!=='nubu.level'||![1,2].includes(raw?.schemaVersion))throw new Error('это не карта NuBu2600');const unknown=raw.objects?.find(object=>!TYPE_DEFS[object?.type]);if(unknown)throw new Error(`неизвестный предмет ${unknown.type}`);const ok=await confirmAction('Заменить карту из файла?',`${difficultyTitle(difficulty)} карта «${title}» будет заменена файлом ${file.name}.`);if(!ok)return;return queueLibraryWrite(async()=>{const slot=await dbGet(key);if(!slot)throw new Error('выбранный уровень больше не существует');const current=slot.difficulties[difficulty],next=normalizeLevel({...raw,id:current.id,title:current.title,episode:slot.episode,sequence:slot.sequence,metadata:{...(raw.metadata||{}),difficulty}},{difficulty,episode:slot.episode,sequence:slot.sequence});slot.difficulties[difficulty]=next;markCampaignSlotModified(slot,difficulty);slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();syncActiveSlotAfterLibraryWrite(slot,difficulty,`Карта заменена файлом ${file.name}`);await renderLibrary();toast(`Карта заменена файлом ${file.name}.`,'ok');});}catch(error){toast(`Не удалось заменить карту: ${error.message}`,'error');}}
 
   async function renameSelectedLibraryLevel(event){const selected=state.librarySelectedSlot;if(selected?.kind!=='user')return;if(playerSlotStatus(selected).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');return;}const key=selected.key,title=String(event.target.value).trim().slice(0,48)||'Без названия';return queueLibraryWrite(async()=>{if(state.slotKey===key)await saveNow();const slot=await dbGet(key);if(!slot)return;if(playerSlotStatus(slot).key==='submitted'){toast('Сначала отзовите опубликованный уровень.','error');await renderLibrary();return;}slot.title=title;for(const difficulty of DIFFICULTIES)if(slot.difficulties?.[difficulty])slot.difficulties[difficulty].title=title;slot.updatedAt=Date.now();await dbPut(slot);scheduleLibraryMirror();if(state.slotKey===key)syncActiveSlotAfterLibraryWrite(slot,state.difficulty,'Название изменено в библиотеке');state.librarySelectedKey=key;await refreshUserSlots();await renderLibrary();});}
 
-  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#030706';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;if(isPanelLevel(level)){context.fillStyle='#10241d';context.strokeStyle='#5e8b78';context.lineWidth=1;for(const panel of level.panels){const x=offsetX+panel.x*LEVEL_PANEL_SIZE*scale,y=offsetY+panel.y*LEVEL_PANEL_SIZE*scale,size=LEVEL_PANEL_SIZE*scale;context.fillRect(x,y,size,size);context.strokeRect(x+.5,y+.5,Math.max(0,size-1),Math.max(0,size-1));}}else{context.fillStyle='#10241d';context.fillRect(offsetX,offsetY,level.size.width*scale,level.size.height*scale);}for(const object of [...level.objects].sort((a,b)=>(LAYER_ORDER[a.layer]??99)-(LAYER_ORDER[b.layer]??99)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true,level});}
+  function drawLevelThumbnail(canvasElement,level){const context=canvasElement.getContext('2d');const width=canvasElement.width,height=canvasElement.height;context.fillStyle='#030706';context.fillRect(0,0,width,height);const scale=Math.min(width/level.size.width,height/level.size.height);const offsetX=(width-level.size.width*scale)/2,offsetY=(height-level.size.height*scale)/2;if(isPanelLevel(level)){context.fillStyle='#10241d';context.strokeStyle='#5e8b78';context.lineWidth=1;for(const panel of level.panels){const x=offsetX+panel.x*LEVEL_PANEL_SIZE*scale,y=offsetY+panel.y*LEVEL_PANEL_SIZE*scale,size=LEVEL_PANEL_SIZE*scale;context.fillRect(x,y,size,size);context.strokeRect(x+.5,y+.5,Math.max(0,size-1),Math.max(0,size-1));}}else{context.fillStyle='#10241d';context.fillRect(offsetX,offsetY,level.size.width*scale,level.size.height*scale);}for(const object of [...level.objects].sort((a,b)=>objectDrawOrder(a)-objectDrawOrder(b)))drawObjectShape(context,object,offsetX+object.x*scale,offsetY+object.y*scale,Math.max(1,object.w*scale),Math.max(1,object.h*scale),{mini:true,level});}
 
   function confirmAction(title,text){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmModal').classList.add('open');$('confirmModal').setAttribute('aria-hidden','false');return new Promise(resolve=>{state.confirmResolver=resolve;});}
   function closeConfirm(result){$('confirmModal').classList.remove('open');$('confirmModal').setAttribute('aria-hidden','true');const resolve=state.confirmResolver;state.confirmResolver=null;resolve?.(result);}
@@ -2768,7 +3009,7 @@
     if(command&&event.key.toLowerCase()==='d'&&!editing){event.preventDefault();duplicateSelected();return;}
     if(command&&event.key.toLowerCase()==='c'&&!editing){const object=selectedObject();if(object){state.objectClipboard=deepClone(object);toast('Предмет скопирован.');}return;}
     if(command&&event.key.toLowerCase()==='v'&&!editing&&state.objectClipboard){event.preventDefault();let source=deepClone(state.objectClipboard);const oldX=source.x,oldY=source.y;source.id=nextObjectId(source.type);source.x=clamp(source.x+1,0,state.level.size.width-source.w);source.y=clamp(source.y+1,0,state.level.size.height-source.h);if(PATH_ENDPOINT_TYPES.has(source.type))shiftPath(source,source.x-oldX,source.y-oldY);if(source.type==='portal'){source.props.pairId=nextPortalPairId();source=nearestPortalPasteCandidate(source);}const placement=source&&canPlace(source,[],source.type==='smartPlatform'?{checkOwnPair:false}:{});if(placement?.ok)addPlacedObject(source);else toast('Для вставки нет свободного места.','error');return;}
-    if(editing)return;if(event.code==='Space'){state.spaceHeld=true;event.preventDefault();}if(event.key.toLowerCase()==='v')setTool('select');if(event.key.toLowerCase()==='e')setTool('erase');if(event.key.toLowerCase()==='r')rotateSelected();if(event.key.toLowerCase()==='p')playLevel();if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();if(state.selectedId)removeObject(state.selectedId);}if(event.key==='Escape'){state.drag=null;state.selectedId=null;setTool('select');refreshAll();}if(event.key==='+'||event.key==='=')setZoom(state.zoom+.1);if(event.key==='-')setZoom(state.zoom-.1);
+    if(editing)return;if(event.code==='Space'){state.spaceHeld=true;event.preventDefault();}if(event.key.toLowerCase()==='v')setTool('select');if(event.key.toLowerCase()==='e')setTool('erase');if(event.key.toLowerCase()==='r')rotateSelected();if(event.key.toLowerCase()==='p')playLevel();if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();if(state.selectedId)removeObject(state.selectedId);}if(event.key==='Escape'){resetCanvasGestureState({restoreSelection:true});state.selectedId=null;setTool('select');refreshAll();}if(event.key==='+'||event.key==='=')setZoom(state.zoom+.1);if(event.key==='-')setZoom(state.zoom-.1);
   }
 
   function bindUi(){renderPalette();renderMobilePalette();updateGridMarkingButton();
@@ -2783,7 +3024,7 @@
     const openLibrarySafely=()=>openLibrary().catch(error=>toast(error.message,'error'));
     $('libraryButton').addEventListener('click',openLibrarySafely);$('mobileLevelButton').addEventListener('click',openLibrarySafely);$('closeLibraryButton').addEventListener('click',closeLibrary);$('newUserLevelButton').addEventListener('click',()=>confirmCreateUserSlot(false).catch(error=>toast(error.message,'error')));$('toggleHintsButton').addEventListener('click',()=>setHintsHidden(!state.hintsHidden));$('manualSaveButton').addEventListener('click',()=>shareCurrentLevel().catch(error=>toast(error.message,'error')));$('libraryOpenButton').addEventListener('click',()=>openSelectedLibraryLevel().catch(error=>toast(error.message,'error')));
     $('libraryLevelTitleInput').addEventListener('change',event=>renameSelectedLibraryLevel(event).catch(error=>toast(error.message,'error')));$('libraryCopyMapButton').addEventListener('click',()=>copySelectedLibraryMap().catch(error=>toast(error.message,'error')));$('libraryPasteMapButton').addEventListener('click',()=>replaceSelectedMapFromClipboard().catch(error=>toast(error.message,'error')));$('libraryExportLevelButton').addEventListener('click',exportSelectedCampaignLevel);$('libraryImportLevelInput').addEventListener('change',importSelectedCampaignLevel);$('libraryDeleteButton').addEventListener('click',()=>{if(state.librarySelectedSlot?.kind==='user')deleteUserSlot(state.librarySelectedSlot.key).catch(error=>toast(error.message,'error'));});$('withdrawLevelButton').addEventListener('click',()=>withdrawSelectedLevel().catch(error=>toast(error.message,'error')));
-    document.querySelectorAll('[data-library-filter]').forEach(button=>button.addEventListener('click',()=>{state.libraryUserFilter=button.dataset.libraryFilter;state.librarySelectedKey=null;renderLibrary({resetScroll:true});}));$('librarySourceSelect').addEventListener('change',()=>{state.librarySelectedKey=null;renderLibrary({resetScroll:true});});$('libraryLobbyButton').addEventListener('click',async()=>{const ok=await confirmAction('Выйти в лобби?','Текущая карта будет сохранена, затем редактор закроется.');if(!ok)return;await saveNow({revision:true});closeLibrary();if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else window.location.assign(gameLobbyUrl().href);});$('libraryEpisodeSelect').addEventListener('change',()=>{$('librarySourceSelect').value=`campaign-${$('libraryEpisodeSelect').value}`;state.librarySelectedKey=null;renderLibrary({resetScroll:true});});$('libraryDifficultySelect').addEventListener('change',event=>{state.libraryDifficulty=event.target.value;renderLibrary({anchorKey:state.librarySelectedKey});});$('examLevelButton').addEventListener('click',async()=>{const slot=state.librarySelectedSlot;if(slot?.kind!=='user'){toast('Экзамен доступен только для уровней игрока.','error');return;}await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='submitted').length>=MAX_PUBLISHED_LEVELS){toast(`Опубликовано уже ${MAX_PUBLISHED_LEVELS} уровней. Для следующего нужен дополнительный объём.`,'error');return;}const ok=await confirmAction('Экзамен уровня','Уровень запустится с обычного входа. Чтобы получить статус «Опубликован», нужно дойти до выхода без смерти.');if(!ok)return;closeLibrary();await loadSlot(slot.key,'easy');await playLevel({exam:true});});document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-size]').forEach(item=>item.classList.toggle('active',item===button));state.chosenSize=button.dataset.size.split('x').map(Number);}));const updateChosenSize=()=>{state.chosenSize=[Number($('newLevelWidth').value),Number($('newLevelHeight').value)];};$('newLevelWidth').addEventListener('change',updateChosenSize);$('newLevelHeight').addEventListener('change',updateChosenSize);
+    document.querySelectorAll('[data-library-filter]').forEach(button=>button.addEventListener('click',()=>{state.libraryUserFilter=button.dataset.libraryFilter;state.librarySelectedKey=null;renderLibrary({resetScroll:true});}));$('librarySourceSelect').addEventListener('change',()=>{state.librarySelectedKey=null;renderLibrary({resetScroll:true}).catch(error=>toast(`Не удалось открыть раздел: ${error.message}`,'error'));});$('libraryLobbyButton').addEventListener('click',async()=>{const ok=await confirmAction('Выйти в лобби?','Текущая карта будет сохранена, затем редактор закроется.');if(!ok)return;await saveNow({revision:true});closeLibrary();if(window.parent!==window)window.parent.postMessage({type:'nubu:close-editor'},window.location.origin);else window.location.assign(gameLobbyUrl().href);});$('libraryEpisodeSelect').addEventListener('change',()=>{$('librarySourceSelect').value=$('libraryEpisodeSelect').value==='lobby'?'lobby':`campaign-${$('libraryEpisodeSelect').value}`;state.librarySelectedKey=null;renderLibrary({resetScroll:true});});$('libraryDifficultySelect').addEventListener('change',event=>{state.libraryDifficulty=event.target.value;renderLibrary({anchorKey:state.librarySelectedKey});});$('examLevelButton').addEventListener('click',async()=>{const slot=state.librarySelectedSlot;if(slot?.kind!=='user'){toast('Экзамен доступен только для уровней игрока.','error');return;}await refreshUserSlots();if(state.userSlots.filter(item=>playerSlotStatus(item).key==='submitted').length>=MAX_PUBLISHED_LEVELS){toast(`Опубликовано уже ${MAX_PUBLISHED_LEVELS} уровней. Для следующего нужен дополнительный объём.`,'error');return;}const ok=await confirmAction('Экзамен уровня','Уровень запустится с обычного входа. Чтобы получить статус «Опубликован», нужно дойти до выхода без смерти.');if(!ok)return;closeLibrary();await loadSlot(slot.key,'easy');await playLevel({exam:true});});document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-size]').forEach(item=>item.classList.toggle('active',item===button));state.chosenSize=button.dataset.size.split('x').map(Number);}));const updateChosenSize=()=>{state.chosenSize=[Number($('newLevelWidth').value),Number($('newLevelHeight').value)];};$('newLevelWidth').addEventListener('change',updateChosenSize);$('newLevelHeight').addEventListener('change',updateChosenSize);
     $('episodeSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;refreshSelectors(event.target.value);const first=$('levelSelect').value;if(first)loadSlot(first,'easy').catch(error=>toast(error.message,'error'));});$('levelSelect').addEventListener('change',event=>{if(!state.ready||state.loadingSlot)return;loadSlot(event.target.value,state.difficulty).catch(error=>toast(error.message,'error'));});
     $('levelTitleInput').addEventListener('change',event=>mutate('Название изменено',()=>{state.level.title=String(event.target.value).trim().slice(0,state.slot?.kind==='campaign'?96:48)||'Без названия';}));$('notesInput').addEventListener('change',event=>mutate('Заметки изменены',()=>{state.level.designerNotes=String(event.target.value).slice(0,1000);}));$('applySizeButton').addEventListener('click',applySize);$('convertPanelsButton').addEventListener('click',()=>convertLegacyToPanels().catch(error=>toast(error.message,'error')));$('copyDifficultyButton').addEventListener('click',copyDifficulty);$('restoreTemplateButton').addEventListener('click',()=>restoreTemplate().catch(error=>toast(error.message,'error')));$('clearLevelButton').addEventListener('click',clearLevel);$('duplicateLevelButton').addEventListener('click',()=>duplicateLevel().catch(error=>toast(error.message,'error')));$('exportButton').addEventListener('click',exportLevel);$('importInput').addEventListener('change',importLevel);
     bindObjectNumber('objectXInput','x');bindObjectNumber('objectYInput','y');bindObjectNumber('objectWInput','w');bindObjectNumber('objectHInput','h');$('deleteObjectButton').addEventListener('click',()=>state.selectedId&&removeObject(state.selectedId));$('linkObjectButton').addEventListener('click',()=>{const object=selectedObject();if(object?.type==='button'){state.linkSourceId=object.id;state.tool='link';updateToolButtons();closeDrawer('inspectorPanel');toast('Выберите цель кнопки на карте.');}});
@@ -2792,14 +3033,18 @@
     document.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'&&event.isPrimary&&viewport.contains(event.target)&&state.pointers.size&&!state.pointers.has(event.pointerId))resetCanvasGestureState({restoreSelection:true});},{capture:true});
     viewport.addEventListener('pointerdown',handlePointerDown);viewport.addEventListener('pointermove',handlePointerMove);viewport.addEventListener('pointerup',handlePointerUp);viewport.addEventListener('pointercancel',cancelCanvasPointer);viewport.addEventListener('lostpointercapture',event=>{if(event.target===viewport)cancelCanvasPointer(event);});viewport.addEventListener('pointerleave',()=>{if(!state.drag&&!state.pan&&!state.pinch&&!state.desktopPaletteDrag){state.hoverPoint=null;$('cursorReadout').style.display='none';renderCanvas();}});canvas.addEventListener('contextmenu',event=>event.preventDefault());canvas.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='copy';if(state.desktopPaletteDrag){state.hoverPoint=pointerGridPoint(event);renderCanvas();}});canvas.addEventListener('dragleave',event=>{if(state.desktopPaletteDrag&&!canvas.contains(event.relatedTarget)){state.hoverPoint=null;renderCanvas();}});canvas.addEventListener('drop',event=>{event.preventDefault();const id=event.dataTransfer.getData('text/nubu-tool')||state.desktopPaletteDrag?.paletteId,item=PALETTE_BY_ID.get(id),point=pointerGridPoint(event);state.desktopPaletteDrag=null;state.hoverPoint=null;if(!item){renderCanvas();return;}if(addPlacedObject(makeObjectFromTool(item,{x:point.x,y:point.y,w:1,h:1}))&&item.type!=='solid')setTool('select');else renderCanvas();});
     viewport.addEventListener('wheel',event=>{if(!(event.ctrlKey||event.metaKey)){if(Math.abs(event.deltaX)>Math.abs(event.deltaY)*.5)event.preventDefault();return;}event.preventDefault();const rect=viewport.getBoundingClientRect();setZoom(state.zoom+(event.deltaY<0?.1:-.1),{x:event.clientX-rect.left,y:event.clientY-rect.top});},{passive:false});viewport.addEventListener('gesturestart',beginNativeGesture,{passive:false});viewport.addEventListener('gesturechange',updateNativeGesture,{passive:false});viewport.addEventListener('gestureend',endNativeGesture,{passive:false});
-    document.addEventListener('contextmenu',event=>event.preventDefault());
-    document.addEventListener('selectstart',event=>{if(!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||''))event.preventDefault();});
+    const editableTouchTarget=target=>target?.closest?.('input,textarea,[contenteditable="true"]');
+    document.addEventListener('contextmenu',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
+    document.addEventListener('selectstart',event=>{if(!editableTouchTarget(event.target))event.preventDefault();});
+    document.addEventListener('dblclick',event=>{if(!editableTouchTarget(event.target))event.preventDefault();},{passive:false});
     for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,event=>event.preventDefault(),{passive:false});
-    document.addEventListener('touchstart',event=>{const touch=event.touches?.[0],interactive=event.target?.closest?.('button,input,textarea,select,a,[role="button"],.panel-control');if(touch&&!interactive&&(touch.clientX<=24||touch.clientX>=innerWidth-24))event.preventDefault();},{passive:false,capture:true});
-    document.addEventListener('touchmove',event=>{const nativeInteraction=event.target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,button,label,a,[role="button"],input,textarea,select');if((event.touches?.length||0)>1||!nativeInteraction)event.preventDefault();},{passive:false,capture:true});
-    document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
+    const nativeTouchInteraction=target=>target?.closest?.('.library-scroll,.mobile-carousel-rail,.mobile-category-items,.drawer,.modal-panel,.context-toolbar,button,label,a,[role="button"],input,textarea,select,[contenteditable="true"]')||target?.matches?.('.modal');
+    // Canvas pan/pinch is owned by pointer handlers. Cancel from touchstart so
+    // a stationary hold cannot begin browser selection or double-tap zoom.
+    for(const type of ['touchstart','touchmove'])document.addEventListener(type,event=>{if((event.touches?.length||0)>1||!nativeTouchInteraction(event.target))event.preventDefault();},{passive:false,capture:true});
+    document.addEventListener('wheel',event=>{if(event.ctrlKey||event.metaKey){event.preventDefault();return;}if(Math.abs(event.deltaX)<=Math.abs(event.deltaY)*.5)return;event.preventDefault();const scroller=event.target?.closest?.('#canvasViewport,.mobile-carousel-rail');if(!scroller)return;const unitX=event.deltaMode===1?16:event.deltaMode===2?scroller.clientWidth:1,unitY=event.deltaMode===1?16:event.deltaMode===2?scroller.clientHeight:1;scroller.scrollLeft+=event.deltaX*unitX;if(scroller.id==='canvasViewport')scroller.scrollTop+=event.deltaY*unitY;},{passive:false,capture:true});
     window.addEventListener('pointermove',updatePanelControlTouch,{passive:false});window.addEventListener('pointerup',endPanelControlTouch,{passive:false});window.addEventListener('pointercancel',cancelPanelControlTouch,{passive:false});window.addEventListener('pointermove',updateMobilePaletteGesture,{passive:false});window.addEventListener('pointerup',endMobilePaletteGesture,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteGesture,{passive:false});window.addEventListener('pointermove',updateMobilePaletteDrag,{passive:false});window.addEventListener('pointerup',endMobilePaletteDrag,{passive:false});window.addEventListener('pointercancel',cancelMobilePaletteDrag,{passive:false});window.addEventListener('pointermove',updateWireDrag,{passive:false});window.addEventListener('pointerup',endWireDrag,{passive:false});window.addEventListener('pointercancel',cancelWireDrag,{passive:false});window.addEventListener('keydown',handleKeyboard);window.addEventListener('keyup',event=>{if(event.code==='Space'){state.spaceHeld=false;state.pan=null;viewport.classList.remove('dragging');}});
-    window.addEventListener('blur',()=>{clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
+    window.addEventListener('blur',()=>{if(state.drag?.kind==='pathNode')resetCanvasGestureState({restoreSelection:true});clearMobilePaletteGesture();restoreMobilePaletteDragSheet();clearTouchObjectIntent();state.panelControlTouch=null;state.panelControlPointers.clear();state.panelTouchIgnoreClickUntil=0;state.panelTouchIgnoreClickPoint=null;state.activeTramInsertion=null;});
     window.addEventListener('message',async event=>{
       if(event.origin!==window.location.origin||!event.data?.type)return;
       if(event.data.type==='nubu:set-background-work-paused'){

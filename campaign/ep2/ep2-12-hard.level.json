@@ -1,0 +1,299 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 2,
+  "id": "ep2-12-hard",
+  "title": "Э2 · С12 · Лифт или ручной обход",
+  "episode": 2,
+  "sequence": 12,
+  "role": "exam",
+  "size": {
+    "width": 40,
+    "height": 60
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    },
+    {
+      "x": 0,
+      "y": 2
+    }
+  ],
+  "theme": "service-shafts",
+  "learningGoal": "Практическая комната по плану EP2.",
+  "designerNotes": "Игровой черновик hard. Узкие промежуточные опоры, плотнее ритм. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
+  "objects": [
+    {
+      "id": "solid-1",
+      "type": "solid",
+      "x": 20,
+      "y": 38,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-2",
+      "type": "solid",
+      "x": 0,
+      "y": 58,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 1,
+      "y": 55,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "semantics": "playerBody",
+        "anchor": "centerTop"
+      }
+    },
+    {
+      "id": "movingPlatform-3",
+      "type": "movingPlatform",
+      "x": 6,
+      "y": 56,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "path": [
+          {
+            "x": 6,
+            "y": 56
+          },
+          {
+            "x": 6,
+            "y": 8
+          }
+        ],
+        "loop": true,
+        "enabled": true,
+        "moving": true,
+        "speedCellsPerSecond": 3.5,
+        "repeatSpacing": 80
+      }
+    },
+    {
+      "id": "oneWay-4",
+      "type": "oneWay",
+      "x": 12,
+      "y": 8,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-5",
+      "type": "oneWay",
+      "x": 13,
+      "y": 52,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-6",
+      "type": "oneWay",
+      "x": 13,
+      "y": 46,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "fragilePlatform-7",
+      "type": "fragilePlatform",
+      "x": 13,
+      "y": 40,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "oneWay-8",
+      "type": "oneWay",
+      "x": 13,
+      "y": 34,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-9",
+      "type": "oneWay",
+      "x": 13,
+      "y": 28,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-10",
+      "type": "oneWay",
+      "x": 13,
+      "y": 22,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-11",
+      "type": "oneWay",
+      "x": 13,
+      "y": 16,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-12",
+      "type": "oneWay",
+      "x": 13,
+      "y": 10,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-13",
+      "type": "solid",
+      "x": 18,
+      "y": 10,
+      "w": 2,
+      "h": 48,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-14",
+      "type": "oneWay",
+      "x": 20,
+      "y": 8,
+      "w": 20,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-15",
+      "type": "solid",
+      "x": 29,
+      "y": 12,
+      "w": 4,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "enemyLeech-16",
+      "type": "enemyLeech",
+      "x": 29,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "pathRect": {
+          "x": 29,
+          "y": 12,
+          "w": 4,
+          "h": 4
+        },
+        "speedMultiplier": 1
+      }
+    },
+    {
+      "id": "oneWay-17",
+      "type": "oneWay",
+      "x": 31,
+      "y": 25,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "exit",
+      "type": "exit",
+      "x": 33,
+      "y": 35,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "label-18",
+      "type": "label",
+      "x": 1,
+      "y": 42,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "Лифт или ручной подъём",
+        "mode": "player",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "entry-wj",
+      "type": "pickup",
+      "x": 5,
+      "y": 56,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "pickupType": "WJ"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 2,
+    "source": "ep2-authored-graybox-v1",
+    "difficulty": "hard",
+    "librarySection": "campaign-2",
+    "placeholder": false,
+    "prerequisites": [
+      "WJ"
+    ],
+    "requiresCampaignIntegration": true
+  }
+}

@@ -1,0 +1,339 @@
+{
+  "kind": "nubu.level",
+  "schemaVersion": 2,
+  "id": "ep2-22-medium",
+  "title": "Э2 · С22 · Настенный корпус Смотрителя",
+  "episode": 2,
+  "sequence": 22,
+  "role": "boss",
+  "size": {
+    "width": 40,
+    "height": 40
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    }
+  ],
+  "theme": "service-shafts",
+  "learningGoal": "Практическая комната по плану EP2.",
+  "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. Три кнопки и двери показывают фиксаторы будущего босса, это не готовый бой.",
+  "objects": [
+    {
+      "id": "solid-1",
+      "type": "solid",
+      "x": 0,
+      "y": 38,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-2",
+      "type": "solid",
+      "x": 20,
+      "y": 38,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "spawn",
+      "type": "spawn",
+      "x": 1,
+      "y": 35,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "semantics": "playerBody",
+        "anchor": "centerTop"
+      }
+    },
+    {
+      "id": "oneWay-3",
+      "type": "oneWay",
+      "x": 5,
+      "y": 34,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "movingPlatform-4",
+      "type": "movingPlatform",
+      "x": 12,
+      "y": 34,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "path": [
+          {
+            "x": 12,
+            "y": 34
+          },
+          {
+            "x": 12,
+            "y": 12
+          }
+        ],
+        "loop": true,
+        "enabled": true,
+        "moving": true,
+        "speedCellsPerSecond": 3,
+        "repeatSpacing": 80
+      }
+    },
+    {
+      "id": "oneWay-5",
+      "type": "oneWay",
+      "x": 18,
+      "y": 12,
+      "w": 7,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-6",
+      "type": "oneWay",
+      "x": 26,
+      "y": 16,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-7",
+      "type": "oneWay",
+      "x": 31,
+      "y": 23,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "oneWay-8",
+      "type": "oneWay",
+      "x": 22,
+      "y": 29,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "crusherWall-9",
+      "type": "crusherWall",
+      "x": 5,
+      "y": 23,
+      "w": 3,
+      "h": 3,
+      "layer": "hazard",
+      "props": {
+        "path": [
+          {
+            "x": 5,
+            "y": 23
+          },
+          {
+            "x": 5,
+            "y": 28
+          }
+        ],
+        "enabled": true,
+        "spikes": false,
+        "speedCellsPerSecond": 1.8,
+        "loop": true
+      }
+    },
+    {
+      "id": "crusherWall-10",
+      "type": "crusherWall",
+      "x": 22,
+      "y": 20,
+      "w": 3,
+      "h": 3,
+      "layer": "hazard",
+      "props": {
+        "path": [
+          {
+            "x": 22,
+            "y": 20
+          },
+          {
+            "x": 22,
+            "y": 24
+          }
+        ],
+        "enabled": true,
+        "spikes": false,
+        "speedCellsPerSecond": 1.8,
+        "loop": true
+      }
+    },
+    {
+      "id": "fixator-1",
+      "type": "door",
+      "x": 28,
+      "y": 9,
+      "w": 1,
+      "h": 6,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": "fixator-2",
+      "type": "door",
+      "x": 28,
+      "y": 17,
+      "w": 1,
+      "h": 6,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": "fixator-3",
+      "type": "door",
+      "x": 32,
+      "y": 32,
+      "w": 1,
+      "h": 6,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": "button-11",
+      "type": "button",
+      "x": 8,
+      "y": 33,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "fixator-1",
+          "crusherWall-9"
+        ]
+      }
+    },
+    {
+      "id": "button-12",
+      "type": "button",
+      "x": 21,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "fixator-2"
+        ]
+      }
+    },
+    {
+      "id": "button-13",
+      "type": "button",
+      "x": 24,
+      "y": 28,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "up"
+        ],
+        "targets": [
+          "fixator-3",
+          "crusherWall-10"
+        ]
+      }
+    },
+    {
+      "id": "exit",
+      "type": "exit",
+      "x": 34,
+      "y": 35,
+      "w": 3,
+      "h": 3,
+      "layer": "meta",
+      "props": {
+        "route": "main"
+      }
+    },
+    {
+      "id": "label-14",
+      "type": "label",
+      "x": 16,
+      "y": 2,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "Прототип арены: три фиксатора",
+        "mode": "player",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "entry-wj",
+      "type": "pickup",
+      "x": 5,
+      "y": 36,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "pickupType": "WJ"
+      }
+    }
+  ],
+  "metadata": {
+    "status": "graybox",
+    "revision": 2,
+    "source": "ep2-authored-graybox-v1",
+    "difficulty": "medium",
+    "librarySection": "campaign-2",
+    "placeholder": false,
+    "prerequisites": [
+      "WJ"
+    ],
+    "requiresCampaignIntegration": true
+  }
+}
