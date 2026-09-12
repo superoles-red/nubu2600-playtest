@@ -8,7 +8,7 @@
   "role": "exam",
   "size": {
     "width": 60,
-    "height": 20
+    "height": 60
   },
   "theme": "Внутренний затвор",
   "learningGoal": "Четыре локально читаемых такта: кнопка двери; падающая площадка над полом; батут к широкой верхней полке; отдельная кнопка убирает шипы перед выходом. Пол под платформой и батутом безопасен; смерть начинает комнату заново.",
@@ -18,17 +18,17 @@
       "id": "floor",
       "type": "solid",
       "x": 0,
-      "y": 18,
-      "w": 60,
-      "h": 2,
+      "y": 44,
+      "w": 5,
+      "h": 16,
       "layer": "terrain",
       "props": {}
     },
     {
       "id": "spawn-main",
       "type": "spawn",
-      "x": 2,
-      "y": 15,
+      "x": 1,
+      "y": 41,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -40,8 +40,8 @@
     {
       "id": "exit-main",
       "type": "exit",
-      "x": 55,
-      "y": 15,
+      "x": 1,
+      "y": 35,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -50,52 +50,44 @@
       }
     },
     {
-      "id": "door-review",
-      "type": "door",
-      "x": 17,
-      "y": 12,
-      "w": 1,
-      "h": 6,
-      "layer": "gameplay",
-      "props": {
-        "orientation": "vertical",
-        "open": false
-      }
-    },
-    {
-      "id": "button-review",
-      "type": "button",
-      "x": 10,
-      "y": 17,
-      "w": 1,
-      "h": 1,
-      "layer": "gameplay",
-      "props": {
-        "buttonType": "T",
-        "sides": [
-          "up"
-        ],
-        "targets": [
-          "door-review"
-        ],
-        "pressed": false
-      }
-    },
-    {
-      "id": "step-review",
-      "type": "oneWay",
-      "x": 23,
-      "y": 13,
-      "w": 5,
-      "h": 1,
+      "id": "solid-01",
+      "type": "solid",
+      "x": 0,
+      "y": 38,
+      "w": 20,
+      "h": 2,
       "layer": "terrain",
       "props": {}
     },
     {
-      "id": "falling-review",
+      "id": "bounce-pad-01",
+      "type": "bouncePad",
+      "x": 5,
+      "y": 56,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-01",
       "type": "fallingPlatform",
-      "x": 30,
-      "y": 11,
+      "x": 12,
+      "y": 45,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-04",
+      "type": "fallingPlatform",
+      "x": 24,
+      "y": 52,
       "w": 5,
       "h": 1,
       "layer": "gameplay",
@@ -106,104 +98,984 @@
       }
     },
     {
-      "id": "bounce-review",
+      "id": "falling-platform-05",
+      "type": "fallingPlatform",
+      "x": 33,
+      "y": 52,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 15,
+      "y": 40,
+      "w": 25,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-02",
       "type": "bouncePad",
-      "x": 36,
-      "y": 17,
-      "w": 3,
+      "x": 51,
+      "y": 50,
+      "w": 2,
       "h": 1,
       "layer": "gameplay",
       "props": {}
     },
     {
-      "id": "landing-review",
-      "type": "oneWay",
-      "x": 41,
-      "y": 10,
+      "id": "solid-03",
+      "type": "solid",
+      "x": 40,
+      "y": 8,
       "w": 8,
-      "h": 1,
+      "h": 34,
       "layer": "terrain",
       "props": {}
     },
     {
-      "id": "spike-review",
-      "type": "spike",
-      "x": 47,
-      "y": 17,
-      "w": 3,
-      "h": 1,
-      "layer": "hazard",
+      "id": "enemy-goomba-01",
+      "type": "enemyGoomba",
+      "x": 48,
+      "y": 56,
+      "w": 4,
+      "h": 4,
+      "layer": "entity",
       "props": {
-        "direction": "up",
-        "mode": "toggle",
-        "cycle": 2,
-        "startActive": true,
-        "active": true
+        "direction": "right",
+        "patrol": 6
       }
     },
     {
-      "id": "button-spikes",
-      "type": "button",
+      "id": "enemy-goomba-02",
+      "type": "enemyGoomba",
+      "x": 28,
+      "y": 56,
+      "w": 4,
+      "h": 4,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "falling-platform-03",
+      "type": "fallingPlatform",
       "x": 42,
-      "y": 17,
+      "y": 52,
+      "w": 5,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 15,
+      "y": 42,
+      "w": 33,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-02",
+      "type": "fallingPlatform",
+      "x": 17,
+      "y": 52,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "bounce-pad-03",
+      "type": "bouncePad",
+      "x": 55,
+      "y": 43,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-06",
+      "type": "bouncePad",
+      "x": 51,
+      "y": 36,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-09",
+      "type": "bouncePad",
+      "x": 55,
+      "y": 29,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-10",
+      "type": "bouncePad",
+      "x": 51,
+      "y": 22,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-04",
+      "type": "bouncePad",
+      "x": 55,
+      "y": 15,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "door-01",
+      "type": "door",
+      "x": 34,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true
+      }
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 25,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false
+      }
+    },
+    {
+      "id": "door-03",
+      "type": "door",
+      "x": 31,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false
+      }
+    },
+    {
+      "id": "door-04",
+      "type": "door",
+      "x": 28,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true
+      }
+    },
+    {
+      "id": "door-05",
+      "type": "door",
+      "x": 22,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": true
+      }
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 53,
+      "y": 0,
+      "w": 7,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "button-01",
+      "type": "button",
+      "x": 34,
+      "y": 0,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
       "props": {
         "buttonType": "T",
         "sides": [
-          "up"
+          "down"
         ],
         "targets": [
-          "spike-review"
-        ],
-        "pressed": false
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
       }
     },
     {
-      "id": "coin-button",
+      "id": "button-02",
+      "type": "button",
+      "x": 31,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
+      }
+    },
+    {
+      "id": "button-03",
+      "type": "button",
+      "x": 28,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
+      }
+    },
+    {
+      "id": "button-04",
+      "type": "button",
+      "x": 25,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
+      }
+    },
+    {
+      "id": "button-05",
+      "type": "button",
+      "x": 22,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
+      }
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 22,
+      "y": 12,
+      "w": 18,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-02",
+      "type": "oneWay",
+      "x": 37,
+      "y": 8,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 19,
+      "y": 4,
+      "w": 3,
+      "h": 16,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "button-06",
+      "type": "button",
+      "x": 37,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-01",
+          "door-03",
+          "door-04",
+          "door-02",
+          "door-05",
+          "door-06"
+        ]
+      }
+    },
+    {
+      "id": "enemy-goomba-03",
+      "type": "enemyGoomba",
+      "x": 25,
+      "y": 10,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "enemy-goomba-04",
+      "type": "enemyGoomba",
+      "x": 32,
+      "y": 10,
+      "w": 2,
+      "h": 2,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "door-06",
+      "type": "door",
+      "x": 37,
+      "y": 4,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "horizontal",
+        "open": false
+      }
+    },
+    {
+      "id": "one-way-01",
+      "type": "oneWay",
+      "x": 48,
+      "y": 8,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 58,
+      "y": 2,
+      "w": 2,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-06",
+      "type": "fallingPlatform",
+      "x": 7,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 3,
+      "h": 25,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-07",
+      "type": "fallingPlatform",
+      "x": 3,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-08",
+      "type": "fallingPlatform",
+      "x": 11,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-09",
+      "type": "fallingPlatform",
+      "x": 15,
+      "y": 8,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 3,
+      "y": 12,
+      "w": 3,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
+    },
+    {
+      "id": "spike-03",
+      "type": "spike",
+      "x": 12,
+      "y": 12,
+      "w": 7,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 11,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-13",
+      "type": "solid",
+      "x": 6,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-15",
+      "type": "solid",
+      "x": 11,
+      "y": 13,
+      "w": 8,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-16",
+      "type": "solid",
+      "x": 3,
+      "y": 13,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-10",
+      "type": "fallingPlatform",
+      "x": 3,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-11",
+      "type": "fallingPlatform",
+      "x": 7,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-12",
+      "type": "fallingPlatform",
+      "x": 11,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-13",
+      "type": "fallingPlatform",
+      "x": 15,
+      "y": 20,
+      "w": 4,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "spike-04",
+      "type": "spike",
+      "x": 3,
+      "y": 24,
+      "w": 7,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
+    },
+    {
+      "id": "spike-06",
+      "type": "spike",
+      "x": 16,
+      "y": 24,
+      "w": 3,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
+    },
+    {
+      "id": "solid-17",
+      "type": "solid",
+      "x": 19,
+      "y": 24,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-18",
+      "type": "solid",
+      "x": 19,
+      "y": 20,
+      "w": 1,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-19",
+      "type": "solid",
+      "x": 15,
+      "y": 24,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-20",
+      "type": "solid",
+      "x": 10,
+      "y": 24,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-23",
+      "type": "solid",
+      "x": 15,
+      "y": 25,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-24",
+      "type": "solid",
+      "x": 0,
+      "y": 25,
+      "w": 11,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "enemy-goomba-05",
+      "type": "enemyGoomba",
+      "x": 11,
+      "y": 34,
+      "w": 4,
+      "h": 4,
+      "layer": "entity",
+      "props": {
+        "direction": "right",
+        "patrol": 6
+      }
+    },
+    {
+      "id": "one-way-03",
+      "type": "oneWay",
+      "x": 11,
+      "y": 32,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 7,
+      "y": 54,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
       "type": "coin",
       "x": 13,
-      "y": 15,
+      "y": 43,
       "w": 1,
       "h": 1,
       "layer": "entity",
       "props": {}
     },
     {
-      "id": "coin-platform",
+      "id": "coin-03",
       "type": "coin",
-      "x": 32,
-      "y": 9,
+      "x": 18,
+      "y": 50,
       "w": 1,
       "h": 1,
       "layer": "entity",
       "props": {}
     },
     {
-      "id": "coin-bounce",
+      "id": "coin-04",
       "type": "coin",
-      "x": 38,
-      "y": 7,
+      "x": 26,
+      "y": 50,
       "w": 1,
       "h": 1,
       "layer": "entity",
       "props": {}
     },
     {
-      "id": "coin-landing",
+      "id": "coin-05",
+      "type": "coin",
+      "x": 35,
+      "y": 50,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
       "type": "coin",
       "x": 44,
-      "y": 8,
+      "y": 50,
       "w": 1,
       "h": 1,
       "layer": "entity",
       "props": {}
     },
     {
-      "id": "coin-exit",
+      "id": "coin-07",
       "type": "coin",
-      "x": 52,
+      "x": 38,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 35,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 32,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 29,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-11",
+      "type": "coin",
+      "x": 26,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-12",
+      "type": "coin",
+      "x": 23,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 20,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-14",
+      "type": "coin",
+      "x": 51,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-15",
+      "type": "coin",
+      "x": 48,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-16",
+      "type": "coin",
+      "x": 42,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-17",
+      "type": "coin",
+      "x": 45,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-18",
+      "type": "coin",
+      "x": 9,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-19",
+      "type": "coin",
+      "x": 9,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-20",
+      "type": "coin",
+      "x": 8,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-21",
+      "type": "coin",
+      "x": 9,
+      "y": 18,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-22",
+      "type": "coin",
+      "x": 8,
       "y": 16,
       "w": 1,
       "h": 1,
@@ -211,16 +1083,184 @@
       "props": {}
     },
     {
-      "id": "draft-instructions",
-      "type": "developerNote",
-      "x": 0,
-      "y": 0,
-      "w": 3,
-      "h": 3,
-      "layer": "decor",
-      "props": {
-        "comment": "Черновик для владельца. Слева направо: вход снизу слева, выход снизу справа. Под всем маршрутом сплошной безопасный пол. Четыре локально читаемых такта: кнопка двери; падающая площадка над полом; батут к широкой верхней полке; отдельная кнопка убирает шипы перед выходом. Пол под платформой и батутом безопасен; смерть начинает комнату заново."
-      }
+      "id": "coin-23",
+      "type": "coin",
+      "x": 13,
+      "y": 22,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-24",
+      "type": "coin",
+      "x": 12,
+      "y": 18,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-25",
+      "type": "coin",
+      "x": 12,
+      "y": 24,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-26",
+      "type": "coin",
+      "x": 13,
+      "y": 26,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-27",
+      "type": "coin",
+      "x": 12,
+      "y": 28,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-28",
+      "type": "coin",
+      "x": 13,
+      "y": 30,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-29",
+      "type": "coin",
+      "x": 16,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-30",
+      "type": "coin",
+      "x": 8,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-31",
+      "type": "coin",
+      "x": 12,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-32",
+      "type": "coin",
+      "x": 2,
+      "y": 33,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-34",
+      "type": "coin",
+      "x": 7,
+      "y": 50,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-33",
+      "type": "coin",
+      "x": 52,
+      "y": 48,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-35",
+      "type": "coin",
+      "x": 55,
+      "y": 41,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-36",
+      "type": "coin",
+      "x": 52,
+      "y": 34,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-37",
+      "type": "coin",
+      "x": 55,
+      "y": 27,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-38",
+      "type": "coin",
+      "x": 52,
+      "y": 20,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-39",
+      "type": "coin",
+      "x": 55,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-40",
+      "type": "coin",
+      "x": 7,
+      "y": 46,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
     }
   ],
   "metadata": {
@@ -327,6 +1367,26 @@
     {
       "x": 2,
       "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 2,
+      "y": 1
+    },
+    {
+      "x": 0,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 2,
+      "y": 2
     }
   ]
 }

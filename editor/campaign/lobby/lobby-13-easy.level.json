@@ -10,26 +10,10 @@
     "width": 20,
     "height": 20
   },
-  "panels": [
-    {
-      "x": 0,
-      "y": 0
-    }
-  ],
   "theme": "lobby",
   "learningGoal": "Заготовка комнаты лобби для авторской сборки.",
   "designerNotes": "Пустая безопасная основа. Форма, предметы и маршруты будут нарисованы автором. Это ещё не готовый уровень.",
   "objects": [
-    {
-      "id": "floor",
-      "type": "solid",
-      "x": 0,
-      "y": 18,
-      "w": 20,
-      "h": 2,
-      "layer": "terrain",
-      "props": {}
-    },
     {
       "id": "spawn",
       "type": "spawn",
@@ -39,21 +23,31 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
       "id": "exit",
       "type": "exit",
       "x": 16,
-      "y": 15,
+      "y": 17,
       "w": 3,
       "h": 3,
       "layer": "meta",
       "props": {
         "route": "main"
       }
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 0,
+      "y": 18,
+      "w": 5,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
     }
   ],
   "metadata": {
@@ -63,5 +57,11 @@
     "difficulty": "easy",
     "librarySection": "lobby",
     "placeholder": true
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    }
+  ]
 }

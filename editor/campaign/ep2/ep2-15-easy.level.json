@@ -10,24 +10,6 @@
     "width": 40,
     "height": 40
   },
-  "panels": [
-    {
-      "x": 0,
-      "y": 0
-    },
-    {
-      "x": 1,
-      "y": 0
-    },
-    {
-      "x": 0,
-      "y": 1
-    },
-    {
-      "x": 1,
-      "y": 1
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик easy. Широкие опоры и спокойные циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
@@ -61,8 +43,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -99,7 +81,7 @@
       "id": "coin-6",
       "type": "coin",
       "x": 7,
-      "y": 30.5,
+      "y": 30,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -129,7 +111,7 @@
       "id": "coin-9",
       "type": "coin",
       "x": 7,
-      "y": 18.5,
+      "y": 18,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -159,7 +141,7 @@
       "id": "coin-12",
       "type": "coin",
       "x": 7,
-      "y": 6.5,
+      "y": 6,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -256,10 +238,10 @@
             "y": 11
           }
         ],
-        "enabled": true,
-        "spikes": false,
         "speedCellsPerSecond": 1.5,
-        "loop": true
+        "enabled": true,
+        "loop": true,
+        "spikes": false
       }
     },
     {
@@ -281,10 +263,10 @@
             "y": 29
           }
         ],
-        "enabled": true,
-        "spikes": true,
         "speedCellsPerSecond": 1.5,
-        "loop": true
+        "enabled": true,
+        "loop": true,
+        "spikes": true
       }
     },
     {
@@ -332,8 +314,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Движение и шипы — отдельно",
         "mode": "player",
+        "text": "Движение и шипы — отдельно",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -363,5 +345,23 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    }
+  ]
 }

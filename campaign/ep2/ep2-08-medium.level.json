@@ -10,28 +10,6 @@
     "width": 60,
     "height": 60
   },
-  "panels": [
-    {
-      "x": 1,
-      "y": 0
-    },
-    {
-      "x": 0,
-      "y": 1
-    },
-    {
-      "x": 1,
-      "y": 1
-    },
-    {
-      "x": 2,
-      "y": 1
-    },
-    {
-      "x": 1,
-      "y": 2
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
@@ -75,8 +53,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -194,7 +172,9 @@
       "w": 5,
       "h": 1,
       "layer": "gameplay",
-      "props": {}
+      "props": {
+        "respawnDelay": 4
+      }
     },
     {
       "id": "solid-14",
@@ -247,8 +227,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Вниз — выход; вправо — секрет",
         "mode": "player",
+        "text": "Вниз — выход; вправо — секрет",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -278,5 +258,27 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    },
+    {
+      "x": 2,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 2
+    }
+  ]
 }

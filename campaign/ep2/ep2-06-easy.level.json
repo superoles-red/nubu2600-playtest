@@ -10,20 +10,6 @@
     "width": 40,
     "height": 40
   },
-  "panels": [
-    {
-      "x": 1,
-      "y": 0
-    },
-    {
-      "x": 0,
-      "y": 1
-    },
-    {
-      "x": 1,
-      "y": 1
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик easy. Широкие опоры и спокойные циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
@@ -57,8 +43,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -81,6 +67,8 @@
       "layer": "gameplay",
       "props": {
         "mode": "toggle",
+        "cycle": 2,
+        "phase": 0,
         "startActive": false
       }
     },
@@ -213,8 +201,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Кнопка включает мост",
         "mode": "player",
+        "text": "Кнопка включает мост",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -244,5 +232,19 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    }
+  ]
 }

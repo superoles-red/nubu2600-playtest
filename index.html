@@ -161,7 +161,7 @@
 </head>
 <body>
 <div id="app">
-  <canvas id="game"></canvas>
+  <canvas id="game" tabindex="0" aria-label="Игровое поле"></canvas>
   <div class="hud">
     <div class="hud-top">
       <div class="hud-card">
@@ -393,6 +393,7 @@ const FLYER_SPAWN_SPIT_DISTANCE = 5 * CELL;
 const FLYER_SPAWN_SPIT_DURATION = 0.42;
 const SPAWNER_OUTPUT_LIMIT_PER_GENERATOR = 4;
 const SPAWNER_OUTPUT_LIMIT_GLOBAL = 16;
+const JETPACK_CAPACITY = 2;
 const JETPACK_SPEED = 9.5 * CELL;
 const DRIFT_FIELD_ASCEND_SPEED = 8.75 * CELL;
 const DRIFT_FIELD_ASCEND_ACCEL = 30.5 * CELL;
@@ -478,6 +479,7 @@ const EPISODE_CATALOG = {
     badgeIds:['COL_SUN','COL_MOON','COL_SPARK'],
   },
 };
+for(let ep=2;ep<=8;ep++)EPISODE_CATALOG[`EP${ep}`]={id:`EP${ep}`,label:`Эпизод ${ep}`,shortLabel:`ЭП${ep}`,badgeIds:[]};
 const DIFFICULTY_ORDER = ['easy','medium','hard'];
 const DIFFICULTY_LABELS = { easy:'ЛЁГКАЯ', medium:'СРЕДНЯЯ', hard:'СЛОЖНАЯ' };
 const DIFFICULTY_SHORT_LABELS = { easy:'ЛЕГК.', medium:'СРЕДН.', hard:'СЛОЖН.' };
@@ -493,6 +495,37 @@ function createDefaultPreferences() {
     infiniteHearts: true,
     showGrid: false,
   };
+}
+
+function sanitizeEpisodeAchievements(raw={}) {
+  const result={};
+  for(let ep=1;ep<=8;ep++){
+    result[`EP${ep}`]={};
+    for(const d of DIFFICULTY_ORDER){const value=raw?.[`EP${ep}`]?.[d]||{};result[`EP${ep}`][d]={star:!!value.star,coin:!!value.coin,badge:!!value.badge,rewardClaimed:!!value.rewardClaimed};}
+  }
+  return result;
+}
+function claimPostbossReward(item){
+  const room=state.room,run=state.episodeRun;
+  if(room.roomType!=='episode'||room.campaignSlot!==23||!run)return false;
+  if(run.rewardTaken){item.taken=true;return true;}
+  const record=state.progress.episodeAchievements[room.episodeId][room.difficulty];
+  const ability={GR:'grab',WJ:'wall',PDJ:'dj'}[item.type];
+  const gravity={JP:'jp',FL:'fl',VV:'vv'}[item.type];
+  const owned=ability?state.progress.abilities[ability]:gravity?state.progress.roomItemsUnlocked[gravity]:true;
+  run.rewardTaken=true;
+  if(!owned){
+    if(ability)state.progress.abilities[ability]=true;
+    if(gravity)state.progress.roomItemsUnlocked[gravity]=true;
+    pushMsg(`Способность: ${pickupDisplayName(item.type)}`,'#b7ffd7',1.6);
+  }else if(hasEpisodeStar(room.episodeId,room.difficulty)){
+    state.progress.tokens++;pushMsg('+1 ЖЕТОН','#ffd76f',1.6);
+  }else if(!record.rewardClaimed){
+    const ids=Object.keys(COLLECTION_CATALOG),id=ids[Math.floor(Math.random()*ids.length)];
+    state.progress.randomBadges[id]=(state.progress.randomBadges[id]||0)+1;
+    pushMsg(`Значок: ${COLLECTION_CATALOG[id].label}`,'#ffd76f',1.6);
+  }
+  record.rewardClaimed=true;item.taken=true;savePersistentProgress();applyAbilityToggleSideEffects();return true;
 }
 
 function sanitizeProgress(raw) {
@@ -525,6 +558,10 @@ function sanitizeProgress(raw) {
       fl: !!roomItemsUnlocked.fl,
       vv: !!roomItemsUnlocked.vv,
     },
+    lastEpisode: clamp(Math.floor(Number(raw?.lastEpisode)||1),1,8),
+    tokens: Math.max(0,Math.floor(Number(raw?.tokens)||0)),
+    randomBadges: Object.fromEntries(Object.keys(COLLECTION_CATALOG).map(id=>[id,Math.max(0,Math.floor(Number(raw?.randomBadges?.[id])||0))])),
+    episodeAchievements: sanitizeEpisodeAchievements(raw?.episodeAchievements),
     collections: normalizedCollections,
     episodeStars: normalizedEpisodeStars,
     preferences: {
@@ -560,7 +597,7 @@ function readProgressEnvelope(storageKey) {
       legacyChecksum = progressChecksum(legacyData);
     }
     const matchesLegacyChecksum = legacyChecksum !== null && envelope.checksum === legacyChecksum;
-    if (envelope.checksum !== currentChecksum && !matchesLegacyChecksum) return null;
+    if (envelope.checksum !== currentChecksum && envelope.checksum !== progressChecksum(envelope.data) && !matchesLegacyChecksum) return null;
     if (matchesLegacyChecksum && envelope.data.abilities.gravity) data.roomItemsUnlocked = { jp:true, fl:true, vv:true };
     return { ...envelope, revision:Number(envelope.revision) || 0, data };
   } catch (error) {
@@ -813,6 +850,8 @@ function traceRoundedRect(x, y, w, h, r) {
   ctx.closePath();
 }
 function showOverlay(name) {
+  const nextRoomControl = document.getElementById('nextRoomBtn');
+  if (nextRoomControl) nextRoomControl.hidden = !!state.room?.lobbyNumber;
   for (const key of Object.keys(overlays)) overlays[key].classList.remove('show');
   if (name && overlays[name]) overlays[name].classList.add('show');
   setEditorAccessibleSurface(document.documentElement.dataset.editorAccessibleSurface || 'app');
@@ -960,7 +999,7 @@ function createRoom(innerW, innerH, visibleCode, title) {
     w, h, tiles,
     spawn: { x: 2, y: innerH - 2 },
     exit: { x: innerW - 4, y: 2, w: 3, h: 3 },
-    coins: [], pickups: [], collections: [], spikes: [], portals: [], oneWays: [], fragile: [], blink: [], conveyors: [], movers: [], crusherWalls: [], smarts: [], dropPlatforms: [], doors: [], levelDoors: [], buttons: [], spawners: [], cannons: [], driftFields: [], enemies: [], pushBlocks: [], bullets: [], labels: [], heartVendors: [], unlockSwitches: [],
+    coins: [], pickups: [], collections: [], spikes: [], portals: [], oneWays: [], fragile: [], blink: [], conveyors: [], movers: [], crusherWalls: [], smarts: [], dropPlatforms: [], doors: [], levelDoors: [], buttons: [], spawners: [], cannons: [], driftFields: [], bosses: [], enemies: [], pushBlocks: [], bullets: [], labels: [], heartVendors: [], unlockSwitches: [],
     roomBuffs: { jp:false, fl:false, vv:false },
     hudText: '', isHeartShop:false, worldId:'',
     roomType: 'normal',
@@ -1168,7 +1207,7 @@ function addDoor(room, id, x, y, len=3, orientation='v', open=false) {
 }
 function addButton(room, type, sides, x, y, targets, opts={}) {
   room.buttons.push({
-    type, sides, x, y,
+    type, sides, x, y, id:opts.id||null, bossOnly:!!opts.bossOnly,
     startX:x, startY:y,
     prevX:x, prevY:y,
     dx:0, dy:0,
@@ -1485,10 +1524,10 @@ function getDoorStarState(door) {
   if (!door) return [];
   if (door.showEpisodeStars && door.episodeId) {
     const stars = getEpisodeStars(door.episodeId);
-    return DIFFICULTY_ORDER.map(key => !!stars[key]);
+    return [0,1,2].map(i=>{let color=null;for(const d of DIFFICULTY_ORDER){const a=episodeAchievement(door.episodeId,d),count=['star','coin','badge'].filter(k=>a[k]).length;if(count>i)color={easy:'#cd7f32',medium:'#c0c8d5',hard:'#ffd76f'}[d];}return color;});
   }
   if (door.showDifficultyStar && door.episodeId && door.difficulty) {
-    return [hasEpisodeStar(door.episodeId, door.difficulty)];
+    const a=episodeAchievement(door.episodeId,door.difficulty);return [a.star,a.coin,a.badge];
   }
   return [];
 }
@@ -1507,6 +1546,7 @@ function levelDoorLabelColor(door) {
   return '#eff8ff';
 }
 function levelDoorBaseFill(door) {
+  if(door?.requiresDeparture&&!door.armed)return '#59687e';
   if (!door || !door.active) return '#5c6578';
   if (door.kind === 'training') return '#75d39a';
   if (door.kind === 'difficulty') return '#7fdfff';
@@ -1521,6 +1561,7 @@ function levelDoorPanelFill(door) {
   return '#eaf9ff';
 }
 function beginEpisodeRun(episodeId, difficulty) {
+  if(runtimeLobbyLevels){void beginAuthoredEpisode(episodeId,difficulty);return true;}
   if (episodeId === 'EP1' && difficulty === 'easy') {
     state.lives = MAX_LIVES;
     pushMsg(`${EPISODE_CATALOG[episodeId].label} · ${DIFFICULTY_LABELS[difficulty]}`, '#ffe7a7', 1.2);
@@ -1534,10 +1575,13 @@ function completeEpisodeRun(config) {
   if (!config) return false;
   const episodeId = config.episodeId;
   const difficulty = config.difficulty;
+  const run=state.episodeRun;
+  if(run&&run.episodeId===episodeId&&run.difficulty===difficulty){const record=state.progress.episodeAchievements[episodeId][difficulty];const normal=Array.from({length:20},(_,i)=>i+1);record.star ||= normal.every(n=>run.cleared[n])&&run.cleared[22]&&run.cleared[23]&&[1,2,3,4,5].every(n=>run.cleared[`shop-${n}`]);record.coin ||= Array.from({length:24},(_,i)=>i+1).every(n=>run.coins[n]);record.badge ||= run.secret;savePersistentProgress();}
   const justUnlocked = markEpisodeStar(episodeId, difficulty);
+  state.episodeRun=null;
   state.lives = MAX_LIVES;
   const difficultyLabel = DIFFICULTY_LABELS[difficulty] || difficulty;
-  pushMsg(justUnlocked ? `ЗВЕЗДА: ${difficultyLabel}` : `Эпизод пройден: ${difficultyLabel}`, '#ffd76f', 1.6);
+  pushMsg(`Эпизод пройден: ${difficultyLabel}`, '#ffd76f', 1.6);
   loadRoom(Number.isFinite(config.returnRoomIndex) ? config.returnRoomIndex : 0, true, true);
   updateHUD();
   return true;
@@ -1548,7 +1592,11 @@ function tryEnterLevelDoor() {
   if (!p || !room || !(room.levelDoors || []).length) return false;
   for (const door of room.levelDoors) {
     const rect = levelDoorWorldRect(door);
+    if(door.requiresDeparture&&!door.armed){const dx=Math.max(rect.x-p.x-p.w,p.x-rect.x-rect.w,0),dy=Math.max(rect.y-p.y-p.h,p.y-rect.y-rect.h,0);if(Math.hypot(dx,dy)>=CELL)door.armed=true;else continue;}
     if (!rectsOverlap(p, rect)) continue;
+    if(door.kind==='editor'){openLevelEditor();return true;}
+    if(door.kind==='recent'){const target=(state.progress.lastEpisode||1)+3;state.lobbyParents[target]=state.roomIndex;loadRoom(target,true,true);return true;}
+    if(door.kind==='infinite'){void beginInfiniteRun();return true;}
     if (!door.active) {
       if ((p.levelDoorHintCooldown || 0) <= 0) {
         pushMsg(door.lockedText || 'ПОКА ЗАКРЫТО', '#c7d0e8', 0.9);
@@ -1557,6 +1605,7 @@ function tryEnterLevelDoor() {
       return false;
     }
     if (door.targetRoomIndex != null) {
+      if(room.lobbyNumber&&state.rooms[door.targetRoomIndex]?.lobbyNumber&&door.kind!=='back')state.lobbyParents[door.targetRoomIndex]=door.targetRoomIndex===3?0:state.roomIndex;
       if (door.kind === 'secret') state.secretReturnRoomIndex = room.nextRoomIndex;
       loadRoom(door.targetRoomIndex, true, true);
       updateHUD();
@@ -2807,7 +2856,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   let spawnFound = false;
   let exitFound = false;
   const editorObjects = Array.isArray(level.objects) ? level.objects : [];
-  const linkedTargetIds = new Set(editorObjects.filter(object => object && object.type === 'button').flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets.map(target=>parseTargetDescriptor(target).id) : []));
+  const linkedTargetIds = new Set(editorObjects.filter(object => object && (object.type === 'button'||object.type === 'boss')).flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets.map(target=>parseTargetDescriptor(target).id) : []));
 
   for (const object of editorObjects) {
     if (!object || !Number.isFinite(object.x) || !Number.isFinite(object.y)) continue;
@@ -2876,7 +2925,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         break;
       }
       case 'door': addDoor(room, id, x, y, props.orientation === 'horizontal' ? w : h, props.orientation === 'horizontal' ? 'h' : 'v', linked && (props.open === true || props.enabled === false || props.startActive === false)); break;
-      case 'button': addButton(room, props.buttonType || 'T', editorButtonSides(props.sides), x, y, Array.isArray(props.targets) ? props.targets : [], { startOn:!!props.startOn }); break;
+      case 'button': addButton(room, props.buttonType || 'T', editorButtonSides(props.sides), x, y, Array.isArray(props.targets) ? props.targets : [], { id, bossOnly:!!props.bossOnly, startOn:!!props.startOn }); break;
       case 'portal': {
         const orientation=props.orientation === 'horizontal' ? 'h' : 'v';
         const side=editorDirection(props.side, orientation === 'h' ? 'u' : 'r');
@@ -2890,6 +2939,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'shooterSpawner': addShooter(room, id, x, y, editorDirection(props.direction, 'l'), { ...props, w, h }); break;
       case 'bomberSpawner': addBomberSpawner(room, id, x, y, editorDirection(props.direction, 'r'), props); break;
       case 'cannon': addCannon(room, id, x, y, editorDirection(props.direction, 'r'), { ...props, shotMode:props.shotMode || props.projectileMode || 'soft', w, h }); break;
+      case 'boss': addBoss(room,id,x,y,w,h,props); break;
       case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1, size:w>=4||h>=4?4:2 }); break;
       case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
       case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, Math.random()<.5?'l':'r', Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
@@ -2953,7 +3003,7 @@ function loadRuntimeCampaign() {
   return runtimeCampaignPromise;
 }
 async function loadCampaignForStart() {
-  try { return await loadRuntimeCampaign(); }
+  try { const levels=await loadRuntimeCampaign(); runtimeLobbyLevels=await Promise.all(Array.from({length:24},(_,i)=>fetchSectionLevel("lobby",i+1))); return levels; }
   catch (error) {
     console.error('NuBu campaign loader:', error);
     pushMsg(`Не удалось загрузить кампанию: ${error.message}`, '#ff9eaa', 2);
@@ -3325,7 +3375,7 @@ function closeEmbeddedEditor() {
   const complete = () => {
     if (embeddedEditorDirectPlaytest) {
       resetDirectEditorPlaytestState();
-      state.mode = 'start';
+      state.mode = runtimeLobbyLevels?'playing':'start';
     }
     clearEmbeddedEditorPlaytest();
     shell.classList.add('hidden');
@@ -3450,7 +3500,7 @@ function transitionRuntimeToLobby(cleanup=()=>{}) {
     waitForEditorSurfaceTransition(app, transitionToken, () => {
       app.classList.remove('runtime-surface-entering', 'runtime-surface-leaving');
       finishEditorSurfaceTransition(transitionToken, 'runtime', 'nubu-lobby-transition-complete');
-      document.getElementById('openEditorBtn')?.focus({ preventScroll:true });
+      (runtimeLobbyLevels?canvas:document.getElementById('openEditorBtn'))?.focus({ preventScroll:true });
     });
   });
 }
@@ -5618,6 +5668,109 @@ function makeDocumentRoom2() {
   return r;
 }
 
+// Authored lobby rooms have one canonical layout, independent of campaign difficulty.
+let runtimeLobbyLevels = null;
+const episodeRoutes = new Map();
+async function fetchSectionLevel(section, sequence, difficulty='easy') {
+  const source = decodeURIComponent(location.pathname).includes('/02 Разработка/game/');
+  const base = new URL(source ? `../levels/campaign/${section}/` : `campaign/${section}/`, location.href);
+  const response = await fetch(new URL(`${section}-${String(sequence).padStart(2,'0')}-${difficulty}.level.json`, base), {cache:'no-store'});
+  if (!response.ok) throw new Error(`Карта ${section}/${sequence}: ${response.status}`);
+  return response.json();
+}
+function buildAuthoredLobby(worldId) {
+  episodeRoutes.clear();state.lobbyParents={};state.episodeRun=null;
+  state.rooms = runtimeLobbyLevels.slice(0,12).map((level, i) => {
+    const room = makeRoomFromEditorLevel(level);
+    room.worldId=worldId; room.roomType='lobby'; room.lobbyNumber=i+1;
+    room.infiniteLives=true; room.showDefaultExit=false; room.levelDoors=[];
+    room.title=`Лобби · ${String(i+1).padStart(2,'0')}`;room.levelCode=null;
+    const door=(id,x,y,opts)=>addLevelDoor(room,id,x,y,{w:3,h:3,...opts});
+    if(i===0) {
+      door('campaign',2,15,{label:'КАМПАНИЯ',targetRoomIndex:2});
+      door('recent',2,4,{label:'ПРОДОЛЖИТЬ',kind:'recent'});
+      door('editor',15,4,{label:'РЕДАКТОР',kind:'editor'});
+      door('infinite',15,15,{label:'БЕСКОНЕЧНО',targetRoomIndex:1});
+    } else if(i===2) door('campaign-main',room.exit.x,room.exit.y,{label:'ЭПИЗОДЫ',targetRoomIndex:3});
+    else if(i===3) {
+      const positions=[[3,27],[13,27],[23,25],[33,21],[7,5],[50,9],[69,5],[60,28]];
+      positions.forEach(([x,y],n)=>door(`episode-${n+1}`,x,y,{label:`ЭПИЗОД ${n+1}`,kind:'episode',episodeId:`EP${n+1}`,targetRoomIndex:n+4,showEpisodeStars:true}));
+    } else if(i>=4&&i<=11) {
+      const ep=i-3;
+      const positions=[[16,17],[16,7],[1,5]];
+      DIFFICULTY_ORDER.forEach((difficulty,n)=>door(`difficulty-${difficulty}`,...positions[n],{label:DIFFICULTY_LABELS[difficulty],kind:'difficulty',episodeId:`EP${ep}`,difficulty,showDifficultyStar:true,active:ep<=2,lockedText:'Карты эпизода ещё не добавлены'}));
+    } else if(i===1) {
+      door('infinite-start',room.exit.x,room.exit.y,{label:'ИГРАТЬ',kind:'infinite'});
+      door('infinite-restart',2,4,{label:'ЗАНОВО',kind:'infinite'});
+    }
+    if(i!==0&&i!==2){
+      const spawn=level.objects.find(o=>o.type==='spawn');
+      door('lobby-back',spawn.x,spawn.y,{label:'НАЗАД',kind:'back',targetRoomIndex:i===3?0:i>=4?3:0});
+      room.levelDoors.at(-1).requiresDeparture=true;
+    }
+    normalizeRoomGeometryToHalfGrid(room); normalizeRoomPortals(room);
+    return room;
+  });
+  const start=state.rooms.length;state.rooms.push(...createCampaignRooms(runtimeCampaignLevels,worldId,start));
+  state.rooms.find(r=>r.completeEpisode).completeEpisode.returnRoomIndex=4;
+  episodeRoutes.set('EP1-easy',start);state.infiniteRoomIndex=null;
+  state.secretReturnRoomIndex=null;
+}
+function episodeAchievement(episodeId,difficulty) {
+  return state.progress.episodeAchievements?.[episodeId]?.[difficulty]||{};
+}
+function recordEpisodeRoomClear() {
+  const room=state.room,run=state.episodeRun;
+  if(!run||room.roomType!=='episode'||room.episodeId!==run.episodeId||room.difficulty!==run.difficulty)return;
+  run.cleared[room.campaignSlot]=true;
+  if(room.campaignSlot===21)run.cleared[`shop-${room.bundleIndex}`]=true;
+  if(room.coins.every(c=>c.taken))run.coins[room.campaignSlot]=true;
+}
+async function beginAuthoredEpisode(episodeId,difficulty) {
+  if(state.episodeLoading)return false;
+  const ep=Number(episodeId.slice(2));
+  if(ep<1||ep>2)return false;
+  state.episodeLoading=true;
+  const originRoom=state.room,requestToken=campaignStartToken;
+  try {
+    const key=`${episodeId}-${difficulty}`;
+    if(!episodeRoutes.has(key)){
+      const levels=await Promise.all(Array.from({length:24},(_,i)=>fetchSectionLevel(`ep${ep}`,i+1,difficulty)));
+      const start=state.rooms.length;
+      const rooms=createCampaignRooms(levels,state.currentWorldId,start);
+      for(const room of rooms){room.episodeId=episodeId;room.difficulty=difficulty;if(room.completeEpisode)room.completeEpisode={episodeId,difficulty,returnRoomIndex:ep+3};}
+      state.rooms.push(...rooms);episodeRoutes.set(key,start);
+    }
+    if(state.room!==originRoom||requestToken!==campaignStartToken||state.mode==='editor'||embeddedEditorPendingOpen)return false;
+    state.progress.lastEpisode=ep;
+    state.episodeRun={episodeId,difficulty,cleared:{},coins:{},secret:false,rewardTaken:false};
+    savePersistentProgress();state.lives=MAX_LIVES;
+    loadRoom(episodeRoutes.get(key),true,true);updateHUD();return true;
+  } catch(error){pushMsg(error.message,'#ff9eaa',2);return false;}
+  finally{state.episodeLoading=false;}
+}
+async function beginInfiniteRun() {
+  if(state.episodeLoading)return;
+  state.episodeLoading=true;
+  let db;
+  try {
+    db=await new Promise((resolve,reject)=>{const req=indexedDB.open('nubu2600-level-library');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+    const slots=db.objectStoreNames.contains('slots')?await new Promise((resolve,reject)=>{const req=db.transaction('slots').objectStore('slots').getAll();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);}):[];
+    const levels=slots.filter(s=>s.kind==='user'&&s.publicationStatus==='submitted').map(s=>s.difficulties.easy).filter(Boolean);
+    if(!levels.length){pushMsg('Нет опубликованных уровней на этом устройстве','#ffd76f',2);return;}
+    state.infiniteLevels=levels;state.episodeRun=null;loadNextInfiniteRoom();
+  }catch(error){pushMsg(`Не удалось открыть уровни: ${error.message}`,'#ff9eaa',2);}
+  finally{db?.close();state.episodeLoading=false;}
+}
+function loadNextInfiniteRoom(){
+  const levels=state.infiniteLevels;if(!levels?.length)return;
+  const choices=levels.filter(l=>l.id!==state.lastInfiniteLevel),level=(choices.length?choices:levels)[Math.floor(Math.random()*(choices.length||levels.length))];
+  state.lastInfiniteLevel=level.id;
+  const room=makeRoomFromEditorLevel(level);room.roomType='infinite';room.worldId=state.currentWorldId;
+  if(state.infiniteRoomIndex==null)state.infiniteRoomIndex=state.rooms.length;
+  state.rooms[state.infiniteRoomIndex]=room;loadRoom(state.infiniteRoomIndex,true,true);
+}
+
 function createCampaignRooms(levels, worldId, startIndex) {
   const bySlot = new Map(levels.map(level => [Number(level.metadata?.campaign?.slot || level.sequence), level]));
   const route = [];
@@ -5658,6 +5811,7 @@ function createCampaignRooms(levels, worldId, startIndex) {
 }
 
 function buildRooms(worldId = WORLDS[0].id, campaignLevels = runtimeCampaignLevels) {
+  if(runtimeLobbyLevels){buildAuthoredLobby(worldId);return;}
   const rooms = [];
   const LOBBY_INDEX = 0;
   const EP1_SELECT_INDEX = 1;
@@ -5948,7 +6102,7 @@ function makePlayer() {
     cubeHeadBumpRef: null, cubeHeadBumpTimer: 0,
     crusherHeadBumpRef: null, crusherHeadBumpTimer: 0,
     portalCooldown: 0, portalIgnoreId: null, portalPreview: null, portalBumpTimer: 0, portalBlockedId:null, portalBlockedTimer:0,
-    buffs: { jp:false, fl:false, vv:false }, extraJumpReady:false,
+    buffs: { jp:false, fl:false, vv:false }, jpFuel:JETPACK_CAPACITY, extraJumpReady:false,
     gravityDir: 1,
     spawnReveal: 1,
     deathReveal: 1,
@@ -5969,6 +6123,15 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   state.roomIndex = clamp(index, 0, state.rooms.length - 1);
   state.room = cloneRoom(state.rooms[state.roomIndex]);
   state.room.localTime = 0;
+  if(runtimeLobbyLevels&&!state.editorPlaytest)setEmbeddedEditorBackgroundPaused(!state.room.lobbyNumber);
+  for (const door of state.room.levelDoors || []) {
+    if (!door.requiresDeparture) continue;
+    door.armed = false;
+    const number = state.room.lobbyNumber;
+    if (number === 4) door.targetRoomIndex = 0;
+    else if (number >= 5 && number <= 12) door.targetRoomIndex = 3;
+    else door.targetRoomIndex = state.lobbyParents?.[state.roomIndex] ?? door.targetRoomIndex;
+  }
   state.roomTransition = null;
   normalizeRoomGeometryToHalfGrid(state.room);
   buildRoomPortalCuts(state.room);
@@ -6097,6 +6260,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   p.buffs = { jp:false, fl:false, vv:false };
   p.extraJumpReady = false;
   p.gravityDir = 1;
+  p.jpFuel = JETPACK_CAPACITY;
   p.driftFieldActive = false;
   p.lastPushBlockRef = null;
   p.lastPushBlockTimer = 0;
@@ -6105,9 +6269,12 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
   p.deathReveal = 1;
   if (withSpawnTransition) beginRoomSpawnTransition();
   for (const item of state.room.pickups) {
+    if(state.room.roomType==='episode'&&state.room.campaignSlot===23&&state.episodeRun){const key={GR:'grab',WJ:'wall',PDJ:'dj'}[item.type],g={JP:'jp',FL:'fl',VV:'vv'}[item.type],owned=key?state.progress.abilities[key]:g?state.progress.roomItemsUnlocked[g]:false,completed=hasEpisodeStar(state.room.episodeId,state.room.difficulty);item.taken=!!state.episodeRun.rewardTaken||!!(owned&&!completed&&episodeAchievement(state.room.episodeId,state.room.difficulty).rewardClaimed);item.rewardLabel=owned?(completed?'ЖЕТОН':'ЗНАЧОК'):null;continue;}
     if ((item.type === 'GR' && hasLedgeGrab()) || (item.type === 'WJ' && hasWallJumpAbility()) || (item.type === 'PDJ' && hasDoubleJumpAbility())) item.taken = true;
   }
   p.lastSafeX = p.x; p.lastSafeY = p.y;
+  // A room transition is a camera cut, not movement across the previous map.
+  state.cam.x = NaN; state.cam.y = NaN;
   updateHUD();
 }
 
@@ -6153,6 +6320,7 @@ function setSelectedWorld(index) {
   prepareWorldPreview();
 }
 function returnToStartMenu() {
+  if(runtimeLobbyLevels){prepareWorldPreview();state.mode='playing';setEmbeddedEditorBackgroundPaused(false);showOverlay(null);hideStartConfirm();updatePauseAbilityButtons();return;}
   state.mode = 'start';
   setEmbeddedEditorBackgroundPaused(false);
   showOverlay('start');
@@ -6474,7 +6642,7 @@ function updateHUD() {
   const coinsText = '🪙 ' + state.coins;
   if (ui.hearts.textContent !== heartsText) ui.hearts.textContent = heartsText;
   if (ui.coins.textContent !== coinsText) ui.coins.textContent = coinsText;
-  const numbering = state.room?.campaignSlot
+  const numbering = state.room?.lobbyNumber ? `Лобби · ${String(state.room.lobbyNumber).padStart(2,'0')}` : state.room?.campaignSlot
     ? `С${String(state.room.campaignSlot).padStart(2,'0')} · ${state.room.levelCode}`
     : state.room && state.room.levelCode ? `Уровень ${state.room.levelCode}`
     : `Комната ${state.roomIndex + 1} / ${state.rooms.length}`;
@@ -7033,7 +7201,21 @@ function tryPushPlayerByPlatform(p, plat, targetX, targetY, markGround=false) {
   }
   return true;
 }
+function resolveInvertedCrusherCarry(p) {
+  if (!p.onGround || !p.groundRef || !(state.room.crusherWalls || []).includes(p.groundRef)) return;
+  const wall = p.groundRef, box = crusherWallRect(wall);
+  const prev = {x:(wall.prevX ?? wall.x)*CELL,y:(wall.prevY ?? wall.y)*CELL,w:box.w,h:box.h};
+  if (Math.abs(p.y - prev.y - prev.h) > 2.25 || rectOverlapX(p, prev) <= CELL * 0.2) { p.groundRef=null;p.onGround=false;return; }
+  const dx=wall.dx||0,dy=wall.dy||0,steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/0.5));
+  for(let i=0;i<steps;i++) {
+    const test={x:p.x+dx/steps,y:p.y+dy/steps,w:p.w,h:p.h};
+    if(rectHitsBlocking(test,wall)){crushPlayerByKinematic(p,wall);return;}
+    p.x=test.x;p.y=test.y;
+  }
+  p.y=box.y+box.h;p.vy=0;
+}
 function resolveKinematicPlatformContacts(p) {
+  if (p.gravityDir === -1) { resolveInvertedCrusherCarry(p); return; }
   if (p.kinDropTimer > 0 && p.kinDropRef) return;
   const playerPrev = { x:p.prevX, y:p.prevY, w:p.w, h:p.h };
   const playerNow = { x:p.x, y:p.y, w:p.w, h:p.h };
@@ -7664,6 +7846,7 @@ function playerStillOnKinematicGroundRef(p) {
 }
 function playerActuallySupportedByKinematicRef(p, ref) {
   if (!p || !ref || !p.onGround || !('dx' in ref)) return false;
+  if (p.gravityDir === -1 && (state.room.crusherWalls || []).includes(ref)) { const box=crusherWallRect(ref);return Math.abs(p.y-box.y-box.h)<=2.25&&rectOverlapX(p,box)>CELL*0.2; }
   const feetY = p.y + p.h;
   for (const plat of getKinematicPlatforms()) {
     if (plat.ref !== ref) continue;
@@ -7679,6 +7862,7 @@ function playerActuallySupportedByKinematicRef(p, ref) {
 }
 function clearLingeringKinematicGroundRef(p) {
   if (!p || !p.onGround || !p.groundRef || !('dx' in p.groundRef)) return false;
+  if (p.gravityDir === -1 && (state.room.crusherWalls || []).includes(p.groundRef)) return false;
   if (isPushCube(p.groundRef)) {
     if (playerActuallySupportedByMovingCube(p, p.groundRef)) return false;
     p.groundRef = null;
@@ -8385,6 +8569,16 @@ function canPressButton(p, btn) {
   }
   return false;
 }
+function anyGoombaPressesButton(btn) {
+  if (!btn.sides.includes('u')) return false;
+  const base = buttonRect(btn);
+  return (state.room.enemies || []).some(enemy => {
+    if (enemy.dead || enemy.type !== 'E1') return false;
+    const box = enemyRect(enemy);
+    return (enemy.vy || 0) >= -0.01 && rectOverlapX(box, base) > CELL * 0.2
+      && Math.abs(box.y + box.h - base.y) <= 1.75;
+  });
+}
 function anyCubePressesButton(btn) {
   if (!btn || !btn.sides.includes('u')) return false;
   const base = buttonRect(btn);
@@ -8440,7 +8634,7 @@ function updateButtons(dt=0) {
   const step = Math.max(0, dt || 0);
   for (const btn of state.room.buttons) {
     btn.flashTimer = Math.max(0, (btn.flashTimer || 0) - step);
-    const activeNow = canPressButton(p, btn) || (!btn.attachTo && anyCubePressesButton(btn));
+    const activeNow = (!btn.bossOnly&&(canPressButton(p, btn) || anyGoombaPressesButton(btn) || (!btn.attachTo && anyCubePressesButton(btn)))) || (state.room.bosses||[]).some(boss=>bossTouchesButton(boss,btn));
     if (btn.type === 'O') {
       if (activeNow && !btn.pressed && !btn.used) {
         btn.pressed = true;
@@ -8626,11 +8820,13 @@ function collectCoinsAndPickups() {
     if (item.taken) continue;
     const box = { x:item.x*CELL, y:item.y*CELL, w:item.w*CELL, h:item.h*CELL };
     if (!rectsOverlap(p, box)) continue;
+    if(state.room.campaignSlot===23&&state.room.roomType==='episode'&&claimPostbossReward(item))continue;
     if (!pickupIsAvailable(item)) continue;
     item.taken = true;
     if (item.type === 'GR') { state.progress.abilities.grab = true; savePersistentProgress(); pushMsg('Зацеп получен', '#9fe7ff', 1.2); }
     if (item.type === 'WJ') { state.progress.abilities.wall = true; savePersistentProgress(); pushMsg('Отскок от стены получен', '#9fe7ff', 1.2); }
     if (item.type === 'PDJ') { state.progress.abilities.dj = true; savePersistentProgress(); p.extraJumpReady = true; pushMsg('Дабл-джамп получен', '#e2c4ff', 1.2); }
+    if(['JP','FL','VV'].includes(item.type)){p.buffs.jp=false;p.buffs.fl=false;p.buffs.vv=false;p.gravityDir=1;p.jpFuel=2;p.gravityItem=item.type.toLowerCase();}
     if (item.type === 'JP') { p.buffs.jp = true; pushMsg('Джетпак', '#ffd998', 1.2); }
     if (item.type === 'FL') { p.buffs.fl = true; pushMsg('Парение', '#c5f7ff', 1.2); }
     if (item.type === 'VV') { p.buffs.vv = true; p.gravityDir = 1; pushMsg('V активирован', '#c7ffd8', 1.2); }
@@ -8640,6 +8836,7 @@ function collectCoinsAndPickups() {
   for (const badge of (state.room.collections || [])) {
     const box = { x:badge.x*CELL, y:badge.y*CELL, w:badge.w*CELL, h:badge.h*CELL };
     if (!rectsOverlap(p, box)) continue;
+    if(state.room.campaignSlot===24&&state.episodeRun){state.episodeRun.secret=true;const record=state.progress.episodeAchievements[state.room.episodeId][state.room.difficulty];if(!record.badge){record.badge=true;markBadgeCollected(badge.id);savePersistentProgress();pushMsg(`Найден значок: ${badge.label}`,badge.fill||'#ffd66b',1.35);}continue;}
     if (hasCollectedBadge(badge.id)) continue;
     if (markBadgeCollected(badge.id)) {
       pushMsg(`Найден значок: ${badge.label}`, badge.fill || '#ffd66b', 1.35);
@@ -8712,8 +8909,8 @@ function resolveCrusherWallsVsPlayer(p) {
     const order = [];
     const addSide = (side) => { if (!order.includes(side)) order.push(side); };
 
-    if (groundedOnWall || wasAbove || nearTopNow) addSide('top');
-    if (headBumpedWall || wasBelow || nearBottomNow) addSide('bottom');
+    if ((groundedOnWall && p.gravityDir !== -1) || wasAbove || nearTopNow) addSide('top');
+    if ((groundedOnWall && p.gravityDir === -1) || headBumpedWall || wasBelow || nearBottomNow) addSide('bottom');
     if (wasLeft) addSide('left');
     if (wasRight) addSide('right');
 
@@ -8729,7 +8926,7 @@ function resolveCrusherWallsVsPlayer(p) {
 
     const placements = {
       top: { x:p.x, y:box.y - p.h, ground:true },
-      bottom: { x:p.x, y:box.y + box.h, ground:false },
+      bottom: { x:p.x, y:box.y + box.h, ground:p.gravityDir === -1 },
       left: { x:box.x - p.w, y:p.y, ground:false },
       right: { x:box.x + box.w, y:p.y, ground:false },
     };
@@ -12079,7 +12276,16 @@ function resolveEnemyPushes() {
 
 
 function applyConveyorToPlayer(p, dt) {
-  if (!p || p.gravityDir !== 1) return false;
+  if (!p) return false;
+  if (p.gravityDir === -1) {
+    const conveyor = (state.room.conveyors || []).find(c => {
+      const box = conveyorRect(c);
+      return isConveyorActive(c) && p.onGround && Math.abs(p.y - box.y - box.h) <= 2.25 && rectOverlapX(p, box) > CELL * 0.2;
+    });
+    if (!conveyor) return false;
+    // The underside of the same belt travels in the opposite direction.
+    return applyCarryMotion(p, -conveyorVelocity(conveyor) * dt, 0, conveyor);
+  }
 
   let conveyor = null;
   if (p.onGround) conveyor = getStandingConveyorForRect(p, p.gravityDir);
@@ -12219,6 +12425,284 @@ function splitDeadLargeGoombas(room) {
       child.x += (index ? 1 : -1) * CELL * (.2 + Math.random() * .35);
       child.onGround = false;
     }
+  }
+}
+
+// A boss is a reusable actor plus two inseparable floor controls. Its authored
+// rectangle and editable controls belong to one species. Difficulty never changes AI.
+const BOSS_SPECIES = Object.freeze({ratSpider:Object.freeze({w:5,h:5,title:'Бункерная крыса · Паучий мех'})});
+const RAT_SPIDER_RULES = Object.freeze({ hits:3, telegraph:1.05, charge:1.4, recover:2.4, stun:4, reboot:1.15, speed:4.8*CELL, wallJumpSpeed:4.4*CELL, wallJumpHeight:5.5*CELL });
+function validateBossControls(room, controls) {
+  if(controls===undefined)return;
+  if(!Array.isArray(controls)||controls.length!==2)throw new Error('У босса должны быть две педали.');
+  for(const [i,c]of controls.entries()){
+    if(!c||![c.x,c.y,c.w,c.h].every(Number.isInteger)||c.w<1||c.w>4||c.h!==1||c.x<0||c.y<0||c.x+c.w>room.innerW||c.y+c.h>room.innerH)throw new Error(`Педаль босса ${i+1} выходит за комнату или имеет неверный размер.`);
+    for(let y=c.y;y<c.y+c.h;y++)for(let x=c.x;x<c.x+c.w;x++)if(!roomCellInShape(room,x,y))throw new Error(`Педаль босса ${i+1} выходит за форму панелей.`);
+  }
+  if(rectsOverlap(controls[0],controls[1]))throw new Error('Педали босса не должны пересекаться.');
+}
+function addBoss(room, id, x, y, w=5, h=5, props={}) {
+  validateBossControls(room,props.controls);
+  const kind=props.bossKind||'ratSpider',species=Object.hasOwn(BOSS_SPECIES,kind)?BOSS_SPECIES[kind]:null;
+  if(!species)throw new Error(`Неизвестный вид босса: ${kind}`);
+  const width=species.w,height=species.h;
+  (room.bosses ||= []).push({id,bossKind:'ratSpider',x:x*CELL,y:y*CELL,w:width,h:height,
+    homeX:x*CELL,homeY:y*CELL,prevX:x*CELL,prevY:y*CELL,vx:0,vy:0,onGround:false,ignoreOneWay:0,landedOnOneWay:false,
+    dir:props.direction==='right'?1:-1,state:'telegraph',timer:RAT_SPIDER_RULES.telegraph,
+    hits:0,activePad:0,padHeld:[false,false],controls:Array.isArray(props.controls)&&props.controls.length===2&&props.controls.every(c=>Number.isFinite(c?.x)&&Number.isFinite(c?.y))?props.controls.map(c=>({x:c.x*CELL,y:c.y*CELL,w:clamp(Number(c.w)||1,1,4)*CELL,h:CELL})):null,targets:Array.isArray(props.targets)?props.targets.slice():[],
+    wallJumps:0,stuns:0,cycles:0,mechanismPulses:0,awake:false,anchorSettled:false,padSupportKey:null,contactGrace:0,defeated:false,signalOn:false});
+}
+function bossRect(boss) {
+  const height=(boss.state==='stunned'||boss.state==='reboot'||boss.defeated)?Math.min(1.25,boss.h)*CELL:boss.h*CELL;
+  return {x:boss.x,y:boss.y+boss.h*CELL-height,w:boss.w*CELL,h:height};
+}
+function bossBellyRect(boss) {
+  const box=bossRect(boss);
+  return {x:box.x+box.w*.26,y:box.y,w:box.w*.48,h:Math.max(2,box.h*.2)};
+}
+function bossPadRects(boss) {
+  if(boss.controls)return boss.controls.map(c=>({x:c.x,y:c.y+c.h-CELL*.25,w:c.w,h:CELL*.25}));
+  return [0,1].map(index=>({x:boss.homeX+(index?boss.w-1:0)*CELL,y:boss.homeY+(boss.h-.25)*CELL,w:CELL,h:CELL*.25}));
+}
+function roomHasLivingBoss(room=state.room) { return !!room?.bosses?.some(boss=>!boss.defeated); }
+function bossCanAct(boss) {
+  const p=state.player,room=state.room;
+  if (!p||!room||state.roomTransition||state.mode!=='playing') return false;
+  const box=bossRect(boss),cx=box.x+box.w/2,cy=box.y+box.h/2;
+  if (!roomCellInShape(room,Math.floor(cx/CELL),Math.floor(cy/CELL))) return false;
+  const cam=state.cam;
+  // The camera scrolls continuously; a 20x20 panel boundary is not a wall.
+  // Wait while the actor is outside the view, and telegraph anew when it returns.
+  if (cam?.drawW>0&&cam?.drawH>0 && (box.x+box.w<cam.x||box.x>cam.x+cam.drawW||box.y+box.h<cam.y||box.y>cam.y+cam.drawH)) return false;
+  return Math.abs(cx-(p.x+p.w/2))<24*CELL&&Math.abs(cy-(p.y+p.h/2))<18*CELL;
+}
+function bossTargetSignals(boss,active,defeated=false) {
+  const room=state.room;
+  if (!room||(!defeated&&boss.signalOn===active)) return;
+  boss.signalOn=active;
+  const targets=[];
+  for (const raw of [...boss.targets,...(defeated?(boss.activatedButtons||[]):[])]) {
+    const button=room.buttons.find(btn=>btn.id===parseTargetDescriptor(raw).id);
+    if (button) {
+      button.toggled=active;button.flashTimer=.2;
+      targets.push(...button.targets);
+    } else targets.push(raw);
+  }
+  for (const raw of new Set(targets)) {
+    const id=parseTargetDescriptor(raw).id;
+    if (defeated&&room.doors.some(door=>door.id===id)) applyTargetRoomState(room,id,true);
+    else setButtonTargetState(room,raw,active);
+  }
+  if (active) boss.mechanismPulses++;
+  syncButtonTargetStates(room);
+}
+function setBossPhase(boss,phase,time) {
+  boss.state=phase;boss.timer=time;
+  if (phase==='charge') {boss.cycles++;bossTargetSignals(boss,true);}
+  if (phase==='recover'||phase==='stunned'||phase==='reboot') bossTargetSignals(boss,false);
+}
+function bossBlocked(boss,solids) {
+  const rect=bossRect(boss),epsilon=1e-6;
+  for(let y=Math.floor(rect.y/CELL);y<=Math.floor((rect.y+rect.h-epsilon)/CELL);y++)
+    for(let x=Math.floor(rect.x/CELL);x<=Math.floor((rect.x+rect.w-epsilon)/CELL);x++)
+      if(roomSolidAt(state.room,x,y))return true;
+  return solids.some(solid=>rectsOverlap(rect,solid));
+}
+function bossMoveAxis(boss,axis,delta,solids) {
+  if (!delta) return false;
+  const steps=Math.max(1,Math.ceil(Math.abs(delta)/(CELL*.2))),step=delta/steps;
+  for(let i=0;i<steps;i++) {
+    const start=boss[axis],before=bossRect(boss);boss[axis]+=step;
+    if(axis==='y'&&step>0&&!(boss.ignoreOneWay>0)){
+      const after=bossRect(boss);
+      const top=(state.room.oneWays||[]).map(p=>({x:p.x*CELL,y:p.y*CELL,w:p.w*CELL})).filter(p=>before.y+before.h<=p.y+1e-5&&after.y+after.h>=p.y&&rectOverlapX(after,p)>CELL*.2).sort((a,b)=>a.y-b.y)[0];
+      if(top){boss.y=top.y-boss.h*CELL;boss.landedOnOneWay=true;return true;}
+    }
+    if (!bossBlocked(boss,solids)) continue;
+    boss[axis]=start;
+    let lo=0,hi=1;
+    for(let n=0;n<9;n++) {const mid=(lo+hi)/2;boss[axis]=start+step*mid;if(bossBlocked(boss,solids))hi=mid;else lo=mid;}
+    boss[axis]=start+step*lo;
+    return true;
+  }
+  return false;
+}
+function bossMovingSupports(room) {
+  const result=[];
+  const add=(body,key,w=body.w,h=body.h)=>result.push({key,x:body.x*CELL,y:body.y*CELL,w:w*CELL,h:h*CELL,dx:body.dx||0,dy:body.dy||0});
+  (room.movers||[]).forEach((m,i)=>{if(m.enabled)add(m,`m:${i}`);});
+  (room.smarts||[]).forEach((s,i)=>{if(s.enabled)(s.instances||[]).forEach((inst,j)=>{if(inst.active)add(inst,`s:${i}:${j}`,s.w,s.h);});});
+  (room.dropPlatforms||[]).forEach((d,i)=>{if(d.enabled&&d.state!=='respawn')add(d,`d:${i}`,d.w,.5);});
+  return result;
+}
+function carryBossOnSupport(boss,solids,supports) {
+  const box=bossRect(boss),feet=box.y+box.h;
+  const homeSupport=supports.find(s=>s.key===boss.padSupportKey);
+  if(homeSupport&&boss.anchorSettled){boss.homeX+=homeSupport.dx;boss.homeY+=homeSupport.dy;}
+  if(boss.vy<0||(!boss.onGround&&boss.anchorSettled))return;
+  const support=supports.find(s=>Math.abs(feet-(s.y-s.dy))<.6&&rectOverlapX(box,{x:s.x-s.dx,w:s.w})>CELL*.25);
+  if(!support)return;
+  const others=solids.filter(r=>!(Math.abs(r.x-support.x)<1e-6&&Math.abs(r.y-support.y)<1e-6&&Math.abs(r.w-support.w)<1e-6&&Math.abs(r.h-support.h)<1e-6));
+  for(const [axis,delta]of [['x',support.dx],['y',support.dy]]){
+    const target=boss[axis]+delta;
+    if(bossMoveAxis(boss,axis,delta,others)){
+      // The machine folds its chassis under a low ceiling; this is an armored
+      // reboot, so an elevator can never grant a free vulnerable belly window.
+      setBossPhase(boss,'reboot',RAT_SPIDER_RULES.reboot);
+      bossMoveAxis(boss,axis,target-boss[axis],others);
+    }
+  }
+  boss.onGround=true;
+}
+function updateBosses(dt) {
+  if (!state.room?.bosses?.length||state.roomTransition) return;
+  const solids=getInitialDynamicRects(state.room),supports=bossMovingSupports(state.room);
+  for(const boss of state.room.bosses) {
+    if (boss.defeated) continue;
+    boss.prevX=boss.x;boss.prevY=boss.y;
+    carryBossOnSupport(boss,solids,supports);
+    if (!bossCanAct(boss)) {if(boss.awake){boss.awake=false;boss.vx=0;bossTargetSignals(boss,false);}continue;}
+    if (!boss.awake) {
+      boss.awake=true;
+      if(boss.state!=='stunned'&&boss.state!=='reboot')setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
+    }
+    boss.contactGrace=Math.max(0,boss.contactGrace-dt);boss.ignoreOneWay=Math.max(0,(boss.ignoreOneWay||0)-dt);
+    if (!boss.anchorSettled) {
+      // Dropping an actor into empty space is a useful editor workflow. Settle
+      // its inseparable home controls onto the first supporting solid floor.
+      boss.vy=Math.min(MAX_FALL,boss.vy+GRAVITY*dt);
+      if(bossMoveAxis(boss,'y',boss.vy*dt,solids)){
+        boss.vy=0;boss.onGround=true;boss.anchorSettled=true;boss.homeY=boss.y;
+        const support=supports.find(s=>Math.abs(s.y-(boss.y+boss.h*CELL))<.6&&rectOverlapX(bossRect(boss),s)>CELL*.25);boss.padSupportKey=support?.key||null;
+        setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
+      }
+      continue;
+    }
+    if(boss.state!=='recover'||boss.onGround)boss.timer-=dt;
+    if(boss.state==='walljump'&&boss.timer<=0){boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
+    if (boss.state==='telegraph'&&boss.timer<=0) {setBossPhase(boss,'charge',RAT_SPIDER_RULES.charge);boss.vx=boss.dir*RAT_SPIDER_RULES.speed;}
+    if (boss.state==='charge'&&boss.timer<=0) {boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
+    if (boss.state==='recover'&&boss.timer<=0) {
+      boss.dir=(state.player.x+state.player.w/2<boss.x+boss.w*CELL/2)?-1:1;
+      setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
+    }
+    if (boss.state==='stunned'&&boss.timer<=0) setBossPhase(boss,'reboot',RAT_SPIDER_RULES.reboot);
+    if (boss.state==='reboot'&&boss.timer<=0) {
+      // Restore full height only where it fits; never materialize in a ceiling.
+      boss.state='telegraph';
+      if(bossBlocked(boss,solids)){boss.state='reboot';boss.timer=.15;continue;}
+      boss.timer=RAT_SPIDER_RULES.telegraph;boss.contactGrace=.35;
+      boss.dir=(state.player.x<boss.x+boss.w*CELL/2)?-1:1;
+    }
+    boss.vy=Math.min(MAX_FALL,boss.vy+GRAVITY*dt);
+    if (boss.state!=='charge'&&boss.state!=='walljump') boss.vx=0;
+    const hitWall=bossMoveAxis(boss,'x',boss.vx*dt,solids);
+    if(hitWall&&(boss.state==='charge'||boss.state==='walljump')) {
+      if(boss.state==='charge') {
+        boss.dir*=-1;boss.vx=boss.dir*RAT_SPIDER_RULES.wallJumpSpeed;
+        boss.vy=-Math.sqrt(2*GRAVITY*RAT_SPIDER_RULES.wallJumpHeight);boss.onGround=false;boss.wallJumps++;
+        setBossPhase(boss,'walljump',2);
+      } else boss.vx=0;
+    }
+    boss.landedOnOneWay=false;
+    const falling=boss.vy>=0,hitFloor=bossMoveAxis(boss,'y',boss.vy*dt,solids);
+    boss.onGround=hitFloor&&falling;
+    if(hitFloor)boss.vy=0;
+    if(boss.state==='walljump'&&boss.onGround&&boss.landedOnOneWay&&boss.y<boss.homeY-CELL){
+      // Release the climbing legs on a high catwalk and return to the controls.
+      boss.ignoreOneWay=.8;boss.onGround=false;boss.vy=0;
+    }
+    if(boss.state==='walljump'&&boss.onGround){boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
+    // A falling boss is never damaged off-screen or removed by a pit. A room
+    // boundary is solid, including missing cells of a v2 panel shape.
+  }
+}
+function bossTouchesButton(boss,btn) {
+  if(boss.defeated||!boss.awake||!['charge','walljump'].includes(boss.state))return false;
+  if(boss.targets.some(raw=>parseTargetDescriptor(raw).id===btn.id))return false;
+  const body=bossRect(boss),base=buttonRect(btn);
+  const pressed=rectsOverlap({x:body.x-1,y:body.y-1,w:body.w+2,h:body.h+2},base);
+  if(pressed&&btn.id&&!((boss.activatedButtons||[]).includes(btn.id)))(boss.activatedButtons ||= []).push(btn.id);
+  return pressed;
+}
+function updateBossContacts() {
+  const p=state.player;
+  if(!p||state.roomTransition)return;
+  for(const boss of state.room.bosses||[]) {
+    if(boss.defeated)continue;
+    const pads=bossPadRects(boss);
+    const pressed=pads.map(pad=>p.onGround&&rectOverlapX(p,pad)>CELL*.2&&Math.abs(p.y+p.h-(pad.y+pad.h))<CELL*.45);
+    if(bossCanAct(boss)&&boss.state==='recover'&&boss.onGround&&pressed[boss.activePad]&&!boss.padHeld[boss.activePad]) {
+      boss.stuns++;boss.vx=0;setBossPhase(boss,'stunned',RAT_SPIDER_RULES.stun);
+      pushMsg('БРЮХО ОТКРЫТО · ПРЫГАЙ СВЕРХУ', '#9affcb',1.8);
+    }
+    boss.padHeld=pressed;
+    if(!bossCanAct(boss))continue;
+    const box=bossRect(boss);
+    if(boss.state==='stunned') {
+      const previousFeet=(p.prevY??p.y)+p.h;
+      if(p.vy>0&&previousFeet<=box.y+Math.max(1,p.vy/120)&&p.y+p.h>=box.y&&rectOverlapX(p,bossBellyRect(boss))>CELL*.2) {
+        boss.hits++;p.y=box.y-p.h;p.vy=-Math.sqrt(2*GRAVITY*JUMP_LOW_HEIGHT);
+        p.onGround=false;p.groundRef=null;p.jumpActive=false;p.invuln=Math.max(p.invuln,.6);
+        boss.activePad=1-boss.activePad;
+        if(boss.hits>=RAT_SPIDER_RULES.hits) {
+          boss.defeated=true;boss.vx=0;boss.vy=0;bossTargetSignals(boss,false,true);
+          pushMsg('КРЫСА СБЕЖАЛА · ВЫХОД ОТКРЫТ', '#9affcb',3);
+        } else {
+          setBossPhase(boss,'reboot',RAT_SPIDER_RULES.reboot);
+          pushMsg(`БРОНЯ ${RAT_SPIDER_RULES.hits-boss.hits}/${RAT_SPIDER_RULES.hits} · ДРУГАЯ ПЕДАЛЬ`, '#ffe6a4',1.5);
+        }
+      }
+    } else if(boss.contactGrace<=0&&['telegraph','charge','walljump'].includes(boss.state)) {
+      // Tall legs leave a readable underpass while winding up. The red sweeping
+      // feet become dangerous only during the actual charge / wall jump.
+      const torso={x:box.x+box.w*.16,y:box.y+box.h*.1,w:box.w*.68,h:box.h*.45};
+      const feet={x:box.x,y:box.y+box.h-Math.min(CELL*.55,box.h*.4),w:box.w,h:Math.min(CELL*.55,box.h*.4)};
+      if(rectsOverlap(p,torso)||(boss.state!=='telegraph'&&rectsOverlap(p,feet)))damagePlayer(boss.dir*2*CELL,-2*CELL);
+    }
+  }
+}
+function drawBosses() {
+  for(const boss of state.room.bosses||[]) {
+    const pads=bossPadRects(boss),scale=state.cam.scale;
+    const ready=boss.state==='recover'&&boss.onGround&&!boss.defeated;
+    for(let i=0;i<pads.length;i++) {
+      const pad=pads[i],pos=worldToScreen(pad.x,pad.y),active=i===boss.activePad&&!boss.defeated;
+      ctx.fillStyle=ready&&active?'#8dffbf':active?'#eec36c':'#58616e';
+      ctx.fillRect(pos.x,pos.y,pad.w*scale,pad.h*scale);
+      ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(1,scale*.35);
+      ctx.strokeRect(pos.x-scale*.3,pos.y-scale*.3,pad.w*scale+scale*.6,pad.h*scale+scale*.6);
+      if(ready&&active){ctx.fillStyle='#c0ffdb';ctx.font=`bold ${Math.max(10,scale*2.4)}px system-ui`;ctx.textAlign='center';ctx.fillText('↓',pos.x+pad.w*scale/2,pos.y-scale*1.4);ctx.textAlign='left';}
+    }
+    const box=bossRect(boss),pos=worldToScreen(box.x,box.y),w=box.w*scale,h=box.h*scale;
+    const flipped=boss.state==='stunned'||boss.defeated||boss.state==='reboot';
+    const color=boss.defeated?'#5b6871':boss.state==='stunned'?'#82ffb2':boss.state==='recover'?'#ffd477':['charge','walljump'].includes(boss.state)?'#ff716b':'#b4c4d7';
+    ctx.save();ctx.translate(pos.x,pos.y);ctx.strokeStyle=color;ctx.fillStyle='#34465c';ctx.lineWidth=Math.max(1.3,scale*.6);
+    if(!flipped) {
+      const gait=Math.sin((state.room.localTime||0)*13)*h*.035;
+      for(let side of [-1,1])for(let i=0;i<3;i++) {
+        const start=w*(.5+side*.2),end=w*(.5+side*(.38+i*.035)),yy=h*(.85+i*.06);
+        ctx.beginPath();ctx.moveTo(start,h*(.3+i*.09));ctx.lineTo(w*(.5+side*.42),h*(.48+i*.04)+gait);ctx.lineTo(end,yy);ctx.stroke();
+      }
+      ctx.beginPath();ctx.ellipse(w*.5,h*.36,w*.33,h*.25,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      // The recurring antagonist is the small bunker rat driving the machine.
+      ctx.fillStyle='#c9b2bd';ctx.beginPath();ctx.ellipse(w*.5,h*.31,w*.105,h*.105,0,0,Math.PI*2);ctx.fill();
+      for(const side of [-1,1]){ctx.beginPath();ctx.ellipse(w*(.5+side*.075),h*.215,w*.05,h*.05,0,0,Math.PI*2);ctx.fill();}
+      ctx.fillStyle='#feefb0';ctx.fillRect(w*(boss.dir<0?.42:.53),h*.29,w*.045,Math.max(2,h*.035));
+      ctx.strokeStyle='#c9b2bd';ctx.beginPath();ctx.moveTo(w*.4,h*.34);ctx.quadraticCurveTo(w*.17,h*.21,w*.24,h*.45);ctx.stroke();
+    } else {
+      ctx.fillStyle=boss.defeated?'#394552':'#274c42';ctx.fillRect(w*.05,h*.18,w*.9,h*.72);
+      ctx.strokeRect(w*.05,h*.18,w*.9,h*.72);
+      ctx.fillStyle=color;ctx.fillRect(w*.26,0,w*.48,Math.max(2,h*.2));
+      for(const side of [-1,1])for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(w*(.5+side*.18),h*.55);ctx.lineTo(w*(.5+side*(.31+i*.07)),h*.06);ctx.stroke();}
+    }
+    const label=boss.defeated?'КРЫСА СБЕЖАЛА':boss.state==='stunned'?'БРЮХО ↓':boss.state==='recover'?'ПЕДАЛЬ ↓':boss.state==='walljump'?'WJ':boss.state==='charge'?'РЫВОК':boss.state==='reboot'?'БРОНЯ':`РЫВОК ${boss.dir<0?'←':'→'}`;
+    ctx.font=`bold ${Math.max(12,Math.min(20,scale*4))}px system-ui`;ctx.textAlign='center';
+    const textWidth=ctx.measureText(label).width;
+    ctx.fillStyle='rgba(5,12,23,.85)';ctx.fillRect(w*.5-textWidth/2-4,-scale*8,textWidth+8,scale*5.8);
+    ctx.fillStyle=color;ctx.fillText(label,w*.5,-scale*3.5);
+    for(let i=0;i<RAT_SPIDER_RULES.hits;i++){ctx.fillStyle=i<boss.hits?'#344054':'#ffcf7f';ctx.fillRect(w*.5+(i-1)*scale*2.8-scale, -scale*1.5,scale*2,scale*.8);}
+    ctx.restore();
   }
 }
 
@@ -12944,6 +13428,7 @@ function collideHazardsAndEnemies(jumpHeldNow=false) {
 function checkExit() {
   const p = state.player;
   if (!p || !state.room) return;
+  if (roomHasLivingBoss()) return;
   if (tryEnterLevelDoor()) return;
   if (state.room.showDefaultExit === false || !state.room.exit) return;
   const e = state.room.exit;
@@ -12953,6 +13438,8 @@ function checkExit() {
     finishEditorPlaytest();
     return;
   }
+  if(state.room.roomType==='infinite'){loadNextInfiniteRoom();return;}
+  recordEpisodeRoomClear();
   if (state.room.completeEpisode) {
     completeEpisodeRun(state.room.completeEpisode);
     return;
@@ -12974,6 +13461,7 @@ function checkExit() {
 }
 
 function goToNextRoomFromPause() {
+  if (state.room?.lobbyNumber) return;
   const next = Number.isFinite(state.room?.nextRoomIndex)
     ? state.room.nextRoomIndex
     : (state.roomIndex >= state.rooms.length - 1 ? 0 : state.roomIndex + 1);
@@ -12995,6 +13483,7 @@ function hangingShouldAutoRelease(p) {
 function updatePlayer(dt) {
   const p = state.player;
   if (!p || state.mode !== 'playing') return;
+  const gravityKeys=['jp','fl','vv'].filter(key=>p.buffs[key]);if(gravityKeys.length>1){const keep=gravityKeys.includes(p.gravityItem)?p.gravityItem:gravityKeys.at(-1);for(const key of gravityKeys)p.buffs[key]=key===keep;if(keep!=='vv')p.gravityDir=1;}
   p.e5CarriedThisFrame = false;
   p.kinematicTopResolvedRef = null;
   p.kinematicCrushedThisFrame = false;
@@ -13023,6 +13512,7 @@ function updatePlayer(dt) {
 
   updatePlatforms(dt);
   updateEnemies(dt);
+  updateBosses(dt);
   updateCannons(dt);
   resolveMovingCubeVsPlayer(p);
   resolveKinematicPlatformContacts(p);
@@ -13032,7 +13522,7 @@ function updatePlayer(dt) {
 
   // carry by current platform
   const groundRefMoving = !!(p.groundRef && ('dx' in p.groundRef) && (Math.abs(p.groundRef.dx || 0) > 0.0001 || Math.abs(p.groundRef.dy || 0) > 0.0001));
-  if (p.groundRef && p.onGround && groundRefMoving) {
+  if (p.gravityDir !== -1 && p.groundRef && p.onGround && groundRefMoving) {
     const support = getKinematicGroundSupport(p, p.groundRef);
     if (isPushCube(p.groundRef)) {
       if (support && playerActuallySupportedByMovingCube(p, p.groundRef)) {
@@ -13124,10 +13614,11 @@ function updatePlayer(dt) {
       updateUnlockSwitches();
       updateHeartVendors();
       collectCoinsAndPickups();
-      collideHazardsAndEnemies(jumpHeldNow); checkExit(); updateHUD(); return;
+      collideHazardsAndEnemies(jumpHeldNow); updateBossContacts(); checkExit(); updateHUD(); return;
     }
   }
 
+  if (p.onGround && !p.hanging) p.jpFuel = JETPACK_CAPACITY;
   if (p.onGround) { p.coyote = COYOTE_TIME; p.extraJumpReady = hasDoubleJumpAbility(); p.wallJumpUsed = false; }
   else p.coyote = Math.max(0, p.coyote - dt);
   p.jumpBuffer = jumpPressedNow ? JUMP_BUFFER : Math.max(0, p.jumpBuffer - dt);
@@ -13162,7 +13653,7 @@ function updatePlayer(dt) {
   p.visualJpActive = false;
   p.visualFlActive = false;
 
-  if (!p.buffs.vv && (p.buffs.jp || p.driftFieldActive)) {
+  if (!p.buffs.vv && ((p.buffs.jp && p.jpFuel > 0) || p.driftFieldActive)) {
     if (p.driftFieldActive) {
       if (jumpHeldNow) {
         if (jumpPressedNow) p.vy = Math.min(p.vy, -DRIFT_FIELD_ASCEND_KICK_SPEED);
@@ -13176,7 +13667,7 @@ function updatePlayer(dt) {
       p.vy = Math.min(p.vy, -JETPACK_SPEED);
       p.onGround = false;
       p.groundRef = null;
-      if (p.buffs.jp) p.visualJpActive = true;
+      if (p.buffs.jp) { p.visualJpActive = true; p.jpFuel = Math.max(0, p.jpFuel - dt); if (p.jpFuel < 1e-9) p.jpFuel = 0; }
     }
   }
 
@@ -13198,7 +13689,7 @@ function updatePlayer(dt) {
     pushMsg(p.gravityDir < 0 ? 'V ↑' : 'V ↓', '#c7ffd8', 0.7);
   }
 
-  if (p.jumpBuffer > 0 && !p.buffs.jp && !p.buffs.vv && !p.driftFieldActive) {
+  if (p.jumpBuffer > 0 && (!p.buffs.jp || p.jpFuel <= 0) && !p.visualJpActive && !p.buffs.vv && !p.driftFieldActive) {
     const wallReady = hasWallJumpAbility() && !p.onGround && !p.wallJumpUsed && Math.abs(inputX) > 0.5 && (touchingWallAtFeet(p, Math.sign(inputX)) || p.wallDir === Math.sign(inputX));
     if (p.coyote > 0 || wallReady) {
       beginJump(p, wallReady ? Math.sign(inputX) : 0);
@@ -13238,6 +13729,7 @@ function updatePlayer(dt) {
 
   moveHorizontal(p, dt, inputX);
   moveVertical(p, dt, jumpHeldNow);
+  if (p.onGround && !p.hanging) p.jpFuel = JETPACK_CAPACITY;
   if (resolveCrusherWallsVsPlayer(p)) { updateHUD(); return; }
   tryPortalTeleport(p, { player:true, dt });
   applyConveyorToPlayer(p, dt);
@@ -13285,6 +13777,7 @@ function updatePlayer(dt) {
   updateHeartVendors();
   collectCoinsAndPickups();
   collideHazardsAndEnemies(jumpHeldNow);
+  updateBossContacts();
   checkExit();
 
   if (p.onGround) {
@@ -14038,7 +14531,7 @@ function drawSingleCollectionBadge(badge) {
   const pos = worldToScreen(badge.x*CELL, badge.y*CELL);
   const w = badge.w*CELL*state.cam.scale;
   const h = badge.h*CELL*state.cam.scale;
-  const isSilhouette = hasCollectedBadge(badge.id);
+  const isSilhouette = state.room.roomType==='episode'&&state.room.campaignSlot===24 ? !!episodeAchievement(state.room.episodeId,state.room.difficulty).badge : hasCollectedBadge(badge.id);
   const fill = badge.fill || '#ffd66b';
   const accent = badge.accent || '#fff3b0';
   const outer = isSilhouette ? 'rgba(255,255,255,.42)' : fill;
@@ -14084,7 +14577,8 @@ function drawPickups() {
     }
     ctx.fillStyle = unlocked ? '#102038' : 'rgba(232,240,255,.75)';
     ctx.font = `${Math.max(10, Math.round(11*state.cam.scale))}px system-ui`;
-    ctx.fillText(pickupDisplayName(item.type), Math.round(pos.x + 3), Math.round(pos.y + h*.65));
+    const text=item.rewardLabel||pickupDisplayName(item.type);if(item.rewardLabel){const measured=ctx.measureText(text).width;if(measured>w-6)ctx.font=`${Math.max(6,11*state.cam.scale*(w-6)/measured)}px system-ui`;}
+    ctx.fillText(text, Math.round(pos.x + 3), Math.round(pos.y + h*.65));
   }
 }
 function drawUnlockSwitches() {
@@ -14143,8 +14637,8 @@ function drawDoorStarSlots(door, rect, sx, sy, sw, sh) {
   const y = sy - Math.max(10, Math.round(sh * 0.22));
   for (let i = 0; i < stars.length; i++) {
     const filled = !!stars[i];
-    traceDoorStarShape(x, y, size, Math.max(2, Math.round(size * 0.48)));
-    ctx.fillStyle = filled ? '#ffd76f' : 'rgba(255,255,255,.12)';
+    if(door.showDifficultyStar&&i===1){ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);}else if(door.showDifficultyStar&&i===2){traceBadgeShape('sun',x-size,y-size,size*2,size*2);}else traceDoorStarShape(x, y, size, Math.max(2, Math.round(size * 0.48)));
+    ctx.fillStyle = filled ? (typeof stars[i]==='string'?stars[i]:'#ffd76f') : 'rgba(255,255,255,.12)';
     ctx.fill();
     ctx.strokeStyle = filled ? '#fff1b9' : 'rgba(255,255,255,.42)';
     ctx.lineWidth = Math.max(1, state.cam.scale);
@@ -14212,6 +14706,7 @@ function drawLevelDoors() {
 
 function drawExitAndSpawn() {
   const s = state.room.spawn, e = state.room.exit;
+  if(state.room.lobbyNumber&&state.room.levelDoors.some(d=>d.kind==='back'))return;
 
   const spawnRect = getSpawnDoorWorldRect(s);
   const spawnPos = worldToScreen(spawnRect.x, spawnRect.y), sw = spawnRect.w * state.cam.scale, sh = spawnRect.h * state.cam.scale;
@@ -14227,10 +14722,12 @@ function drawExitAndSpawn() {
 function drawExitDoor(e, secret=false) {
     const exitRect = getExitDoorWorldRect(e);
     const pos = worldToScreen(exitRect.x, exitRect.y), w = exitRect.w * state.cam.scale, h = exitRect.h * state.cam.scale;
-    ctx.fillStyle = secret ? '#61d994' : '#74d7ff';
+    const bossLocked=!secret&&roomHasLivingBoss();
+    ctx.fillStyle = bossLocked ? '#9b7164' : secret ? '#61d994' : '#74d7ff';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
     ctx.fillStyle = secret ? '#ddffdf' : '#eaf9ff';
     ctx.fillRect(Math.round(pos.x + w*.18), Math.round(pos.y + h*.18), Math.ceil(w*.64), Math.ceil(h*.64));
+    if(bossLocked){ctx.strokeStyle='#f7c086';ctx.lineWidth=Math.max(2,w*.07);ctx.beginPath();ctx.moveTo(pos.x+w*.18,pos.y+h*.2);ctx.lineTo(pos.x+w*.82,pos.y+h*.8);ctx.moveTo(pos.x+w*.82,pos.y+h*.2);ctx.lineTo(pos.x+w*.18,pos.y+h*.8);ctx.stroke();}
     ctx.fillStyle = '#20395d';
     ctx.fillRect(Math.round(pos.x + w*.60), Math.round(pos.y + h*.46), Math.ceil(w*.12), Math.ceil(h*.10));
     ctx.fillStyle = 'rgba(255,255,255,.22)';
@@ -14472,6 +14969,7 @@ function drawLabels() {
     const h = worldH * state.cam.scale;
     if (pos.x + w < 0 || pos.y + h < 0 || pos.x > canvas.width || pos.y > canvas.height) continue;
     const text = String(label.text || 'NuBu2600').trim() || 'NuBu2600';
+    if(state.room.lobbyNumber){ctx.save();ctx.fillStyle='rgba(5,15,25,.6)';ctx.fillRect(pos.x,pos.y,w,h);ctx.fillStyle=label.color||'#d8e2ff';ctx.textAlign='center';ctx.textBaseline='middle';const lines=text.length>14&&text.includes(' ')?[text.slice(0,text.lastIndexOf(' ')),text.slice(text.lastIndexOf(' ')+1)]:[text];let size=Math.max(10,h*(lines.length>1?.29:.38));ctx.font=`bold ${size}px system-ui`;const widest=Math.max(...lines.map(t=>ctx.measureText(t).width));if(widest>w*.9)size*=w*.9/widest;ctx.font=`bold ${size}px system-ui`;lines.forEach((line,i)=>ctx.fillText(line,pos.x+w/2,pos.y+h/2+(i-(lines.length-1)/2)*size*1.25));ctx.restore();continue;}
     const stream = `  ◆  ${text}  ◆  ${text}  ◆  `;
     ctx.save();
     ctx.fillStyle = 'rgba(5,15,25,.42)';
@@ -14646,13 +15144,13 @@ function drawPlayer() {
     }
   }
   if (p.buffs.jp && !p.buffs.vv) {
-    if (p.visualJpActive) {
-      ctx.fillStyle = '#ffbe7a';
-      ctx.fillRect(0, lowerY, pw, lowerH);
-    } else {
-      ctx.strokeStyle = '#ffbe7a';
-      ctx.strokeRect(0.5, lowerY + 0.5, Math.max(1, pw - 1), Math.max(1, lowerH - 1));
-    }
+    const fuel = clamp(p.jpFuel / JETPACK_CAPACITY, 0, 1);
+    ctx.fillStyle = '#493322';
+    ctx.fillRect(0, lowerY, pw, lowerH);
+    ctx.fillStyle = '#ffbe7a';
+    ctx.fillRect(0, lowerY, pw * fuel, lowerH);
+    ctx.strokeStyle = '#ffbe7a';
+    ctx.strokeRect(0.5, lowerY + 0.5, Math.max(1, pw - 1), Math.max(1, lowerH - 1));
   }
 
   ctx.fillStyle = '#203150';
@@ -14713,6 +15211,7 @@ function render(alpha=1) {
       drawLevelDoors();
       drawExitAndSpawn();
       drawEnemies();
+      drawBosses();
       drawPlayer();
       drawPortals();
       drawCrusherWalls();
@@ -15181,7 +15680,7 @@ function captureRenderSnapshot() {
       phase:body.state, cornerVisualX:body.cornerVisualX, cornerVisualY:body.cornerVisualY });
   };
   capture(player);
-  for (const key of ['enemies', 'pushBlocks', 'bullets']) for (const body of room[key] || []) capture(body);
+  for (const key of ['enemies', 'bosses', 'pushBlocks', 'bullets']) for (const body of room[key] || []) capture(body);
   for (const key of ['movers', 'dropPlatforms', 'crusherWalls']) for (const body of room[key] || []) capture(body, CELL);
   for (const smart of room.smarts || []) for (const body of smart.instances || []) capture(body, CELL);
   return { room, player, localTime:room.localTime, entries };
@@ -15431,6 +15930,10 @@ if (pendingEditorPlaytest) {
   updatePauseAbilityButtons();
   showOverlay('start');
   preloadEmbeddedEditor();
+  // The canonical application opens on its playable title room; isolated HTML fixtures keep manual startup.
+  if(window.parent===window&&/(?:\/|index\.html)$/.test(location.pathname)){
+    showOverlay(null);void startRun().then(()=>{if(state.mode==='start')showOverlay('start');});
+  }
 }
 requestAnimationFrame(step);
 })();

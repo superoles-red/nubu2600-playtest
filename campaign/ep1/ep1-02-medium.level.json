@@ -1,6 +1,6 @@
 {
   "kind": "nubu.level",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "ep1-02-medium",
   "title": "С02 · Э1 · Средняя · 1-2 · Лестница обслуживания",
   "episode": 1,
@@ -8,37 +8,17 @@
   "role": "develop",
   "size": {
     "width": 20,
-    "height": 100
+    "height": 80
   },
   "theme": "Лестница обслуживания",
   "learningGoal": "",
-  "designerNotes": "Черновик Средняя из исходного слота 1-2; это не готовая авторская Easy-карта. Смерть возвращает к входу этой комнаты; чекпоинтов нет. Исходные описания сохранены в metadata.importSource.",
+  "designerNotes": "Более актуальная авторская Easy-карта из отдельного файла ep1-02-easy.level.json: подъём снизу вверх через четыре поля. Сохранена геометрия, кроме запрошенных размеров. Смерть возвращает ко входу этой комнаты; чекпоинтов нет. Прежний вариант библиотеки сохранён в metadata.supersededLibraryLevel.",
   "objects": [
-    {
-      "id": "solid-01",
-      "type": "solid",
-      "x": 0,
-      "y": 0,
-      "w": 4,
-      "h": 8,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "solid-02",
-      "type": "solid",
-      "x": 4,
-      "y": 0,
-      "w": 4,
-      "h": 4,
-      "layer": "terrain",
-      "props": {}
-    },
     {
       "id": "exit-main",
       "type": "exit",
       "x": 17,
-      "y": 1,
+      "y": 2,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -47,210 +27,10 @@
       }
     },
     {
-      "id": "solid-03",
-      "type": "solid",
-      "x": 16,
-      "y": 4,
-      "w": 4,
-      "h": 8,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-01",
-      "type": "coin",
-      "x": 14,
-      "y": 7,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-01",
-      "type": "oneWay",
-      "x": 14,
-      "y": 8,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-02",
-      "type": "coin",
-      "x": 9,
-      "y": 9,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-02",
-      "type": "oneWay",
-      "x": 9,
-      "y": 10,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "solid-04",
-      "type": "solid",
-      "x": 18,
-      "y": 12,
-      "w": 2,
-      "h": 4,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-03",
-      "type": "coin",
-      "x": 5,
-      "y": 13,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-03",
-      "type": "oneWay",
-      "x": 5,
-      "y": 14,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-04",
-      "type": "coin",
-      "x": 1,
-      "y": 17,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-04",
-      "type": "oneWay",
-      "x": 1,
-      "y": 18,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-05",
-      "type": "coin",
-      "x": 3,
-      "y": 19,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-05",
-      "type": "oneWay",
-      "x": 3,
-      "y": 20,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-06",
-      "type": "coin",
-      "x": 7,
-      "y": 21,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-07",
-      "type": "coin",
-      "x": 9,
-      "y": 21,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-08",
-      "type": "coin",
-      "x": 11,
-      "y": 21,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-06",
-      "type": "oneWay",
-      "x": 5,
-      "y": 22,
-      "w": 11,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-09",
-      "type": "coin",
-      "x": 17,
-      "y": 25,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-07",
-      "type": "oneWay",
-      "x": 17,
-      "y": 26,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-10",
-      "type": "coin",
-      "x": 14,
-      "y": 29,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-08",
-      "type": "oneWay",
-      "x": 14,
-      "y": 30,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
       "id": "solid-05",
       "type": "solid",
       "x": 7,
-      "y": 33,
+      "y": 13,
       "w": 6,
       "h": 1,
       "layer": "terrain",
@@ -260,7 +40,7 @@
       "id": "spike-01",
       "type": "spike",
       "x": 8,
-      "y": 34,
+      "y": 14,
       "w": 4,
       "h": 1,
       "layer": "hazard",
@@ -274,8 +54,8 @@
     {
       "id": "coin-11",
       "type": "coin",
-      "x": 3,
-      "y": 36,
+      "x": 8,
+      "y": 3,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -285,7 +65,7 @@
       "id": "coin-12",
       "type": "coin",
       "x": 15,
-      "y": 36,
+      "y": 15,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -294,9 +74,9 @@
     {
       "id": "oneway-09",
       "type": "oneWay",
-      "x": 2,
-      "y": 37,
-      "w": 4,
+      "x": 3,
+      "y": 17,
+      "w": 2,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -304,9 +84,9 @@
     {
       "id": "oneway-10",
       "type": "oneWay",
-      "x": 14,
-      "y": 37,
-      "w": 4,
+      "x": 15,
+      "y": 17,
+      "w": 2,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -314,9 +94,9 @@
     {
       "id": "solid-06",
       "type": "solid",
-      "x": 1,
-      "y": 40,
-      "w": 6,
+      "x": 2,
+      "y": 20,
+      "w": 5,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -325,8 +105,8 @@
       "id": "solid-07",
       "type": "solid",
       "x": 13,
-      "y": 40,
-      "w": 6,
+      "y": 20,
+      "w": 5,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -334,9 +114,9 @@
     {
       "id": "spike-02",
       "type": "spike",
-      "x": 2,
-      "y": 41,
-      "w": 4,
+      "x": 3,
+      "y": 21,
+      "w": 3,
       "h": 1,
       "layer": "hazard",
       "props": {
@@ -345,23 +125,13 @@
         "cycle": 2,
         "startActive": true
       }
-    },
-    {
-      "id": "coin-13",
-      "type": "coin",
-      "x": 9,
-      "y": 41,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
     },
     {
       "id": "spike-03",
       "type": "spike",
       "x": 14,
-      "y": 41,
-      "w": 4,
+      "y": 21,
+      "w": 3,
       "h": 1,
       "layer": "hazard",
       "props": {
@@ -372,20 +142,10 @@
       }
     },
     {
-      "id": "oneway-11",
-      "type": "oneWay",
-      "x": 8,
-      "y": 42,
-      "w": 4,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
       "id": "coin-14",
       "type": "coin",
-      "x": 3,
-      "y": 45,
+      "x": 5,
+      "y": 26,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -394,8 +154,8 @@
     {
       "id": "coin-15",
       "type": "coin",
-      "x": 15,
-      "y": 45,
+      "x": 11,
+      "y": 42,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -404,9 +164,9 @@
     {
       "id": "oneway-12",
       "type": "oneWay",
-      "x": 2,
-      "y": 46,
-      "w": 16,
+      "x": 12,
+      "y": 28,
+      "w": 3,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -415,9 +175,9 @@
       "id": "solid-08",
       "type": "solid",
       "x": 0,
-      "y": 49,
-      "w": 4,
-      "h": 51,
+      "y": 28,
+      "w": 3,
+      "h": 52,
       "layer": "terrain",
       "props": {}
     },
@@ -425,17 +185,7 @@
       "id": "oneway-13",
       "type": "oneWay",
       "x": 4,
-      "y": 49,
-      "w": 3,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "oneway-14",
-      "type": "oneWay",
-      "x": 13,
-      "y": 49,
+      "y": 28,
       "w": 3,
       "h": 1,
       "layer": "terrain",
@@ -444,48 +194,28 @@
     {
       "id": "solid-09",
       "type": "solid",
-      "x": 16,
-      "y": 49,
-      "w": 4,
-      "h": 19,
+      "x": 17,
+      "y": 28,
+      "w": 3,
+      "h": 20,
       "layer": "terrain",
       "props": {}
     },
     {
       "id": "coin-16",
       "type": "coin",
-      "x": 7,
-      "y": 52,
+      "x": 14,
+      "y": 30,
       "w": 1,
       "h": 1,
       "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-17",
-      "type": "coin",
-      "x": 11,
-      "y": 52,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-15",
-      "type": "oneWay",
-      "x": 7,
-      "y": 53,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
       "props": {}
     },
     {
       "id": "oneway-16",
       "type": "oneWay",
-      "x": 11,
-      "y": 53,
+      "x": 14,
+      "y": 32,
       "w": 2,
       "h": 1,
       "layer": "terrain",
@@ -494,8 +224,8 @@
     {
       "id": "coin-18",
       "type": "coin",
-      "x": 5,
-      "y": 56,
+      "x": 9,
+      "y": 34,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -504,48 +234,18 @@
     {
       "id": "coin-19",
       "type": "coin",
-      "x": 13,
-      "y": 56,
+      "x": 5,
+      "y": 38,
       "w": 1,
       "h": 1,
       "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-17",
-      "type": "oneWay",
-      "x": 5,
-      "y": 57,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
       "props": {}
     },
     {
       "id": "oneway-18",
       "type": "oneWay",
-      "x": 13,
-      "y": 57,
-      "w": 2,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-20",
-      "type": "coin",
       "x": 9,
-      "y": 59,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-19",
-      "type": "oneWay",
-      "x": 9,
-      "y": 60,
+      "y": 36,
       "w": 2,
       "h": 1,
       "layer": "terrain",
@@ -554,17 +254,7 @@
     {
       "id": "coin-21",
       "type": "coin",
-      "x": 5,
-      "y": 62,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-22",
-      "type": "coin",
-      "x": 13,
+      "x": 8,
       "y": 62,
       "w": 1,
       "h": 1,
@@ -575,37 +265,17 @@
       "id": "oneway-20",
       "type": "oneWay",
       "x": 4,
-      "y": 63,
-      "w": 4,
+      "y": 40,
+      "w": 3,
       "h": 1,
       "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "oneway-21",
-      "type": "oneWay",
-      "x": 12,
-      "y": 63,
-      "w": 4,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-23",
-      "type": "coin",
-      "x": 9,
-      "y": 65,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
       "props": {}
     },
     {
       "id": "oneway-22",
       "type": "oneWay",
-      "x": 9,
-      "y": 66,
+      "x": 10,
+      "y": 44,
       "w": 2,
       "h": 1,
       "layer": "terrain",
@@ -614,8 +284,8 @@
     {
       "id": "coin-24",
       "type": "coin",
-      "x": 13,
-      "y": 67,
+      "x": 14,
+      "y": 66,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -624,199 +294,49 @@
     {
       "id": "solid-10",
       "type": "solid",
-      "x": 12,
-      "y": 68,
-      "w": 8,
-      "h": 8,
+      "x": 14,
+      "y": 48,
+      "w": 6,
+      "h": 12,
       "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-25",
-      "type": "coin",
-      "x": 8,
-      "y": 71,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
       "props": {}
     },
     {
       "id": "oneway-23",
       "type": "oneWay",
-      "x": 6,
-      "y": 72,
-      "w": 6,
+      "x": 10,
+      "y": 52,
+      "w": 2,
       "h": 1,
       "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-26",
-      "type": "coin",
-      "x": 5,
-      "y": 74,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
       "props": {}
     },
     {
       "id": "oneway-24",
       "type": "oneWay",
       "x": 4,
-      "y": 75,
-      "w": 4,
+      "y": 56,
+      "w": 3,
       "h": 1,
       "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-27",
-      "type": "coin",
-      "x": 9,
-      "y": 78,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-25",
-      "type": "oneWay",
-      "x": 6,
-      "y": 79,
-      "w": 10,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-28",
-      "type": "coin",
-      "x": 17,
-      "y": 82,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-26",
-      "type": "oneWay",
-      "x": 16,
-      "y": 83,
-      "w": 4,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-29",
-      "type": "coin",
-      "x": 9,
-      "y": 84,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-30",
-      "type": "coin",
-      "x": 13,
-      "y": 84,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
       "props": {}
     },
     {
       "id": "oneway-27",
       "type": "oneWay",
-      "x": 6,
-      "y": 85,
-      "w": 10,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-31",
-      "type": "coin",
-      "x": 5,
-      "y": 88,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-28",
-      "type": "oneWay",
-      "x": 4,
-      "y": 89,
-      "w": 4,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-32",
-      "type": "coin",
       "x": 13,
-      "y": 91,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "coin-33",
-      "type": "coin",
-      "x": 7,
-      "y": 92,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "oneway-29",
-      "type": "oneWay",
-      "x": 12,
-      "y": 92,
-      "w": 4,
+      "y": 68,
+      "w": 3,
       "h": 1,
       "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "oneway-30",
-      "type": "oneWay",
-      "x": 6,
-      "y": 93,
-      "w": 4,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "coin-34",
-      "type": "coin",
-      "x": 17,
-      "y": 94,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
       "props": {}
     },
     {
       "id": "solid-11",
       "type": "solid",
-      "x": 16,
-      "y": 95,
-      "w": 4,
+      "x": 11,
+      "y": 75,
+      "w": 9,
       "h": 3,
       "layer": "terrain",
       "props": {}
@@ -824,8 +344,8 @@
     {
       "id": "spawn-01",
       "type": "spawn",
-      "x": 8,
-      "y": 96,
+      "x": 3,
+      "y": 75,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -835,28 +355,243 @@
       }
     },
     {
-      "id": "coin-35",
-      "type": "coin",
+      "id": "solid-12",
+      "type": "solid",
+      "x": 3,
+      "y": 78,
+      "w": 17,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-01",
+      "type": "solid",
       "x": 14,
-      "y": 97,
+      "y": 72,
+      "w": 6,
+      "h": 3,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 17,
+      "y": 68,
+      "w": 3,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 5,
+      "y": 54,
       "w": 1,
       "h": 1,
       "layer": "entity",
       "props": {}
     },
     {
-      "id": "solid-12",
+      "id": "solid-03",
       "type": "solid",
-      "x": 14,
-      "y": 98,
-      "w": 6,
-      "h": 2,
+      "x": 3,
+      "y": 60,
+      "w": 3,
+      "h": 12,
       "layer": "terrain",
       "props": {}
+    },
+    {
+      "id": "one-way-01",
+      "type": "oneWay",
+      "x": 7,
+      "y": 64,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 15,
+      "y": 46,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 17,
+      "y": 60,
+      "w": 3,
+      "h": 4,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-02",
+      "type": "oneWay",
+      "x": 3,
+      "y": 9,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-03",
+      "type": "oneWay",
+      "x": 8,
+      "y": 5,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-04",
+      "type": "oneWay",
+      "x": 13,
+      "y": 7,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-05",
+      "type": "oneWay",
+      "x": 17,
+      "y": 5,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 13,
+      "y": 5,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 4,
+      "y": 7,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 10,
+      "y": 50,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 4,
+      "y": 15,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 9,
+      "y": 22,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 13,
+      "y": 26,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "one-way-07",
+      "type": "oneWay",
+      "x": 8,
+      "y": 24,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 1,
+      "y": 26,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 18,
+      "y": 26,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 12,
+      "y": 73,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "spike-04",
+      "type": "spike",
+      "x": 14,
+      "y": 60,
+      "w": 3,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "down",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
     }
   ],
   "metadata": {
-    "status": "idea",
+    "status": "graybox",
     "revision": 1,
     "source": "Level 1-02.xlsx",
     "difficulty": "medium",
@@ -870,20 +605,24 @@
       "normalNumber": 2,
       "name": "Лестница обслуживания",
       "sourceSlot": 2,
-      "authored": false,
+      "authored": true,
       "deathRestart": "roomStart"
     },
     "importSource": {
-      "file": "nubu2600-library-2026-09-03.json",
-      "sha256": "7de0dc488af45f31bb57fc8869ac4500260ef29c11feb29b1c76b6083c06f6b1",
-      "exportedAt": 1788403891679,
+      "file": "ep1-02-easy.level.json",
+      "sha256": "1d0134622f4f7902a1e1e30fb3633d117faa27f2f6df0cd83b4184f22323d05e",
       "sourceSlot": 2,
-      "originalId": "ep1-02-medium",
-      "originalTitle": "Эпизод 1 · Средняя · Уровень 1-2",
+      "originalId": "ep1-02-easy",
+      "originalTitle": "Эпизод 1 · Лёгкая · Уровень 1-2",
       "originalRole": "develop",
       "originalTheme": "Импортированная авторская карта первого эпизода.",
       "originalLearningGoal": "",
-      "originalDesignerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes. Полная самостоятельная карта сложности создана копированием easy и ещё не настроена."
+      "originalDesignerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes.",
+      "librarySource": {
+        "file": "nubu2600-library-2026-09-03.json",
+        "sha256": "7de0dc488af45f31bb57fc8869ac4500260ef29c11feb29b1c76b6083c06f6b1",
+        "exportedAt": 1788403891679
+      }
     },
     "geometryMigrations": [
       {
@@ -892,7 +631,7 @@
           "id": "exit-main",
           "type": "exit",
           "x": 17,
-          "y": 1,
+          "y": 2,
           "w": 2,
           "h": 3,
           "layer": "meta",
@@ -904,7 +643,7 @@
           "id": "exit-main",
           "type": "exit",
           "x": 17,
-          "y": 1,
+          "y": 2,
           "w": 3,
           "h": 3,
           "layer": "meta",
@@ -918,8 +657,8 @@
         "before": {
           "id": "spawn-01",
           "type": "spawn",
-          "x": 8,
-          "y": 96,
+          "x": 4,
+          "y": 75,
           "w": 1,
           "h": 2,
           "layer": "meta",
@@ -931,8 +670,8 @@
         "after": {
           "id": "spawn-01",
           "type": "spawn",
-          "x": 8,
-          "y": 96,
+          "x": 4,
+          "y": 75,
           "w": 3,
           "h": 3,
           "layer": "meta",
@@ -943,6 +682,683 @@
         }
       }
     ],
-    "template": true
-  }
+    "template": false,
+    "supersededLibraryLevel": {
+      "kind": "nubu.level",
+      "schemaVersion": 2,
+      "id": "ep1-02-easy",
+      "title": "Эпизод 1 · Лёгкая · Уровень 1-2",
+      "episode": 1,
+      "sequence": 2,
+      "role": "develop",
+      "size": {
+        "width": 20,
+        "height": 80
+      },
+      "theme": "Импортированная авторская карта первого эпизода.",
+      "learningGoal": "",
+      "designerNotes": "Одноразовый перенос из XLSX; свободные подписи сохранены в metadata.unmappedNotes.",
+      "objects": [
+        {
+          "id": "exit-main",
+          "type": "exit",
+          "x": 17,
+          "y": 2,
+          "w": 2,
+          "h": 3,
+          "layer": "meta",
+          "props": {
+            "route": "main"
+          }
+        },
+        {
+          "id": "solid-05",
+          "type": "solid",
+          "x": 7,
+          "y": 13,
+          "w": 6,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "spike-01",
+          "type": "spike",
+          "x": 8,
+          "y": 14,
+          "w": 4,
+          "h": 1,
+          "layer": "hazard",
+          "props": {
+            "direction": "down",
+            "mode": "always",
+            "cycle": 2,
+            "startActive": true
+          }
+        },
+        {
+          "id": "coin-11",
+          "type": "coin",
+          "x": 8,
+          "y": 3,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-12",
+          "type": "coin",
+          "x": 15,
+          "y": 15,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "oneway-09",
+          "type": "oneWay",
+          "x": 3,
+          "y": 17,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-10",
+          "type": "oneWay",
+          "x": 14,
+          "y": 17,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-06",
+          "type": "solid",
+          "x": 2,
+          "y": 20,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-07",
+          "type": "solid",
+          "x": 13,
+          "y": 20,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "spike-02",
+          "type": "spike",
+          "x": 3,
+          "y": 21,
+          "w": 3,
+          "h": 1,
+          "layer": "hazard",
+          "props": {
+            "direction": "down",
+            "mode": "always",
+            "cycle": 2,
+            "startActive": true
+          }
+        },
+        {
+          "id": "spike-03",
+          "type": "spike",
+          "x": 14,
+          "y": 21,
+          "w": 3,
+          "h": 1,
+          "layer": "hazard",
+          "props": {
+            "direction": "down",
+            "mode": "always",
+            "cycle": 2,
+            "startActive": true
+          }
+        },
+        {
+          "id": "coin-14",
+          "type": "coin",
+          "x": 5,
+          "y": 24,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-15",
+          "type": "coin",
+          "x": 14,
+          "y": 24,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "oneway-12",
+          "type": "oneWay",
+          "x": 11,
+          "y": 26,
+          "w": 7,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-08",
+          "type": "solid",
+          "x": 0,
+          "y": 29,
+          "w": 3,
+          "h": 51,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-13",
+          "type": "oneWay",
+          "x": 4,
+          "y": 29,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-14",
+          "type": "oneWay",
+          "x": 13,
+          "y": 29,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-09",
+          "type": "solid",
+          "x": 17,
+          "y": 29,
+          "w": 3,
+          "h": 19,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-16",
+          "type": "coin",
+          "x": 7,
+          "y": 31,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "oneway-15",
+          "type": "oneWay",
+          "x": 6,
+          "y": 33,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-16",
+          "type": "oneWay",
+          "x": 10,
+          "y": 33,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-18",
+          "type": "coin",
+          "x": 14,
+          "y": 35,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-19",
+          "type": "coin",
+          "x": 5,
+          "y": 42,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "oneway-18",
+          "type": "oneWay",
+          "x": 13,
+          "y": 37,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-19",
+          "type": "oneWay",
+          "x": 9,
+          "y": 41,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-21",
+          "type": "coin",
+          "x": 8,
+          "y": 62,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "oneway-20",
+          "type": "oneWay",
+          "x": 3,
+          "y": 44,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-22",
+          "type": "oneWay",
+          "x": 10,
+          "y": 46,
+          "w": 2,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-24",
+          "type": "coin",
+          "x": 18,
+          "y": 66,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "solid-10",
+          "type": "solid",
+          "x": 14,
+          "y": 48,
+          "w": 6,
+          "h": 12,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-23",
+          "type": "oneWay",
+          "x": 9,
+          "y": 52,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-24",
+          "type": "oneWay",
+          "x": 3,
+          "y": 56,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "oneway-27",
+          "type": "oneWay",
+          "x": 12,
+          "y": 68,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-11",
+          "type": "solid",
+          "x": 11,
+          "y": 75,
+          "w": 9,
+          "h": 3,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "spawn-01",
+          "type": "spawn",
+          "x": 9,
+          "y": 11,
+          "w": 1,
+          "h": 2,
+          "layer": "meta",
+          "props": {
+            "anchor": "topLeft",
+            "semantics": "playerBody"
+          }
+        },
+        {
+          "id": "solid-12",
+          "type": "solid",
+          "x": 3,
+          "y": 78,
+          "w": 17,
+          "h": 2,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-01",
+          "type": "solid",
+          "x": 14,
+          "y": 72,
+          "w": 6,
+          "h": 3,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "solid-02",
+          "type": "solid",
+          "x": 17,
+          "y": 68,
+          "w": 3,
+          "h": 4,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-01",
+          "type": "coin",
+          "x": 5,
+          "y": 54,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "solid-03",
+          "type": "solid",
+          "x": 3,
+          "y": 60,
+          "w": 3,
+          "h": 12,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "one-way-01",
+          "type": "oneWay",
+          "x": 6,
+          "y": 64,
+          "w": 5,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-02",
+          "type": "coin",
+          "x": 15,
+          "y": 46,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "solid-04",
+          "type": "solid",
+          "x": 17,
+          "y": 60,
+          "w": 3,
+          "h": 4,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "one-way-02",
+          "type": "oneWay",
+          "x": 2,
+          "y": 9,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "one-way-03",
+          "type": "oneWay",
+          "x": 7,
+          "y": 5,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "one-way-04",
+          "type": "oneWay",
+          "x": 12,
+          "y": 7,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "one-way-05",
+          "type": "oneWay",
+          "x": 17,
+          "y": 5,
+          "w": 3,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-03",
+          "type": "coin",
+          "x": 13,
+          "y": 5,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-04",
+          "type": "coin",
+          "x": 3,
+          "y": 7,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-07",
+          "type": "coin",
+          "x": 11,
+          "y": 50,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-09",
+          "type": "coin",
+          "x": 4,
+          "y": 15,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-06",
+          "type": "coin",
+          "x": 9,
+          "y": 19,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "one-way-06",
+          "type": "oneWay",
+          "x": 2,
+          "y": 26,
+          "w": 7,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-10",
+          "type": "coin",
+          "x": 11,
+          "y": 31,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "one-way-07",
+          "type": "oneWay",
+          "x": 8,
+          "y": 23,
+          "w": 4,
+          "h": 1,
+          "layer": "terrain",
+          "props": {}
+        },
+        {
+          "id": "coin-05",
+          "type": "coin",
+          "x": 1,
+          "y": 27,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-08",
+          "type": "coin",
+          "x": 18,
+          "y": 27,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "coin-13",
+          "type": "coin",
+          "x": 15,
+          "y": 70,
+          "w": 1,
+          "h": 1,
+          "layer": "entity",
+          "props": {}
+        },
+        {
+          "id": "label-01",
+          "type": "label",
+          "x": 8,
+          "y": 28,
+          "w": 4,
+          "h": 2,
+          "layer": "decor",
+          "props": {
+            "mode": "player",
+            "text": "Автор",
+            "color": "#d8e2ff",
+            "decorative": true,
+            "marquee": true
+          }
+        }
+      ],
+      "metadata": {
+        "status": "graybox",
+        "revision": 1,
+        "source": "Level 1-02.xlsx",
+        "difficulty": "easy",
+        "unmappedNotes": []
+      },
+      "panels": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 0,
+          "y": 2
+        },
+        {
+          "x": 0,
+          "y": 3
+        }
+      ]
+    }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 0,
+      "y": 2
+    },
+    {
+      "x": 0,
+      "y": 3
+    }
+  ]
 }

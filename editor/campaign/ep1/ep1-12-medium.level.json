@@ -1,54 +1,34 @@
 {
   "kind": "nubu.level",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "ep1-12-medium",
   "title": "С12 · Э1 · Средняя · 3-4 · Развилка тайника",
   "episode": 1,
   "sequence": 12,
   "role": "exam",
   "size": {
-    "width": 20,
-    "height": 20
+    "width": 60,
+    "height": 60
   },
   "theme": "Развилка тайника",
   "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
-  "designerNotes": "Черновик Средняя из исходного слота 1-13; это не готовая авторская Easy-карта. Смерть возвращает к входу этой комнаты; чекпоинтов нет. Исходные описания сохранены в metadata.importSource.",
+  "designerNotes": "Авторская Easy-карта из исходного слота 1-13; сохранена геометрия, кроме запрошенных размеров. Смерть возвращает к входу этой комнаты; чекпоинтов нет. Исходные описания сохранены в metadata.importSource.",
   "objects": [
     {
       "id": "solid-01",
       "type": "solid",
-      "x": 0,
-      "y": 18,
-      "w": 20,
+      "x": 25,
+      "y": 58,
+      "w": 35,
       "h": 2,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "solid-02",
-      "type": "solid",
-      "x": 4,
-      "y": 13,
-      "w": 5,
-      "h": 1,
-      "layer": "terrain",
-      "props": {}
-    },
-    {
-      "id": "solid-03",
-      "type": "solid",
-      "x": 12,
-      "y": 9,
-      "w": 6,
-      "h": 1,
       "layer": "terrain",
       "props": {}
     },
     {
       "id": "spawn-01",
       "type": "spawn",
-      "x": 1,
-      "y": 15,
+      "x": 56,
+      "y": 49,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -60,8 +40,8 @@
     {
       "id": "exit-main",
       "type": "exit",
-      "x": 16,
-      "y": 6,
+      "x": 26,
+      "y": 1,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -70,27 +50,356 @@
       }
     },
     {
-      "id": "spike-01",
-      "type": "spike",
-      "x": 8,
-      "y": 17,
-      "w": 3,
+      "id": "button-01",
+      "type": "button",
+      "x": 31,
+      "y": 5,
+      "w": 1,
       "h": 1,
-      "layer": "hazard",
+      "layer": "gameplay",
       "props": {
-        "direction": "up",
-        "mode": "cycle",
-        "cycle": 2,
-        "startActive": true,
-        "phase": 0
+        "buttonType": "T",
+        "sides": [
+          "down"
+        ],
+        "targets": [
+          "door-02",
+          "door-01",
+          "door-04",
+          "door-03"
+        ]
       }
     },
     {
-      "id": "oneWay-01",
-      "type": "oneWay",
+      "id": "door-01",
+      "type": "door",
+      "x": 24,
+      "y": 16,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "door-02",
+      "type": "door",
+      "x": 38,
+      "y": 16,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "solid-02",
+      "type": "solid",
+      "x": 24,
+      "y": 4,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-03",
+      "type": "solid",
+      "x": 33,
+      "y": 4,
+      "w": 6,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 30,
+      "y": 0,
+      "w": 3,
+      "h": 5,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 20,
+      "y": 20,
+      "w": 5,
+      "h": 40,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-07",
+      "type": "solid",
+      "x": 38,
+      "y": 20,
+      "w": 2,
+      "h": 25,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 24,
+      "y": 5,
+      "w": 1,
+      "h": 11,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-09",
+      "type": "solid",
+      "x": 38,
+      "y": 5,
+      "w": 1,
+      "h": 11,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-01",
+      "type": "bouncePad",
+      "x": 46,
+      "y": 14,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-01",
+      "type": "fallingPlatform",
+      "x": 51,
+      "y": 8,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "bounce-pad-02",
+      "type": "bouncePad",
+      "x": 56,
+      "y": 12,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-03",
+      "type": "fallingPlatform",
+      "x": 56,
+      "y": 16,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
       "x": 9,
-      "y": 13,
-      "w": 4,
+      "y": 0,
+      "w": 2,
+      "h": 5,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-02",
+      "type": "fallingPlatform",
+      "x": 6,
+      "y": 5,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-05",
+      "type": "fallingPlatform",
+      "x": 1,
+      "y": 16,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "bounce-pad-04",
+      "type": "bouncePad",
+      "x": 1,
+      "y": 12,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "solid-11",
+      "type": "solid",
+      "x": 55,
+      "y": 52,
+      "w": 5,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-12",
+      "type": "solid",
+      "x": 55,
+      "y": 40,
+      "w": 5,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-05",
+      "type": "bouncePad",
+      "x": 25,
+      "y": 54,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "bounce-pad-08",
+      "type": "bouncePad",
+      "x": 28,
+      "y": 38,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-04",
+      "type": "fallingPlatform",
+      "x": 30,
+      "y": 43,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-06",
+      "type": "fallingPlatform",
+      "x": 30,
+      "y": 28,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-07",
+      "type": "fallingPlatform",
+      "x": 30,
+      "y": 24,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "bounce-pad-07",
+      "type": "bouncePad",
+      "x": 30,
+      "y": 16,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {}
+    },
+    {
+      "id": "door-03",
+      "type": "door",
+      "x": 38,
+      "y": 0,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "door-04",
+      "type": "door",
+      "x": 24,
+      "y": 0,
+      "w": 1,
+      "h": 4,
+      "layer": "gameplay",
+      "props": {
+        "orientation": "vertical",
+        "open": false
+      }
+    },
+    {
+      "id": "falling-platform-08",
+      "type": "fallingPlatform",
+      "x": 30,
+      "y": 20,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-04",
+      "type": "solid",
+      "x": 40,
+      "y": 44,
+      "w": 9,
       "h": 1,
       "layer": "terrain",
       "props": {}
@@ -98,8 +407,8 @@
     {
       "id": "coin-01",
       "type": "coin",
-      "x": 5,
-      "y": 11,
+      "x": 41,
+      "y": 42,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -108,8 +417,8 @@
     {
       "id": "coin-02",
       "type": "coin",
-      "x": 8,
-      "y": 11,
+      "x": 43,
+      "y": 42,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -118,8 +427,8 @@
     {
       "id": "coin-03",
       "type": "coin",
-      "x": 11,
-      "y": 11,
+      "x": 45,
+      "y": 42,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -128,8 +437,493 @@
     {
       "id": "coin-04",
       "type": "coin",
-      "x": 14,
+      "x": 47,
+      "y": 42,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "one-way-04",
+      "type": "oneWay",
+      "x": 53,
+      "y": 56,
+      "w": 2,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 39,
+      "y": 46,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 41,
+      "y": 46,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-10",
+      "type": "coin",
+      "x": 40,
+      "y": 48,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-12",
+      "type": "coin",
+      "x": 26,
+      "y": 52,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-13",
+      "type": "coin",
+      "x": 31,
+      "y": 41,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-14",
+      "type": "coin",
+      "x": 29,
+      "y": 36,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-15",
+      "type": "coin",
+      "x": 31,
+      "y": 26,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-16",
+      "type": "coin",
+      "x": 31,
+      "y": 22,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-17",
+      "type": "coin",
+      "x": 21,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-18",
+      "type": "coin",
+      "x": 31,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-19",
+      "type": "coin",
+      "x": 31,
       "y": 11,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-20",
+      "type": "coin",
+      "x": 31,
+      "y": 8,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "label-01",
+      "type": "label",
+      "x": 31,
+      "y": 33,
+      "w": 4,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "mode": "player",
+        "text": "Автор",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "label-02",
+      "type": "label",
+      "x": 31,
+      "y": 48,
+      "w": 4,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "mode": "player",
+        "text": "Автор",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
+      }
+    },
+    {
+      "id": "solid-13",
+      "type": "solid",
+      "x": 25,
+      "y": 20,
+      "w": 3,
+      "h": 20,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-14",
+      "type": "solid",
+      "x": 35,
+      "y": 20,
+      "w": 3,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-15",
+      "type": "solid",
+      "x": 28,
+      "y": 20,
+      "w": 2,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-16",
+      "type": "solid",
+      "x": 33,
+      "y": 20,
+      "w": 2,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-12",
+      "type": "fallingPlatform",
+      "x": 46,
+      "y": 8,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "solid-17",
+      "type": "solid",
+      "x": 49,
+      "y": 0,
+      "w": 2,
+      "h": 8,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-23",
+      "type": "coin",
+      "x": 57,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-24",
+      "type": "coin",
+      "x": 57,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-25",
+      "type": "coin",
+      "x": 52,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-26",
+      "type": "coin",
+      "x": 47,
+      "y": 6,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-27",
+      "type": "coin",
+      "x": 47,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "falling-platform-11",
+      "type": "fallingPlatform",
+      "x": 20,
+      "y": 16,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-14",
+      "type": "fallingPlatform",
+      "x": 22,
+      "y": 4,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-16",
+      "type": "fallingPlatform",
+      "x": 14,
+      "y": 16,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-17",
+      "type": "fallingPlatform",
+      "x": 11,
+      "y": 10,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-15",
+      "type": "fallingPlatform",
+      "x": 8,
+      "y": 16,
+      "w": 2,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "falling-platform-18",
+      "type": "fallingPlatform",
+      "x": 17,
+      "y": 7,
+      "w": 3,
+      "h": 1,
+      "layer": "gameplay",
+      "props": {
+        "speed": "slow",
+        "triggerDelay": 0.5,
+        "respawnDelay": 2
+      }
+    },
+    {
+      "id": "spike-01",
+      "type": "spike",
+      "x": 0,
+      "y": 19,
+      "w": 19,
+      "h": 1,
+      "layer": "hazard",
+      "props": {
+        "direction": "up",
+        "mode": "always",
+        "cycle": 2,
+        "startActive": true
+      }
+    },
+    {
+      "id": "solid-18",
+      "type": "solid",
+      "x": 19,
+      "y": 19,
+      "w": 1,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-29",
+      "type": "coin",
+      "x": 18,
+      "y": 5,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-30",
+      "type": "coin",
+      "x": 12,
+      "y": 8,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-11",
+      "type": "coin",
+      "x": 2,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-21",
+      "type": "coin",
+      "x": 7,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-22",
+      "type": "coin",
+      "x": 2,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 51,
+      "y": 48,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 40,
+      "y": 52,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 31,
+      "y": 18,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-19",
+      "type": "solid",
+      "x": 39,
+      "y": 50,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-28",
+      "type": "coin",
+      "x": 35,
+      "y": 2,
       "w": 1,
       "h": 1,
       "layer": "entity",
@@ -137,11 +931,11 @@
     }
   ],
   "metadata": {
-    "status": "idea",
+    "status": "graybox",
     "revision": 1,
     "source": "episode 1.pages graybox proposal",
     "difficulty": "medium",
-    "template": true,
+    "template": false,
     "campaign": {
       "layoutVersion": 2,
       "slot": 12,
@@ -151,7 +945,7 @@
       "normalNumber": 12,
       "name": "Развилка тайника",
       "sourceSlot": 13,
-      "authored": false,
+      "authored": true,
       "deathRestart": "roomStart"
     },
     "importSource": {
@@ -159,12 +953,12 @@
       "sha256": "7de0dc488af45f31bb57fc8869ac4500260ef29c11feb29b1c76b6083c06f6b1",
       "exportedAt": 1788403891679,
       "sourceSlot": 13,
-      "originalId": "ep1-13-medium",
-      "originalTitle": "Эпизод 1 · Средняя · Уровень 1-13 · Пульс шлюза",
-      "originalRole": "intro",
-      "originalTheme": "Первый честный урок циклических шипов с безопасным ожиданием.",
+      "originalId": "ep1-13-easy",
+      "originalTitle": "Эпизод 1 · Лёгкая · Уровень 1-13 · Пульс шлюза",
+      "originalRole": "develop",
+      "originalTheme": "Четыре вертикальные секции: сквозные, падающие и ритмические опасности.",
       "originalLearningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
-      "originalDesignerNotes": "Шаблон N13: Первый честный урок циклических шипов с безопасным ожиданием. Можно очистить или заменить; это не утверждённый финальный уровень. Карта средняя сложности — отдельная полная копия для дальнейшей настройки."
+      "originalDesignerNotes": "Шаблон N14: Четыре вертикальные секции: сквозные, падающие и ритмические опасности. Можно очистить или заменить; это не утверждённый финальный уровень."
     },
     "geometryMigrations": [
       {
@@ -172,8 +966,8 @@
         "before": {
           "id": "spawn-01",
           "type": "spawn",
-          "x": 1,
-          "y": 16,
+          "x": 57,
+          "y": 49,
           "w": 1,
           "h": 2,
           "layer": "meta",
@@ -185,8 +979,8 @@
         "after": {
           "id": "spawn-01",
           "type": "spawn",
-          "x": 1,
-          "y": 15,
+          "x": 57,
+          "y": 49,
           "w": 3,
           "h": 3,
           "layer": "meta",
@@ -201,8 +995,8 @@
         "before": {
           "id": "exit-main",
           "type": "exit",
-          "x": 16,
-          "y": 6,
+          "x": 35,
+          "y": 1,
           "w": 2,
           "h": 3,
           "layer": "meta",
@@ -213,8 +1007,8 @@
         "after": {
           "id": "exit-main",
           "type": "exit",
-          "x": 16,
-          "y": 6,
+          "x": 35,
+          "y": 1,
           "w": 3,
           "h": 3,
           "layer": "meta",
@@ -222,7 +1016,601 @@
             "route": "main"
           }
         }
+      },
+      {
+        "id": "developer-note-01",
+        "before": {
+          "id": "developer-note-01",
+          "type": "developerNote",
+          "x": 26,
+          "y": 1,
+          "w": 3,
+          "h": 3,
+          "layer": "decor",
+          "props": {
+            "comment": "Секретный выход №1"
+          }
+        },
+        "after": {
+          "id": "developer-note-01",
+          "type": "secretExit",
+          "x": 26,
+          "y": 1,
+          "w": 3,
+          "h": 3,
+          "layer": "meta",
+          "props": {
+            "route": "secret",
+            "targetSlot": 24
+          }
+        }
+      },
+      {
+        "id": "falling-platform-01",
+        "before": {
+          "id": "falling-platform-01",
+          "type": "fallingPlatform",
+          "x": 51,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-01",
+          "type": "fallingPlatform",
+          "x": 51,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-03",
+        "before": {
+          "id": "falling-platform-03",
+          "type": "fallingPlatform",
+          "x": 56,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-03",
+          "type": "fallingPlatform",
+          "x": 56,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-02",
+        "before": {
+          "id": "falling-platform-02",
+          "type": "fallingPlatform",
+          "x": 6,
+          "y": 5,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-02",
+          "type": "fallingPlatform",
+          "x": 6,
+          "y": 5,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-05",
+        "before": {
+          "id": "falling-platform-05",
+          "type": "fallingPlatform",
+          "x": 1,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-05",
+          "type": "fallingPlatform",
+          "x": 1,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-04",
+        "before": {
+          "id": "falling-platform-04",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 43,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-04",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 43,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-06",
+        "before": {
+          "id": "falling-platform-06",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 28,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-06",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 28,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-07",
+        "before": {
+          "id": "falling-platform-07",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 24,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-07",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 24,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-08",
+        "before": {
+          "id": "falling-platform-08",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 20,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-08",
+          "type": "fallingPlatform",
+          "x": 30,
+          "y": 20,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-09",
+        "before": {
+          "id": "falling-platform-09",
+          "type": "fallingPlatform",
+          "x": 39,
+          "y": 54,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-09",
+          "type": "fallingPlatform",
+          "x": 39,
+          "y": 54,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-10",
+        "before": {
+          "id": "falling-platform-10",
+          "type": "fallingPlatform",
+          "x": 39,
+          "y": 50,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-10",
+          "type": "fallingPlatform",
+          "x": 39,
+          "y": 50,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-12",
+        "before": {
+          "id": "falling-platform-12",
+          "type": "fallingPlatform",
+          "x": 46,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-12",
+          "type": "fallingPlatform",
+          "x": 46,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-13",
+        "before": {
+          "id": "falling-platform-13",
+          "type": "fallingPlatform",
+          "x": 40,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-13",
+          "type": "fallingPlatform",
+          "x": 40,
+          "y": 8,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-11",
+        "before": {
+          "id": "falling-platform-11",
+          "type": "fallingPlatform",
+          "x": 20,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-11",
+          "type": "fallingPlatform",
+          "x": 20,
+          "y": 16,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-14",
+        "before": {
+          "id": "falling-platform-14",
+          "type": "fallingPlatform",
+          "x": 22,
+          "y": 4,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-14",
+          "type": "fallingPlatform",
+          "x": 22,
+          "y": 4,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-16",
+        "before": {
+          "id": "falling-platform-16",
+          "type": "fallingPlatform",
+          "x": 14,
+          "y": 16,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-16",
+          "type": "fallingPlatform",
+          "x": 14,
+          "y": 16,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-17",
+        "before": {
+          "id": "falling-platform-17",
+          "type": "fallingPlatform",
+          "x": 11,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-17",
+          "type": "fallingPlatform",
+          "x": 11,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-15",
+        "before": {
+          "id": "falling-platform-15",
+          "type": "fallingPlatform",
+          "x": 8,
+          "y": 16,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-15",
+          "type": "fallingPlatform",
+          "x": 8,
+          "y": 16,
+          "w": 2,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
+      },
+      {
+        "id": "falling-platform-18",
+        "before": {
+          "id": "falling-platform-18",
+          "type": "fallingPlatform",
+          "x": 17,
+          "y": 7,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2
+          }
+        },
+        "after": {
+          "id": "falling-platform-18",
+          "type": "fallingPlatform",
+          "x": 17,
+          "y": 7,
+          "w": 3,
+          "h": 1,
+          "layer": "gameplay",
+          "props": {
+            "triggerDelay": 0.5,
+            "respawnDelay": 2,
+            "speed": "slow"
+          }
+        }
       }
     ]
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 2,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 2,
+      "y": 2
+    }
+  ]
 }

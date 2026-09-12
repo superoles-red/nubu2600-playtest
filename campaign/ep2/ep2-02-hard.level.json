@@ -10,16 +10,6 @@
     "width": 40,
     "height": 20
   },
-  "panels": [
-    {
-      "x": 0,
-      "y": 0
-    },
-    {
-      "x": 1,
-      "y": 0
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик hard. Узкие промежуточные опоры, плотнее ритм. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. ",
@@ -53,8 +43,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -65,7 +55,9 @@
       "w": 5,
       "h": 1,
       "layer": "gameplay",
-      "props": {}
+      "props": {
+        "respawnDelay": 4
+      }
     },
     {
       "id": "oneWay-4",
@@ -105,7 +97,9 @@
       "w": 5,
       "h": 1,
       "layer": "gameplay",
-      "props": {}
+      "props": {
+        "respawnDelay": 4
+      }
     },
     {
       "id": "oneWay-8",
@@ -158,8 +152,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Хрупкая вернётся через 4 с",
         "mode": "player",
+        "text": "Хрупкая вернётся через 4 с",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -189,5 +183,15 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    }
+  ]
 }

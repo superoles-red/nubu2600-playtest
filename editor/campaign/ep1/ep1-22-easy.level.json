@@ -2,32 +2,62 @@
   "kind": "nubu.level",
   "schemaVersion": 2,
   "id": "ep1-22-easy",
-  "title": "С22 · Э1 · Лёгкая · Босс · Смотритель шлюза",
+  "title": "С22 · Э1 · Лёгкая · Босс · Крыса в паучьем кране",
   "episode": 1,
   "sequence": 22,
   "role": "boss",
   "size": {
-    "width": 40,
+    "width": 20,
     "height": 20
   },
-  "theme": "Смотритель шлюза",
-  "learningGoal": "МЕХАНИЧЕСКИЙ ПРОТОТИП БОСС-КОМНАТЫ: три открываемых затвора проверяют управление. Это проходимый каркас, не готовый бой. Ещё нужны Смотритель, три фазы, атаки, победа и сюжетная награда.",
-  "designerNotes": "Слева направо: вход снизу слева, выход снизу справа. Под всем маршрутом сплошной безопасный пол. МЕХАНИЧЕСКИЙ ПРОТОТИП БОСС-КОМНАТЫ: три открываемых затвора проверяют управление. Это проходимый каркас, не готовый бой. Ещё нужны Смотритель, три фазы, атаки, победа и сюжетная награда. Чекпоинтов нет. Видимая область обычно 1–2 поля; следующая обязательная цель читается в текущем поле. Easy-черновик для авторского уточнения.",
+  "theme": "Крыса в паучьем кране",
+  "learningGoal": "Уклониться от рывка и настоящего WJ крысы, войти на загоревшуюся встроенную кнопку после её приземления, затем прыгнуть на перевёрнутое брюхо. Три попадания открывают выход; игроку WJ не нужен.",
+  "designerNotes": "Один видимый машинный зал 20×20. Вход внизу слева; выход над ним на сервисном балконе. Целый нижний пол страхует ошибки прыжка. Корпус 5×5 и две встроенные кнопки составляют один предмет. Босс управляет верхним затвором через собственную кнопку у правой стены. Easy: широкие балконы, без шипов. Medium: один шип между входом и левой кнопкой. Hard: более узкие балконы и второй шип справа. Контроллер, скорость, телеграфы, окна и три попадания одинаковы.",
   "objects": [
     {
-      "id": "floor",
+      "id": "hangar-floor",
       "type": "solid",
       "x": 0,
       "y": 18,
-      "w": 40,
+      "w": 20,
       "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "hangar-ceiling",
+      "type": "solid",
+      "x": 0,
+      "y": 0,
+      "w": 20,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "hangar-wall-left",
+      "type": "solid",
+      "x": 0,
+      "y": 2,
+      "w": 1,
+      "h": 16,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "hangar-wall-right",
+      "type": "solid",
+      "x": 19,
+      "y": 2,
+      "w": 1,
+      "h": 16,
       "layer": "terrain",
       "props": {}
     },
     {
       "id": "spawn-main",
       "type": "spawn",
-      "x": 2,
+      "x": 1,
       "y": 15,
       "w": 3,
       "h": 3,
@@ -40,8 +70,8 @@
     {
       "id": "exit-main",
       "type": "exit",
-      "x": 35,
-      "y": 15,
+      "x": 3,
+      "y": 11,
       "w": 3,
       "h": 3,
       "layer": "meta",
@@ -50,52 +80,54 @@
       }
     },
     {
-      "id": "boss-gate-1",
-      "type": "door",
-      "x": 12,
-      "y": 12,
-      "w": 1,
-      "h": 6,
+      "id": "service-balcony-left",
+      "type": "oneWay",
+      "x": 2,
+      "y": 14,
+      "w": 5,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "service-balcony-right",
+      "type": "oneWay",
+      "x": 15,
+      "y": 14,
+      "w": 4,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "rat-spider",
+      "type": "boss",
+      "x": 10,
+      "y": 13,
+      "w": 5,
+      "h": 5,
       "layer": "gameplay",
       "props": {
-        "orientation": "vertical",
-        "open": false
+        "bossKind": "ratSpider",
+        "direction": "right",
+        "targets": []
       }
     },
     {
-      "id": "boss-switch-1",
-      "type": "button",
-      "x": 7,
-      "y": 17,
-      "w": 1,
+      "id": "rat-shutter",
+      "type": "door",
+      "x": 10,
+      "y": 7,
+      "w": 6,
       "h": 1,
       "layer": "gameplay",
       "props": {
-        "buttonType": "T",
-        "sides": [
-          "up"
-        ],
-        "targets": [
-          "boss-gate-1"
-        ],
-        "pressed": false
+        "orientation": "horizontal",
+        "open": true
       }
     },
     {
-      "id": "boss-gate-2",
-      "type": "door",
-      "x": 23,
-      "y": 12,
-      "w": 1,
-      "h": 6,
-      "layer": "gameplay",
-      "props": {
-        "orientation": "vertical",
-        "open": false
-      }
-    },
-    {
-      "id": "boss-switch-2",
+      "id": "rat-actuator",
       "type": "button",
       "x": 18,
       "y": 17,
@@ -108,62 +140,79 @@
           "up"
         ],
         "targets": [
-          "boss-gate-2"
+          "rat-shutter"
         ],
-        "pressed": false
+        "pressed": false,
+        "bossOnly": true
       }
     },
     {
-      "id": "boss-gate-3",
-      "type": "door",
-      "x": 32,
-      "y": 12,
-      "w": 1,
-      "h": 6,
-      "layer": "gameplay",
-      "props": {
-        "orientation": "vertical",
-        "open": false
-      }
-    },
-    {
-      "id": "boss-switch-3",
-      "type": "button",
-      "x": 27,
-      "y": 17,
-      "w": 1,
-      "h": 1,
-      "layer": "gameplay",
-      "props": {
-        "buttonType": "T",
-        "sides": [
-          "up"
-        ],
-        "targets": [
-          "boss-gate-3"
-        ],
-        "pressed": false
-      }
-    },
-    {
-      "id": "draft-instructions",
-      "type": "developerNote",
-      "x": 0,
-      "y": 0,
-      "w": 3,
-      "h": 3,
+      "id": "hangar-sign-left",
+      "type": "label",
+      "x": 2,
+      "y": 3,
+      "w": 8,
+      "h": 2,
       "layer": "decor",
       "props": {
-        "comment": "Черновик для владельца. Слева направо: вход снизу слева, выход снизу справа. Под всем маршрутом сплошной безопасный пол. МЕХАНИЧЕСКИЙ ПРОТОТИП БОСС-КОМНАТЫ: три открываемых затвора проверяют управление. Это проходимый каркас, не готовый бой. Ещё нужны Смотритель, три фазы, атаки, победа и сюжетная награда."
+        "text": "КРЫСА",
+        "decorative": true,
+        "marquee": true,
+        "mode": "message"
+      }
+    },
+    {
+      "id": "hangar-sign-right",
+      "type": "label",
+      "x": 10,
+      "y": 3,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "ПАУЧИЙ КРАН",
+        "decorative": true,
+        "marquee": true,
+        "mode": "message"
+      }
+    },
+    {
+      "id": "hangar-rule-left",
+      "type": "label",
+      "x": 2,
+      "y": 9,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "КНОПКА: СТУН",
+        "decorative": true,
+        "marquee": true,
+        "mode": "message"
+      }
+    },
+    {
+      "id": "hangar-rule-right",
+      "type": "label",
+      "x": 10,
+      "y": 9,
+      "w": 8,
+      "h": 2,
+      "layer": "decor",
+      "props": {
+        "text": "БЕЙ БРЮХО",
+        "decorative": true,
+        "marquee": true,
+        "mode": "message"
       }
     }
   ],
   "metadata": {
-    "status": "idea",
-    "revision": 1,
-    "source": "EP1 owner plan 2026-09-04; safe authoring draft",
+    "status": "graybox",
+    "revision": 5,
+    "source": "EP1 finale redesign 2026-09-09, owner library preserved outside C22/C23",
     "difficulty": "easy",
-    "template": true,
+    "template": false,
     "campaign": {
       "layoutVersion": 2,
       "slot": 22,
@@ -171,11 +220,11 @@
       "bundle": null,
       "levelInBundle": null,
       "normalNumber": null,
-      "name": "Смотритель шлюза",
+      "name": "Крыса в паучьем кране",
       "sourceSlot": null,
-      "authored": false,
+      "authored": true,
       "deathRestart": "roomStart",
-      "implementation": "mechanicalPrototype"
+      "implementation": "ratSpiderPlayablePrototype"
     },
     "importSource": {
       "file": "nubu2600-library-2026-09-03.json",
@@ -183,212 +232,11 @@
       "exportedAt": 1788403891679,
       "sourceSlot": null
     },
-    "geometryMigrations": [],
-    "supersededDraft": {
-      "kind": "nubu.level",
-      "schemaVersion": 1,
-      "id": "ep1-23-easy",
-      "title": "Эпизод 1 · Лёгкая · Уровень 1-23 · Катапульта до",
-      "episode": 1,
-      "sequence": 23,
-      "role": "develop",
-      "size": {
-        "width": 100,
-        "height": 20
-      },
-      "theme": "Пушка игрока, читаемая монетами траектория и широкая посадка.",
-      "learningGoal": "Graybox-предложение по последнему плану episode 1.pages; требует авторского плейтеста и правки.",
-      "designerNotes": "Шаблон N23: Пушка игрока, читаемая монетами траектория и широкая посадка. Можно очистить или заменить; это не утверждённый финальный уровень.",
-      "objects": [
-        {
-          "id": "solid-01",
-          "type": "solid",
-          "x": 0,
-          "y": 18,
-          "w": 38,
-          "h": 2,
-          "layer": "terrain",
-          "props": {}
-        },
-        {
-          "id": "solid-02",
-          "type": "solid",
-          "x": 52,
-          "y": 18,
-          "w": 48,
-          "h": 2,
-          "layer": "terrain",
-          "props": {}
-        },
-        {
-          "id": "spawn-01",
-          "type": "spawn",
-          "x": 2,
-          "y": 16,
-          "w": 1,
-          "h": 2,
-          "layer": "meta",
-          "props": {
-            "anchor": "topLeft",
-            "semantics": "playerBody"
-          }
-        },
-        {
-          "id": "exit-main",
-          "type": "exit",
-          "x": 97,
-          "y": 15,
-          "w": 2,
-          "h": 3,
-          "layer": "meta",
-          "props": {
-            "route": "main"
-          }
-        },
-        {
-          "id": "playerCannon-01",
-          "type": "playerCannon",
-          "x": 40,
-          "y": 15,
-          "w": 2,
-          "h": 2,
-          "layer": "gameplay",
-          "props": {
-            "dirs": [
-              "right",
-              "downRight",
-              "down",
-              "downLeft",
-              "left",
-              "upLeft",
-              "up",
-              "upRight"
-            ],
-            "direction": "right",
-            "manual": false,
-            "rotateInterval": 0.5,
-            "clockwise": true
-          }
-        },
-        {
-          "id": "oneWay-01",
-          "type": "oneWay",
-          "x": 55,
-          "y": 12,
-          "w": 14,
-          "h": 1,
-          "layer": "terrain",
-          "props": {}
-        },
-        {
-          "id": "coin-01",
-          "type": "coin",
-          "x": 47,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-02",
-          "type": "coin",
-          "x": 51,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-03",
-          "type": "coin",
-          "x": 55,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-04",
-          "type": "coin",
-          "x": 59,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-05",
-          "type": "coin",
-          "x": 63,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-06",
-          "type": "coin",
-          "x": 67,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-07",
-          "type": "coin",
-          "x": 71,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "coin-08",
-          "type": "coin",
-          "x": 75,
-          "y": 10,
-          "w": 1,
-          "h": 1,
-          "layer": "entity",
-          "props": {}
-        },
-        {
-          "id": "collectible-01",
-          "type": "collectible",
-          "x": 75,
-          "y": 15,
-          "w": 2,
-          "h": 2,
-          "layer": "entity",
-          "props": {
-            "collectionId": "EP1_N23_LANDING"
-          }
-        }
-      ],
-      "metadata": {
-        "status": "idea",
-        "revision": 1,
-        "source": "episode 1.pages graybox proposal",
-        "difficulty": "easy",
-        "template": true
-      }
-    }
+    "geometryMigrations": []
   },
   "panels": [
     {
       "x": 0,
-      "y": 0
-    },
-    {
-      "x": 1,
       "y": 0
     }
   ]

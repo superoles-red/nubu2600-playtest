@@ -10,24 +10,6 @@
     "width": 40,
     "height": 40
   },
-  "panels": [
-    {
-      "x": 0,
-      "y": 0
-    },
-    {
-      "x": 1,
-      "y": 0
-    },
-    {
-      "x": 0,
-      "y": 1
-    },
-    {
-      "x": 1,
-      "y": 1
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик hard. Узкие промежуточные опоры, плотнее ритм. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. Три кнопки и двери показывают фиксаторы будущего босса, это не готовый бой.",
@@ -61,8 +43,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -94,11 +76,11 @@
             "y": 12
           }
         ],
-        "loop": true,
-        "enabled": true,
-        "moving": true,
         "speedCellsPerSecond": 3.5,
-        "repeatSpacing": 80
+        "enabled": true,
+        "loop": true,
+        "repeatSpacing": 80,
+        "moving": true
       }
     },
     {
@@ -160,10 +142,10 @@
             "y": 28
           }
         ],
-        "enabled": true,
-        "spikes": false,
         "speedCellsPerSecond": 2.1,
-        "loop": true
+        "enabled": true,
+        "loop": true,
+        "spikes": false
       }
     },
     {
@@ -185,10 +167,10 @@
             "y": 24
           }
         ],
-        "enabled": true,
-        "spikes": false,
         "speedCellsPerSecond": 2.1,
-        "loop": true
+        "enabled": true,
+        "loop": true,
+        "spikes": false
       }
     },
     {
@@ -200,7 +182,8 @@
       "h": 6,
       "layer": "gameplay",
       "props": {
-        "orientation": "vertical"
+        "orientation": "vertical",
+        "open": false
       }
     },
     {
@@ -212,7 +195,8 @@
       "h": 6,
       "layer": "gameplay",
       "props": {
-        "orientation": "vertical"
+        "orientation": "vertical",
+        "open": false
       }
     },
     {
@@ -224,7 +208,8 @@
       "h": 6,
       "layer": "gameplay",
       "props": {
-        "orientation": "vertical"
+        "orientation": "vertical",
+        "open": false
       }
     },
     {
@@ -304,8 +289,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Прототип арены: три фиксатора",
         "mode": "player",
+        "text": "Прототип арены: три фиксатора",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -335,5 +320,23 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    }
+  ]
 }

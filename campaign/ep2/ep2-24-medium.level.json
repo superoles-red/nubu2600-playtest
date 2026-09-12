@@ -10,20 +10,6 @@
     "width": 40,
     "height": 40
   },
-  "panels": [
-    {
-      "x": 0,
-      "y": 0
-    },
-    {
-      "x": 1,
-      "y": 0
-    },
-    {
-      "x": 0,
-      "y": 1
-    }
-  ],
   "theme": "service-shafts",
   "learningGoal": "Практическая комната по плану EP2.",
   "designerNotes": "Игровой черновик medium. Смещённые опоры, короче циклы. WJ у входа нужен для отдельной проверки без прохождения EP1. Эскиз передаёт идею для авторской переработки. Точная проходимость не является целью этой версии; переходы EP2 и боссовый контроллер не подключены. Вместо ещё не реализованного секторного значка стоит обычная монета.",
@@ -57,8 +43,8 @@
       "h": 3,
       "layer": "meta",
       "props": {
-        "semantics": "playerBody",
-        "anchor": "centerTop"
+        "anchor": "centerTop",
+        "semantics": "playerBody"
       }
     },
     {
@@ -95,7 +81,7 @@
       "id": "coin-6",
       "type": "coin",
       "x": 8,
-      "y": 30.5,
+      "y": 30,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -109,7 +95,9 @@
       "w": 4,
       "h": 1,
       "layer": "gameplay",
-      "props": {}
+      "props": {
+        "respawnDelay": 4
+      }
     },
     {
       "id": "oneWay-8",
@@ -125,7 +113,7 @@
       "id": "coin-9",
       "type": "coin",
       "x": 8,
-      "y": 18.5,
+      "y": 18,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -155,7 +143,7 @@
       "id": "coin-12",
       "type": "coin",
       "x": 8,
-      "y": 6.5,
+      "y": 6,
       "w": 1,
       "h": 1,
       "layer": "gameplay",
@@ -242,8 +230,8 @@
       "h": 2,
       "layer": "decor",
       "props": {
-        "text": "Значок EP2 пока заменён монетой",
         "mode": "player",
+        "text": "Значок EP2 пока заменён монетой",
         "color": "#d8e2ff",
         "decorative": true,
         "marquee": true
@@ -273,5 +261,19 @@
       "WJ"
     ],
     "requiresCampaignIntegration": true
-  }
+  },
+  "panels": [
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": 1,
+      "y": 0
+    },
+    {
+      "x": 0,
+      "y": 1
+    }
+  ]
 }

@@ -27,7 +27,7 @@
     {
       "id": "spawn-main",
       "type": "spawn",
-      "x": 2,
+      "x": 1,
       "y": 15,
       "w": 3,
       "h": 3,
@@ -40,7 +40,7 @@
     {
       "id": "exit-main",
       "type": "exit",
-      "x": 35,
+      "x": 33,
       "y": 15,
       "w": 3,
       "h": 3,
@@ -50,19 +50,59 @@
       }
     },
     {
-      "id": "portal-divider",
+      "id": "solid-07",
       "type": "solid",
-      "x": 19,
+      "x": 0,
+      "y": 0,
+      "w": 22,
+      "h": 6,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-08",
+      "type": "solid",
+      "x": 0,
       "y": 8,
-      "w": 2,
-      "h": 10,
+      "w": 22,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-09",
+      "type": "solid",
+      "x": 0,
+      "y": 6,
+      "w": 4,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-10",
+      "type": "solid",
+      "x": 12,
+      "y": 6,
+      "w": 10,
+      "h": 2,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "solid-05",
+      "type": "solid",
+      "x": 17,
+      "y": 10,
+      "w": 3,
+      "h": 8,
       "layer": "terrain",
       "props": {}
     },
     {
       "id": "portal-entry",
       "type": "portal",
-      "x": 11,
+      "x": 14,
       "y": 11,
       "w": 2,
       "h": 6,
@@ -78,7 +118,7 @@
     {
       "id": "portal-arrival",
       "type": "portal",
-      "x": 26,
+      "x": 21,
       "y": 11,
       "w": 2,
       "h": 6,
@@ -94,7 +134,7 @@
     {
       "id": "coin-entry",
       "type": "coin",
-      "x": 8,
+      "x": 7,
       "y": 16,
       "w": 1,
       "h": 1,
@@ -102,25 +142,159 @@
       "props": {}
     },
     {
-      "id": "coin-arrival",
-      "type": "coin",
-      "x": 31,
-      "y": 16,
-      "w": 1,
-      "h": 1,
-      "layer": "entity",
-      "props": {}
-    },
-    {
-      "id": "draft-instructions",
-      "type": "developerNote",
-      "x": 0,
+      "id": "solid-01",
+      "type": "solid",
+      "x": 37,
       "y": 0,
       "w": 3,
-      "h": 3,
+      "h": 18,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-01",
+      "type": "coin",
+      "x": 25,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "one-way-01",
+      "type": "oneWay",
+      "x": 24,
+      "y": 14,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-02",
+      "type": "oneWay",
+      "x": 24,
+      "y": 10,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "one-way-03",
+      "type": "oneWay",
+      "x": 24,
+      "y": 6,
+      "w": 3,
+      "h": 1,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-02",
+      "type": "coin",
+      "x": 25,
+      "y": 8,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-03",
+      "type": "coin",
+      "x": 25,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-04",
+      "type": "coin",
+      "x": 25,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-05",
+      "type": "coin",
+      "x": 34,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-06",
+      "type": "coin",
+      "x": 34,
+      "y": 8,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-07",
+      "type": "coin",
+      "x": 11,
+      "y": 16,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "solid-06",
+      "type": "solid",
+      "x": 29,
+      "y": 6,
+      "w": 3,
+      "h": 12,
+      "layer": "terrain",
+      "props": {}
+    },
+    {
+      "id": "coin-08",
+      "type": "coin",
+      "x": 34,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "coin-09",
+      "type": "coin",
+      "x": 30,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "layer": "entity",
+      "props": {}
+    },
+    {
+      "id": "label-01",
+      "type": "label",
+      "x": 4,
+      "y": 6,
+      "w": 8,
+      "h": 2,
       "layer": "decor",
       "props": {
-        "comment": "Черновик для владельца. Слева направо: вход снизу слева, выход снизу справа. Под всем маршрутом сплошной безопасный пол. Подойти слева к синему порталу, пересечь разделитель, выйти вправо на широкий твёрдый пол. Только одна пара: короткий тизер без опасности и прыжков вслепую."
+        "mode": "player",
+        "text": "Автор",
+        "color": "#d8e2ff",
+        "decorative": true,
+        "marquee": true
       }
     }
   ],
