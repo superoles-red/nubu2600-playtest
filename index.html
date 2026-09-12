@@ -1587,6 +1587,17 @@ function completeEpisodeRun(config) {
   updateHUD();
   return true;
 }
+function lobbyReturnDoorId(targetIndex) {
+  const target = state.rooms[targetIndex];
+  const entry = state.lobbyEntrances?.[state.roomIndex];
+  if (entry?.roomIndex === targetIndex && target?.levelDoors.some(door => door.id === entry.doorId)) return entry.doorId;
+  // Selectors always return to 04, even after the shortcut from 01.
+  const matching = target?.levelDoors.find(door => door.kind !== 'back' && door.targetRoomIndex === state.roomIndex);
+  if (matching) return matching.id;
+  // The campaign intro (03) is intentionally skipped on the way back.
+  if (state.room.lobbyNumber === 4 && target?.lobbyNumber === 1) return 'campaign';
+  return null;
+}
 function tryEnterLevelDoor() {
   const p = state.player;
   const room = state.room;
@@ -1596,7 +1607,7 @@ function tryEnterLevelDoor() {
     if(door.requiresDeparture&&!door.armed){const dx=Math.max(rect.x-p.x-p.w,p.x-rect.x-rect.w,0),dy=Math.max(rect.y-p.y-p.h,p.y-rect.y-rect.h,0);if(Math.hypot(dx,dy)>=CELL)door.armed=true;else continue;}
     if (!rectsOverlap(p, rect)) continue;
     if(door.kind==='editor'){openLevelEditor();return true;}
-    if(door.kind==='recent'){const target=(state.progress.lastEpisode||1)+3;state.lobbyParents[target]=state.roomIndex;loadRoom(target,true,true);return true;}
+    if(door.kind==='recent'){const target=(state.progress.lastEpisode||1)+3;state.lobbyParents[target]=state.roomIndex;state.lobbyEntrances[target]={roomIndex:state.roomIndex,doorId:door.id};loadRoom(target,true,true);return true;}
     if(door.kind==='infinite'){void beginInfiniteRun();return true;}
     if (!door.active) {
       if ((p.levelDoorHintCooldown || 0) <= 0) {
@@ -1606,9 +1617,14 @@ function tryEnterLevelDoor() {
       return false;
     }
     if (door.targetRoomIndex != null) {
-      if(room.lobbyNumber&&state.rooms[door.targetRoomIndex]?.lobbyNumber&&door.kind!=='back')state.lobbyParents[door.targetRoomIndex]=door.targetRoomIndex===3?0:state.roomIndex;
+      const lobbyTransition = room.lobbyNumber && state.rooms[door.targetRoomIndex]?.lobbyNumber;
+      const arrivalDoorId = lobbyTransition && door.kind === 'back' ? lobbyReturnDoorId(door.targetRoomIndex) : null;
+      if (lobbyTransition && door.kind !== 'back') {
+        state.lobbyParents[door.targetRoomIndex] = door.targetRoomIndex === 3 ? 0 : state.roomIndex;
+        state.lobbyEntrances[door.targetRoomIndex] = {roomIndex:state.roomIndex,doorId:door.id};
+      }
       if (door.kind === 'secret') state.secretReturnRoomIndex = room.nextRoomIndex;
-      loadRoom(door.targetRoomIndex, true, true);
+      loadRoom(door.targetRoomIndex, true, true, arrivalDoorId);
       updateHUD();
       return true;
     }
@@ -5680,7 +5696,7 @@ async function fetchSectionLevel(section, sequence, difficulty='easy') {
   return response.json();
 }
 function buildAuthoredLobby(worldId) {
-  episodeRoutes.clear();state.lobbyParents={};state.episodeRun=null;
+  episodeRoutes.clear();state.lobbyParents={};state.lobbyEntrances={};state.episodeRun=null;
   state.rooms = runtimeLobbyLevels.slice(0,12).map((level, i) => {
     const room = makeRoomFromEditorLevel(level);
     room.worldId=worldId; room.roomType='lobby'; room.lobbyNumber=i+1;
@@ -6120,7 +6136,7 @@ function makePlayer() {
   };
 }
 
-function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
+function loadRoom(index, keepPlayer=true, withSpawnTransition=false, arrivalDoorId=null) {
   state.roomIndex = clamp(index, 0, state.rooms.length - 1);
   state.room = cloneRoom(state.rooms[state.roomIndex]);
   state.room.localTime = 0;
@@ -6132,6 +6148,13 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false) {
     if (number === 4) door.targetRoomIndex = 0;
     else if (number >= 5 && number <= 12) door.targetRoomIndex = 3;
     else door.targetRoomIndex = state.lobbyParents?.[state.roomIndex] ?? door.targetRoomIndex;
+  }
+  const arrivalDoor = state.room.lobbyNumber && state.room.levelDoors.find(door => door.id === arrivalDoorId);
+  if (arrivalDoor) {
+    state.room.spawn = {x:arrivalDoor.x,y:arrivalDoor.y,w:arrivalDoor.w,h:arrivalDoor.h,editorPlayerBody:true};
+    state.room.arrivalDoorId = arrivalDoor.id;
+    arrivalDoor.requiresDeparture = true;
+    arrivalDoor.armed = false;
   }
   state.roomTransition = null;
   normalizeRoomGeometryToHalfGrid(state.room);
@@ -14707,7 +14730,7 @@ function drawLevelDoors() {
 
 function drawExitAndSpawn() {
   const s = state.room.spawn, e = state.room.exit;
-  if(state.room.lobbyNumber&&state.room.levelDoors.some(d=>d.kind==='back'))return;
+  if(state.room.lobbyNumber&&(state.room.arrivalDoorId||state.room.levelDoors.some(d=>d.kind==='back')))return;
 
   const spawnRect = getSpawnDoorWorldRect(s);
   const spawnPos = worldToScreen(spawnRect.x, spawnRect.y), sw = spawnRect.w * state.cam.scale, sh = spawnRect.h * state.cam.scale;
