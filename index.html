@@ -162,6 +162,7 @@
 <body>
 <div id="app">
   <canvas id="game" tabindex="0" aria-label="Игровое поле"></canvas>
+  <div id="bootLoading" class="hidden" role="status" style="position:absolute;inset:0;z-index:95;display:grid;place-items:center;background:#060c1b;color:#dce4ff">Загрузка…</div>
   <div class="hud">
     <div class="hud-top">
       <div class="hud-card">
@@ -15925,15 +15926,22 @@ if (pendingEditorPlaytest) {
     showOverlay('start');
   }
 } else {
-  setSelectedWorld(0);
   updateTestLevelButtons();
   updatePauseAbilityButtons();
-  showOverlay('start');
-  preloadEmbeddedEditor();
   // The canonical application opens on its playable title room; isolated HTML fixtures keep manual startup.
   if(window.parent===window&&/(?:\/|index\.html)$/.test(location.pathname)){
-    showOverlay(null);void startRun().then(()=>{if(state.mode==='start')showOverlay('start');});
+    const loading = document.getElementById('bootLoading');
+    loading.classList.remove('hidden');
+    showOverlay(null);
+    void startRun().finally(()=>{
+      loading.classList.add('hidden');
+      if(state.mode==='start')showOverlay('start');
+    });
+  } else {
+    setSelectedWorld(0);
+    showOverlay('start');
   }
+  preloadEmbeddedEditor();
 }
 requestAnimationFrame(step);
 })();
