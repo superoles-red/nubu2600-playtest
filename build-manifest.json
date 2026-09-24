@@ -5,9 +5,9 @@
   "sha256": "1dfe32bb540211489d9a6402ac6899615d18e0c0a0dfb09b2e0d938ad0b67fb3",
   "bytes": 674497,
   "editorPath": "./editor/",
-  "campaignVersion": "a6b380a91216b10e",
+  "campaignVersion": "09b28106135ce1e7",
   "pwa": {
-    "version": "98817c4d25bd3683",
+    "version": "45e5cee0dcbbc0b0",
     "scope": "./",
     "display": "standalone",
     "offline": true
