@@ -14163,6 +14163,7 @@ function drawPlatforms() {
   const drawnMoverRoutes=new Set();
   for (const m of state.room.movers) {
     const axisSign=(m.dir==='l'||m.dir==='u')?-1:1,vectorX=Number.isFinite(m.vectorX)?m.vectorX:(m.axis==='h'?axisSign:0),vectorY=Number.isFinite(m.vectorY)?m.vectorY:(m.axis==='v'?axisSign:0),sx=worldToScreen(m.startX*CELL,m.startY*CELL),ex=worldToScreen((m.startX+vectorX*m.dist)*CELL,(m.startY+vectorY*m.dist)*CELL);
+    const moverColor=m.loop===false?'#f3b562':'#69c8ff';
     const renderW = m.w*CELL*state.cam.scale, renderH = CELL*0.5*state.cam.scale;
     const c1x = sx.x + renderW*.5, c1y = sx.y + renderH*.5;
     const c2x = ex.x + renderW*.5, c2y = ex.y + renderH*.5;
@@ -14174,13 +14175,13 @@ function drawPlatforms() {
     if(m.loop===false&&!m.detachedFall&&m.respawnTimer>0)continue;
     const pos = worldToScreen(m.x*CELL, m.y*CELL), w = renderW, h = renderH;
     if (m.enabled) {
-      ctx.fillStyle = '#90f2b1'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
+      ctx.fillStyle = moverColor; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), 1);
     } else {
-      ctx.strokeStyle = 'rgba(144,242,177,.55)'; ctx.strokeRect(Math.round(pos.x)+.5, Math.round(pos.y)+.5, Math.round(w), Math.round(h));
-      ctx.fillStyle = 'rgba(144,242,177,.08)'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
+      ctx.strokeStyle = moverColor+'8c'; ctx.strokeRect(Math.round(pos.x)+.5, Math.round(pos.y)+.5, Math.round(w), Math.round(h));
+      ctx.fillStyle = moverColor+'14'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
     }
-    drawTinyTag(pos.x + w*.5, pos.y - 8, m.id, m.enabled ? '#90f2b1' : '#bdf8cf');
+    drawTinyTag(pos.x + w*.5, pos.y - 8, m.id, moverColor);
   }
   // smart
   for (const s of state.room.smarts) {
