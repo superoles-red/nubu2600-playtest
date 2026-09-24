@@ -306,7 +306,7 @@ label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); fo
 .campaign-library-list { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 6px; max-height: 180px; overflow: auto; }
 .campaign-level-button { min-height: 38px; font-size: 9px; text-align: left; }
 .mobile-category-items { align-content: start; grid-auto-rows: 104px; }
-#levelCanvas.will-delete { cursor: not-allowed !important; filter: saturate(1.25); }
+#levelCanvas.will-delete { cursor: not-allowed !important; }
 .context-toolbar [data-context-action="link"], .context-toolbar [data-context-action="socket"], .context-toolbar [data-context-action="reverse-socket"] { order: 20; margin-top: 8px; }
 .context-toolbar [data-context-action="cycle"], .context-toolbar [data-context-action="cannon-speed"], .context-toolbar [data-context-action="cannon-clockwise"] { order: -5; outline: 2px solid rgba(143,223,255,.45); outline-offset: 3px; }
 

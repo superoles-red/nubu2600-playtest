@@ -345,7 +345,7 @@ const JUMP_LOW_RELEASE_TIME = 0.18;
 const JUMP_LOW_DECISION_TIME = 0.09;
 const ENEMY_BOUNCE_LOW_HEIGHT = 2.5 * CELL;
 const ENEMY_BOUNCE_HIGH_HEIGHT = 4.5 * CELL;
-const BOUNCE_PAD_HEIGHT = 11.5 * CELL;
+const BOUNCE_PAD_HEIGHT = 11.49 * CELL;
 const BOUNCE_PAD_LOW_HEIGHT = 7.5 * CELL;
 const CANNON_ROTATE_INTERVAL = 0.5;
 const CANNON_PLAYER_SHIFT = 0.85 * CELL;
@@ -362,9 +362,9 @@ const COLLISION_SKIN = Math.max(1, CELL * 0.08);
 const COLLISION_LEADING_EDGE_EPSILON = 0.001;
 const SAFE_VIEW = 22 * CELL;
 const CAMERA_MARGIN_PORTRAIT_TOP = 5 * CELL;
-const CAMERA_MARGIN_PORTRAIT_BOTTOM = 10 * CELL;
-const CAMERA_MARGIN_LANDSCAPE_LEFT = 20 * CELL;
-const CAMERA_MARGIN_LANDSCAPE_RIGHT = 20 * CELL;
+const CAMERA_MARGIN_PORTRAIT_BOTTOM = 5 * CELL;
+const CAMERA_MARGIN_LANDSCAPE_LEFT = 5 * CELL;
+const CAMERA_MARGIN_LANDSCAPE_RIGHT = 5 * CELL;
 const BUTTON_THICK = 0.5 * CELL;
 const HALF_CELL = 0.5 * CELL;
 const GRID_STEP_CELLS = 0.5;
@@ -1193,7 +1193,7 @@ function addDropPlatform(room, id, x, y, w=3, opts={}) {
     id,
     x, y, startX:x, startY:y, prevX:x, prevY:y,
     w, h:0.5,
-    triggerDelay: opts.triggerDelay ?? 0.5,
+    triggerDelay: (opts.triggerDelay ?? 0.5) / (opts.speed === 'fast' ? 2 : 1),
     respawnDelay: opts.respawnDelay ?? 2.0,
     speed: opts.speed === 'fast' ? 'fast' : 'slow',
     state: 'idle',
@@ -2908,8 +2908,8 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
         const axis = diagonal ? 'xy' : (Math.abs(dy) > Math.abs(dx) ? 'v' : 'h');
         const dir = axis === 'v' ? (dy < 0 ? 'u' : 'd') : (dx < 0 ? 'l' : 'r');
         const dist = Math.max(0.5, Math.hypot(dx, dy));
-        const repeatSpacing=Math.max(1,Number(props.repeatSpacing)||20),platformCount=Math.max(1,Math.ceil(dist/repeatSpacing));
-        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, motionEnabled:props.moving !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:dist*index/platformCount, respawnDelay:2 });
+        const platformCount=props.loop===false?Math.max(1,Math.ceil((dist-1e-9)/8)):1;
+        for(let index=0;index<platformCount;index++)addMover(room, id, x, y, w, h, axis, dir, dist, { vectorX:dx, vectorY:dy, enabled:props.enabled !== false, motionEnabled:props.moving !== false, controlledBy:props.controlledBy || null, speed:Number(props.speedCellsPerSecond) ? Number(props.speedCellsPerSecond)*CELL : undefined, loop:props.loop !== false, initialProgress:8*index, respawnDelay:2 });
         break;
       }
       case 'smartPlatform': {
@@ -2959,7 +2959,7 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
       case 'boss': addBoss(room,id,x,y,w,h,props); break;
       case 'enemyGoomba': addGoomba(room, x, y, Number(props.left) || Math.max(0, x - (Number(props.patrol) || 4)), Number(props.right) || Math.min(width - w, x + (Number(props.patrol) || 4)), { dir:editorDirection(props.direction, 'r') === 'l' ? -1 : 1, size:w>=4||h>=4?4:2 }); break;
       case 'enemyFlyer': addFlyer(room, x, y, props.axis === 'vertical' ? 'v' : 'h', editorDirection(props.direction, 'r'), Number(props.distance) || 4, props); break;
-      case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, Math.random()<.5?'l':'r', Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
+      case 'enemyLeech': addLeech(room, x, y, props.pathRect || { x:Math.max(0, x - 3), y, w:Math.min(width, w + 6), h:Math.max(2, h + 2) }, props.direction==='left'?'l':'r', Number(props.speedMultiplier) || 1, Math.max(1, Math.round(w))); break;
       case 'enemySpikeCube': addSpikeCube(room, x, y, w, h, props.sides || 'udlr', props.move || null); break;
       case 'pushBlock': addPushCube(room, x, y, w, h, { ...props, fallTrigger:'proximity', fallDelay:.5 }); break;
       case 'coin': addCoin(room, x, y); break;
@@ -5710,8 +5710,15 @@ function buildAuthoredLobby(worldId) {
       door('infinite',15,15,{label:'БЕСКОНЕЧНО',targetRoomIndex:1});
     } else if(i===2) door('campaign-main',room.exit.x,room.exit.y,{label:'ЭПИЗОДЫ',targetRoomIndex:3});
     else if(i===3) {
-      const positions=[[3,27],[13,27],[23,25],[33,21],[7,5],[50,9],[69,5],[60,28]];
-      positions.forEach(([x,y],n)=>door(`episode-${n+1}`,x,y,{label:`ЭПИЗОД ${n+1}`,kind:'episode',episodeId:`EP${n+1}`,targetRoomIndex:n+4,showEpisodeStars:true}));
+      const positions=new Map([[1,[room.exit.x,room.exit.y]]]);
+      for(const object of level.objects){
+        if(object.type!=='developerNote')continue;
+        const text=String(object.props?.comment||'');
+        const match=text.match(/(?:эпизод\s*(\d+)|(\d+)\s*эпизод)/i);
+        const episode=Number(match?.[1]||match?.[2]);
+        if(episode>=2&&episode<=8)positions.set(episode,[object.x,object.y]);
+      }
+      for(const [episode,[x,y]] of positions)door(`episode-${episode}`,x,y,{label:`ЭПИЗОД ${episode}`,kind:'episode',episodeId:`EP${episode}`,targetRoomIndex:episode+3,showEpisodeStars:true});
     } else if(i>=4&&i<=11) {
       const ep=i-3;
       const positions=[[16,17],[16,7],[1,5]];
@@ -6274,7 +6281,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false, arrivalDoor
   p.hanging = false; p.hangSide = 0; p.wallDir = 0; p.wallJumpUsed = false; p.hangRef = null; p.hangRefKind = null;
   p.invuln = 0; p.groundRef = null;
   p.kinDropTimer = 0; p.kinDropRef = null; p.jumpAttachBlockTimer = 0;
-  p.kinematicTopResolvedRef = null; p.kinematicCrushedThisFrame = false; p.kinematicCrushRef = null;
+  p.kinematicTopResolvedRef = null; p.kinematicHorizontalResolvedRef=null; p.kinematicCrushedThisFrame = false; p.kinematicCrushRef = null;
   p.e5DetachRef = null; p.e5DetachTimer = 0;
   p.spawnerHeadBumpRef = null; p.spawnerHeadBumpTimer = 0;
   p.conveyorHeadBumpRef = null; p.conveyorHeadBumpTimer = 0;
@@ -6994,6 +7001,8 @@ function applyCarryMotion(p, dx, dy, carrierRef=null) {
       break;
     }
     if (rectHitsBlocking(test, carrierRef, true)) {
+      const corner=carrierRef&&kinematicCornerPlacement(p,p.x,targetY,carrierRef);
+      if(corner){p.x=corner.x;p.y=corner.y;remY-=Math.abs(step);moved=true;continue;}
       if (stepY < 0 && carrierRef) crushPlayerByKinematic(p, carrierRef);
       else if (stepY < 0) forceDropFromKinematic(p, carrierRef);
       break;
@@ -7200,10 +7209,29 @@ function resolveMovingCubeVsPlayer(p) {
     }
   }
 }
+// Axis movement uses a small collision skin. A corner inside that skin is a
+// local side contact, not proof that the rider is trapped between two faces.
+function kinematicCornerPlacement(p,x,y,carrierRef,axis='x'){
+  const box={x,y,w:p.w,h:p.h};
+  if(!rectHitsBlocking(box,carrierRef,true))return{x,y};
+  const limit=COLLISION_SKIN+1+Math.max(Math.abs(carrierRef?.dx||0),Math.abs(carrierRef?.dy||0));
+  const blockers=getDynamicSolids().filter(r=>r.ref!==carrierRef&&r.kind!=='enemy');
+  for(let ty=Math.floor((y-limit)/CELL);ty<=Math.floor((y+p.h+limit)/CELL);ty++)for(let tx=Math.floor((x-limit)/CELL);tx<=Math.floor((x+p.w+limit)/CELL);tx++)if(solidAtTile(tx,ty))blockers.push({x:tx*CELL,y:ty*CELL,w:CELL,h:CELL});
+  const candidates=[];
+  for(const r of blockers){
+    if(!rectsOverlap(box,r))continue;
+    const values=axis==='x'?[r.x-p.w,r.x+r.w]:[r.y-p.h,r.y+r.h];
+    for(const value of values){const candidate={...box,[axis]:value},delta=Math.abs(value-box[axis]);if(delta<=limit+1e-8&&!rectHitsBlocking(candidate,carrierRef,true))candidates.push({x:candidate.x,y:candidate.y,delta});}
+  }
+  candidates.sort((a,b)=>a.delta-b.delta);
+  return candidates[0]||null;
+}
 function placePlayerOnPlatformTop(p, plat) {
   const targetY = plat.y - p.h;
-  if (!canStandAtDuringCarry(p, p.x, targetY, plat.ref)) return false;
-  p.y = targetY;
+  const placement=kinematicCornerPlacement(p,p.x,targetY,plat.ref);
+  if(!placement)return false;
+  p.x=placement.x;p.y=placement.y;
+  if(rectOverlapX(p,plat)<=.01){forceDropFromKinematic(p,plat.ref);return true;}
   p.onGround = true;
   p.groundRef = plat.ref;
   p.vy = 0;
@@ -7233,8 +7261,10 @@ function resolveInvertedCrusherCarry(p) {
   const dx=wall.dx||0,dy=wall.dy||0,steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/0.5));
   for(let i=0;i<steps;i++) {
     const test={x:p.x+dx/steps,y:p.y+dy/steps,w:p.w,h:p.h};
-    if(rectHitsBlocking(test,wall)){crushPlayerByKinematic(p,wall);return;}
-    p.x=test.x;p.y=test.y;
+    const placement=kinematicCornerPlacement(p,test.x,test.y,wall);
+    if(!placement){crushPlayerByKinematic(p,wall);return;}
+    p.x=placement.x;p.y=placement.y;
+    if(rectOverlapX(p,box)<=.01){forceDropFromKinematic(p,wall);return;}
   }
   p.y=box.y+box.h;p.vy=0;
 }
@@ -7255,13 +7285,14 @@ function resolveKinematicPlatformContacts(p) {
     const prevXOverlap = rectOverlapX(playerPrev, prev);
     const nowXOverlap = rectOverlapX(playerNow, plat);
     const maxOverlap = Math.max(prevXOverlap, nowXOverlap);
-    const sameGround = p.onGround && p.groundRef === plat.ref && maxOverlap > KINEMATIC_TOP_MIN_OVERLAP;
+    const minimumOverlap=plat.kind==='crusher'?.01:KINEMATIC_TOP_MIN_OVERLAP;
+    const sameGround = p.onGround && p.groundRef === plat.ref && maxOverlap > minimumOverlap;
     const prevSupportRect = { x:prev.x, y:prev.y, w:prev.w, h:CELL * 0.5 };
     const nowSupportRect = { x:plat.x, y:plat.y, w:plat.w, h:CELL * 0.5 };
     const needsStrongCubeTop = plat.kind === 'cube';
     const hadStrongCubeTopPrev = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerPrev, prevSupportRect);
     const hasStrongCubeTopNow = !needsStrongCubeTop || rectHasStrongMovingCubeTopSupport(playerNow, nowSupportRect);
-    const wasOnTop = prevXOverlap > KINEMATIC_TOP_MIN_OVERLAP && prevBottom <= prev.y + 1.25 && prevBottom >= prev.y - 1.25 && hadStrongCubeTopPrev;
+    const wasOnTop = prevXOverlap > minimumOverlap && prevBottom <= prev.y + 1.25 && prevBottom >= prev.y - 1.25 && hadStrongCubeTopPrev;
     // Все движущиеся платформы остаются односторонними. Единственное исключение:
     // лифт, который снизу пересёк стопы стоящего на обычной опоре игрока,
     // подхватывает его на верхнюю грань. Трамваи и падающие платформы так не делают.
@@ -7322,6 +7353,10 @@ function resolveKinematicPlatformContacts(p) {
       else if (best.sameGround) forceDropFromKinematic(p, best.ref);
       return;
     }
+  }
+  if(best.kind==='crusher'&&best.sameGround&&best.dx){
+    applyCarryMotion(p,best.dx,0,best.ref);
+    p.kinematicHorizontalResolvedRef=best.ref;
   }
   if (placePlayerOnPlatformTop(p, best)) {
     p.kinematicTopResolvedRef = best.ref;
@@ -8118,6 +8153,24 @@ function moveVertical(p, dt, jumpHeldNow) {
   if (p.y > state.room.h * CELL + 10 * CELL) loseLife();
 }
 
+// Room simulation uses one fixed-step clock. Automatic route periods occupy
+// integral half-second beats; pauses preserve phase instead of restarting it.
+function positiveModulo(value,period){const result=((value%period)+period)%period;return Math.abs(result-period)<1e-8||result<1e-8?0:result;}
+function mechanismTravelSeconds(distance,speed){return Math.max(.5,Math.ceil((distance/Math.max(.001,speed/CELL)-1e-9)*2)/2);}
+// Carry unused time through patrol turnarounds instead of losing a frame per cycle.
+function advancePatrolClock(actor,distance,speed,dt){
+  if(!(distance>0)||!(speed>0))return;
+  const duration=Math.max(.5,Math.ceil((distance/speed-1e-9)*2)/2),rate=distance/duration;
+  let remaining=dt;
+  actor.progress=clamp(Number(actor.progress)||0,0,distance);
+  actor.wait=Math.max(0,Number(actor.wait)||0);
+  while(remaining>1e-10){
+    if(actor.wait>0){const used=Math.min(remaining,actor.wait);actor.wait-=used;remaining-=used;continue;}
+    const sign=actor.forward===false?-1:1,until=(sign>0?distance-actor.progress:actor.progress)/rate;
+    const used=Math.min(remaining,Math.max(0,until));actor.progress+=sign*rate*used;remaining-=used;
+    if(until<=used+1e-10){actor.progress=sign>0?distance:0;actor.forward=sign<0;actor.wait=.5;}
+  }
+}
 function updatePlatforms(dt) {
   const room = state.room;
   for (const door of room.doors) if (door.pendingClose && (!state.player || !rectsOverlap(state.player, doorRect(door)))) {
@@ -8147,45 +8200,61 @@ function updatePlatforms(dt) {
       c.active = cycleStateAtTime(room.localTime, c.cycle || 2, c.startActive !== false);
     }
   }
-  for (const m of room.movers) {
-    m.prevX = m.x; m.prevY = m.y; m.dx = 0; m.dy = 0;
-    const axisSign = (m.dir === 'l' || m.dir === 'u') ? -1 : 1;
-    const vectorX = Number.isFinite(m.vectorX) ? m.vectorX : (m.axis === 'h' ? axisSign : 0);
-    const vectorY = Number.isFinite(m.vectorY) ? m.vectorY : (m.axis === 'v' ? axisSign : 0);
-    if (m.motionEnabled === false) continue;
-    if (m.loop !== false) {
-      if (m.wait > 0) m.wait = Math.max(0, m.wait - dt);
-      else {
-        const step = (m.speed * dt) / CELL;
-        m.progress += (m.forward ? 1 : -1) * step;
-        if (m.progress >= m.dist) { m.progress = m.dist; m.forward = false; m.wait = 0.5; }
-        if (m.progress <= 0) { m.progress = 0; m.forward = true; m.wait = 0.5; }
-      }
-      m.x = m.startX + vectorX * m.progress;
-      m.y = m.startY + vectorY * m.progress;
-    } else if (m.respawnTimer > 0) {
-      m.enabled=false;
-      m.respawnTimer=Math.max(0,m.respawnTimer-dt);
-      if(m.respawnTimer===0){m.progress=clamp(Number(m.spawnProgress)||0,0,m.dist);m.x=m.startX+vectorX*m.progress;m.y=m.startY+vectorY*m.progress;m.forward=true;m.falling=false;m.fallWait=0;m.fallAge=0;m.verticalSpeed=0;m.enabled=m.visibilityEnabled!==false;m.wait=.35;}
-    } else if (m.fallWait > 0) {
-      m.fallWait=Math.max(0,m.fallWait-dt);
-      if(m.fallWait===0){m.falling=true;m.verticalSpeed=0;m.fallAge=0;}
-    } else if (m.falling) {
-      m.fallAge+=dt;
-      m.verticalSpeed+=GRAVITY*.35*dt;
-      m.y+=(m.verticalSpeed*dt)/CELL;
-      if(m.y>room.innerH+6||m.fallAge>=2){m.respawnTimer=m.respawnDelay;m.enabled=false;}
-    } else {
-      if (m.wait > 0) m.wait=Math.max(0,m.wait-dt);
-      else {
-        m.progress=Math.min(m.dist,m.progress+(m.speed*dt)/CELL);
-        m.x=m.startX+vectorX*m.progress;
-        m.y=m.startY+vectorY*m.progress;
-        if(m.progress>=m.dist){m.fallWait=.25;m.verticalSpeed=0;}
+  for (const m of [...room.movers]) {
+    m.prevX=m.x;m.prevY=m.y;m.dx=0;m.dy=0;
+    if(m.detachedFall){
+      m.fallAge+=dt;m.verticalSpeed=GRAVITY*.35*m.fallAge;
+      m.y=m.fallOriginY+.5*GRAVITY*.35*m.fallAge*m.fallAge/CELL;
+      m.enabled=m.visibilityEnabled!==false;m.dy=(m.y-m.prevY)*CELL;
+      const screenBottom=Number.isFinite(state.cam?.y)&&state.cam.scale>0?(state.cam.y+(state.height-(state.cam.screenY||0))/state.cam.scale)/CELL:0;
+      if(m.y>Math.max(room.h+10,screenBottom+2)){m.expired=true;m.enabled=false;if(state.player.groundRef===m)forceDropFromKinematic(state.player,m);}
+      continue;
+    }
+    const sign=(m.dir==='l'||m.dir==='u')?-1:1;
+    const vx=Number.isFinite(m.vectorX)?m.vectorX:(m.axis==='h'?sign:0),vy=Number.isFinite(m.vectorY)?m.vectorY:(m.axis==='v'?sign:0);
+    const travel=mechanismTravelSeconds(m.dist,m.speed),fallingMode=m.loop===false;
+    const period=fallingMode?Math.max(1,Math.ceil((m.dist-1e-9)/8))*8/m.dist*travel:2*(travel+.5);
+    const offset=(Number(m.spawnProgress)||0)/Math.max(.001,m.dist)*travel;
+    // Stop the complete route/emission clock. Detached bodies keep their own gravity.
+    if(m.motionEnabled===false)m.pausedTime=(m.pausedTime||0)+dt;
+    const clock=Math.max(0,room.localTime-(m.pausedTime||0)+offset);
+    const phase=positiveModulo(clock+1e-9,period),oldCycle=m.clockCycle;
+    m.clockCycle=Math.floor((clock+1e-9)/period);
+    const wasEnabled=m.enabled;
+    if(!fallingMode){
+      if(phase<travel){m.progress=m.dist*phase/travel;m.forward=true;m.wait=0;}
+      else if(phase<travel+.5){m.progress=m.dist;m.forward=false;m.wait=travel+.5-phase;}
+      else if(phase<2*travel+.5){m.progress=m.dist*(1-(phase-travel-.5)/travel);m.forward=false;m.wait=0;}
+      else{m.progress=0;m.forward=true;m.wait=period-phase;}
+      m.x=m.startX+vx*m.progress;m.y=m.startY+vy*m.progress;
+    }else{
+      m.progress=m.dist*Math.min(1,phase/travel);
+      m.x=m.startX+vx*m.progress;m.y=m.startY+vy*m.progress;
+      m.fallWait=0;m.falling=false;m.fallAge=0;m.verticalSpeed=0;
+      const detachedPhase=phase>=travel-1e-9;
+      m.respawnTimer=detachedPhase?period-phase:0;
+      m.enabled=m.visibilityEnabled!==false&&!detachedPhase;
+      // Slots run on a virtual route rounded UP to a multiple of eight cells.
+      // Short routes spend the remaining time off-route before the next birth.
+      // Detect the crossing even when route end and cycle wrap are simultaneous.
+      const detachedCycle=Math.floor((clock-travel+1e-9)/period);
+      if(detachedCycle>=0&&m.detachmentCycle!==detachedCycle&&m.motionEnabled!==false){
+        m.detachmentCycle=detachedCycle;
+        const age=Math.max(0,clock-(detachedCycle*period+travel)),origin=m.startY+vy*m.dist;
+        const fallen={...m,x:m.startX+vx*m.dist,detachedFall:true,falling:true,fallAge:age,fallOriginY:origin,y:origin+.5*GRAVITY*.35*age*age/CELL,enabled:m.visibilityEnabled!==false,respawnTimer:0};
+        fallen.prevX=fallen.x;fallen.prevY=fallen.y;fallen.dx=fallen.dy=0;
+        room.movers.push(fallen);
+        if(state.player.groundRef===m)state.player.groundRef=fallen;
       }
     }
-    m.dx = (m.x - m.prevX) * CELL; m.dy = (m.y - m.prevY) * CELL;
+    const reset=fallingMode&&(oldCycle!==undefined&&oldCycle!==m.clockCycle||!wasEnabled&&m.enabled);
+    if(reset||oldCycle===undefined&&offset>0){
+      m.prevX=m.x;m.prevY=m.y;
+      if(state.player.groundRef===m)forceDropFromKinematic(state.player,m);
+    }
+    m.dx=(m.x-m.prevX)*CELL;m.dy=(m.y-m.prevY)*CELL;
   }
+  room.movers=room.movers.filter(m=>!m.expired);
   for (const wall of (room.crusherWalls || [])) {
     wall.prevX = wall.x; wall.prevY = wall.y; wall.dx = 0; wall.dy = 0;
     const pts = wall.points || [];
@@ -8202,62 +8271,34 @@ function updatePlatforms(dt) {
     }
     if (!wall.enabled) continue;
 
-    let seg = Math.max(0, Math.min((wall.seg || 0), endIndex - 1));
-    let segT = Math.max(0, wall.segT || 0);
-    let hitEnd = false;
-    let guard = 0;
-    while (guard++ < 16) {
-      const from = pts[seg];
-      const to = pts[seg + 1];
-      const dx = (to.x - from.x);
-      const dy = (to.y - from.y);
-      const dist = Math.hypot(dx, dy) || 1;
-      segT += (wall.speed * dt) / CELL / dist;
-      if (segT < 1) break;
-      segT -= 1;
-      seg += 1;
-      if (seg >= endIndex) {
-        if (wall.loop) seg = 0;
-        else {
-          seg = endIndex;
-          segT = 0;
-          hitEnd = true;
-          break;
-        }
-      }
-    }
-
-    if (seg >= endIndex) {
-      wall.x = end.x;
-      wall.y = end.y;
-      wall.seg = endIndex;
-      wall.segT = 0;
-      if (!wall.loop) {
-        wall.finished = true;
-        wall.enabled = false;
-      }
-    } else {
-      const from = pts[seg];
-      const to = pts[seg + 1];
-      wall.x = from.x + (to.x - from.x) * segT;
-      wall.y = from.y + (to.y - from.y) * segT;
-      wall.seg = seg;
-      wall.segT = segT;
-      if (!wall.loop) wall.finished = false;
-    }
-    if (hitEnd && !wall.loop) {
-      wall.x = end.x;
-      wall.y = end.y;
-      wall.seg = endIndex;
-      wall.segT = 0;
-      wall.finished = true;
-      wall.enabled = false;
-    }
+    const lengths=pts.slice(1).map((point,index)=>Math.hypot(point.x-pts[index].x,point.y-pts[index].y));
+    const length=lengths.reduce((sum,value)=>sum+value,0),duration=wall.loop?mechanismTravelSeconds(length,wall.speed):Math.max(.001,length/(wall.speed/CELL));
+    wall.motionTime=(wall.motionTime||0)+dt;
+    let distance=(wall.loop?positiveModulo(wall.motionTime,duration):Math.min(duration,wall.motionTime))/duration*length;
+    let seg=0;while(seg<lengths.length-1&&distance>lengths[seg])distance-=lengths[seg++];
+    const fraction=lengths[seg]>0?clamp(distance/lengths[seg],0,1):0;
+    wall.x=pts[seg].x+(pts[seg+1].x-pts[seg].x)*fraction;
+    wall.y=pts[seg].y+(pts[seg+1].y-pts[seg].y)*fraction;
+    wall.seg=seg;wall.segT=fraction;
+    if(!wall.loop&&wall.motionTime>=duration){wall.finished=true;wall.enabled=false;}
     wall.dx = (wall.x - wall.prevX) * CELL;
     wall.dy = (wall.y - wall.prevY) * CELL;
   }
   syncAttachedButtons(room);
   for (const s of room.smarts) {
+    if(s.persistent&&s.loop){
+      seedPersistentSmartInstances(s);
+      if(s.enabled!==false)s.motionTime=(s.motionTime||0)+dt;
+      const length=s.points.reduce((sum,p,i)=>sum+Math.hypot(s.points[(i+1)%s.points.length].x-p.x,s.points[(i+1)%s.points.length].y-p.y),0);
+      const duration=mechanismTravelSeconds(length,s.speed),travel=positiveModulo(Math.max(0,(s.motionTime||0)-.5),duration)/duration*length;
+      for(const [index,inst] of s.instances.entries()){
+        inst.prevX=inst.x;inst.prevY=inst.y;
+        const position=makeSmartInstanceAtDistance(s,positiveModulo(length*index/s.instances.length+travel,length||1));
+        if(position){inst.x=position.x;inst.y=position.y;inst.seg=position.seg;inst.segT=position.segT;}
+        inst.dx=(inst.x-inst.prevX)*CELL;inst.dy=(inst.y-inst.prevY)*CELL;
+      }
+      continue;
+    }
     s.timer += dt;
     if (s.persistent) {
       seedPersistentSmartInstances(s);
@@ -8372,7 +8413,7 @@ function updatePlatforms(dt) {
       }
     } else if (d.state === 'falling') {
       d.timer = Math.max(0, d.timer - dt);
-      d.verticalSpeed += (d.speed === 'fast' ? DROP_PLATFORM_FAST_ACCEL : DROP_PLATFORM_SLOW_ACCEL) * dt;
+      d.verticalSpeed += DROP_PLATFORM_SLOW_ACCEL * dt;
       d.y += (d.verticalSpeed * dt) / CELL;
       if (d.timer <= 0) {
         const spawnRect = dropPlatformSpawnRect(d);
@@ -8597,7 +8638,7 @@ function anyGoombaPressesButton(btn) {
   if (!btn.sides.includes('u')) return false;
   const base = buttonRect(btn);
   return (state.room.enemies || []).some(enemy => {
-    if (enemy.dead || enemy.type !== 'E1') return false;
+    if (enemy.dead || !['E1','E4'].includes(enemy.type)) return false;
     const box = enemyRect(enemy);
     return (enemy.vy || 0) >= -0.01 && rectOverlapX(box, base) > CELL * 0.2
       && Math.abs(box.y + box.h - base.y) <= 1.75;
@@ -8850,7 +8891,7 @@ function collectCoinsAndPickups() {
     if (item.type === 'GR') { state.progress.abilities.grab = true; savePersistentProgress(); pushMsg('Зацеп получен', '#9fe7ff', 1.2); }
     if (item.type === 'WJ') { state.progress.abilities.wall = true; savePersistentProgress(); pushMsg('Отскок от стены получен', '#9fe7ff', 1.2); }
     if (item.type === 'PDJ') { state.progress.abilities.dj = true; savePersistentProgress(); p.extraJumpReady = true; pushMsg('Дабл-джамп получен', '#e2c4ff', 1.2); }
-    if(['JP','FL','VV'].includes(item.type)){p.buffs.jp=false;p.buffs.fl=false;p.buffs.vv=false;p.gravityDir=1;p.jpFuel=2;p.gravityItem=item.type.toLowerCase();}
+    if(['JP','FL','VV'].includes(item.type)){if(state.room.roomType==='lobby'){for(const other of state.room.pickups)if(['JP','FL','VV'].includes(other.type))other.taken=other===item;}p.buffs.jp=false;p.buffs.fl=false;p.buffs.vv=false;p.gravityDir=1;p.jpFuel=2;p.gravityItem=item.type.toLowerCase();}
     if (item.type === 'JP') { p.buffs.jp = true; pushMsg('Джетпак', '#ffd998', 1.2); }
     if (item.type === 'FL') { p.buffs.fl = true; pushMsg('Парение', '#c5f7ff', 1.2); }
     if (item.type === 'VV') { p.buffs.vv = true; p.gravityDir = 1; pushMsg('V активирован', '#c7ffd8', 1.2); }
@@ -8903,7 +8944,7 @@ function resolveCrusherWallsVsPlayer(p) {
     const overlapNowX = rectOverlapX(now, box);
     const overlapNowY = rectOverlapY(now, box);
     const sideTol = 1.75;
-    const minOverlap = CELL * 0.2;
+    const minOverlap = .01;
 
     const wasAbove = overlapPrevX > minOverlap && (playerPrev.y + playerPrev.h) <= prev.y + sideTol;
     const wasBelow = overlapPrevX > minOverlap && playerPrev.y >= prev.y + prev.h - sideTol;
@@ -8915,10 +8956,10 @@ function resolveCrusherWallsVsPlayer(p) {
     const headBumpedWall = !!((p.crusherHeadBumpTimer || 0) > 0 && p.crusherHeadBumpRef === wall);
 
     const tryPlace = (tx, ty, opts={}) => {
-      const test = { x:tx, y:ty, w:p.w, h:p.h };
-      if (rectHitsBlocking(test, wall)) return false;
-      p.x = tx;
-      p.y = ty;
+      const placement=kinematicCornerPlacement(p,tx,ty,wall,opts.ground?'x':tx!==p.x?'y':'x');
+      if(!placement)return false;
+      if(opts.ground&&rectOverlapX({...p,x:placement.x},box)<=.01)opts.ground=false;
+      p.x=placement.x;p.y=placement.y;
       if (opts.ground) {
         p.onGround = true;
         p.groundRef = wall;
@@ -8933,7 +8974,7 @@ function resolveCrusherWallsVsPlayer(p) {
     const order = [];
     const addSide = (side) => { if (!order.includes(side)) order.push(side); };
 
-    if ((groundedOnWall && p.gravityDir !== -1) || wasAbove || nearTopNow) addSide('top');
+    if ((groundedOnWall && p.gravityDir !== -1) || (p.vy>=-.01&&(wasAbove||nearTopNow))) addSide('top');
     if ((groundedOnWall && p.gravityDir === -1) || headBumpedWall || wasBelow || nearBottomNow) addSide('bottom');
     if (wasLeft) addSide('left');
     if (wasRight) addSide('right');
@@ -10811,6 +10852,7 @@ function stableTopSupportParams(actorW, supportW, kind='') {
 function rectHasStableTopSupport(actorRect, supportRect, kind='') {
   if (!actorRect || !supportRect) return false;
   const overlap = Math.min(actorRect.x + actorRect.w, supportRect.x + supportRect.w) - Math.max(actorRect.x, supportRect.x);
+  if(kind==='crusher')return overlap>0.01;
   const params = stableTopSupportParams(actorRect.w, supportRect.w, kind || '');
   if (overlap < params.minOverlap) return false;
   const centerX = actorRect.x + actorRect.w * 0.5;
@@ -12936,14 +12978,7 @@ function updateEnemies(dt) {
           }
         } else {
           const oldProgress = enemy.progress;
-          if (enemy.wait > 0) {
-            enemy.wait = Math.max(0, enemy.wait - dt);
-          } else {
-            const step = enemy.speed * dt;
-            enemy.progress += (enemy.forward ? 1 : -1) * step;
-            if (enemy.progress >= enemy.dist) { enemy.progress = enemy.dist; enemy.forward = false; enemy.wait = 0.5; }
-            if (enemy.progress <= 0) { enemy.progress = 0; enemy.forward = true; enemy.wait = 0.5; }
-          }
+          advancePatrolClock(enemy,enemy.dist,enemy.speed,dt);
           const t = enemy.dist <= 0 ? 0 : (enemy.progress / enemy.dist);
           const eased = 0.5 - Math.cos(Math.PI * t) * 0.5;
           const off = axisSign * enemy.dist * eased;
@@ -12961,9 +12996,9 @@ function updateEnemies(dt) {
         }
       }
     } else if (enemy.type === 'E3') {
-      enemy.shotTimer -= dt;
+      if(enemy.enabled)enemy.shotTimer -= dt;
       if (enemy.enabled && enemy.shotTimer <= 0) {
-        enemy.shotTimer = enemy.interval || 2;
+        enemy.shotTimer += enemy.interval || 2;
         const dir = enemy.dir || 'l';
         const sign = (dir === 'l' || dir === 'u') ? -1 : 1;
         let sx = enemy.x, sy = enemy.y;
@@ -13035,14 +13070,7 @@ function updateEnemies(dt) {
           const moveSpeed = Math.max(0, Number(enemy.move.speed) || MOVE_PLATFORM_SPEED);
           enemy.progress = Number.isFinite(enemy.progress) ? enemy.progress : 0;
           enemy.wait = Number.isFinite(enemy.wait) ? enemy.wait : 0;
-          if (enemy.wait > 0) {
-            enemy.wait = Math.max(0, enemy.wait - dt);
-          } else {
-            const step = moveSpeed * dt / CELL;
-            enemy.progress += (enemy.forward ? 1 : -1) * step;
-            if (enemy.progress >= moveDist) { enemy.progress = moveDist; enemy.forward = false; enemy.wait = 0.5; }
-            if (enemy.progress <= 0) { enemy.progress = 0; enemy.forward = true; enemy.wait = 0.5; }
-          }
+          advancePatrolClock(enemy,moveDist,moveSpeed/CELL,dt);
           const off = axisSign * enemy.progress * CELL;
           enemy.x = enemy.startX + (enemy.move.axis === 'h' ? off : 0);
           enemy.y = enemy.startY + (enemy.move.axis === 'v' ? off : 0);
@@ -13264,10 +13292,10 @@ function bulletHitsSolid(b) {
 
 function spikeHitbox(sp) {
   const x = sp.x * CELL, y = sp.y * CELL, w = sp.w * CELL, h = sp.h * CELL;
-  if (sp.dir === 'u') return { x, y: y + CELL*0.5, w, h: h*0.5 };
-  if (sp.dir === 'd') return { x, y, w, h: h*0.5 };
-  if (sp.dir === 'l') return { x: x + CELL*0.5, y, w: w*0.5, h };
-  return { x, y, w: w*0.5, h };
+  if (sp.dir === 'u') return { x, y: y + h - CELL*.49, w, h:CELL*.49 };
+  if (sp.dir === 'd') return { x, y, w, h:CELL*.49 };
+  if (sp.dir === 'l') return { x:x+w-CELL*.49, y, w:CELL*.49, h };
+  return { x, y, w:CELL*.49, h };
 }
 
 function collideHazardsAndEnemies(jumpHeldNow=false) {
@@ -13509,7 +13537,7 @@ function updatePlayer(dt) {
   if (!p || state.mode !== 'playing') return;
   const gravityKeys=['jp','fl','vv'].filter(key=>p.buffs[key]);if(gravityKeys.length>1){const keep=gravityKeys.includes(p.gravityItem)?p.gravityItem:gravityKeys.at(-1);for(const key of gravityKeys)p.buffs[key]=key===keep;if(keep!=='vv')p.gravityDir=1;}
   p.e5CarriedThisFrame = false;
-  p.kinematicTopResolvedRef = null;
+  p.kinematicTopResolvedRef = null; p.kinematicHorizontalResolvedRef=null;
   p.kinematicCrushedThisFrame = false;
   p.kinematicCrushRef = null;
   p.prevX = p.x; p.prevY = p.y; p.invuln = Math.max(0, p.invuln - dt);
@@ -13558,7 +13586,7 @@ function updatePlayer(dt) {
     } else {
       if (support && playerActuallySupportedByKinematicRef(p, p.groundRef)) {
         const carryDy = p.kinematicTopResolvedRef === support.ref ? 0 : (support.dy || 0);
-        applyCarryMotion(p, support.dx || 0, carryDy, support.ref);
+        applyCarryMotion(p, p.kinematicHorizontalResolvedRef===support.ref?0:(support.dx||0), carryDy, support.ref);
       }
       else forceDropFromKinematic(p, p.groundRef);
     }
@@ -13861,8 +13889,8 @@ function updateCamera() {
   const height = bounds.maxY - bounds.minY;
   const centerX = p.x + p.w * 0.5;
   const centerY = p.y + p.h * 0.5;
-  const canScrollX = cam.drawW < width;
-  const canScrollY = cam.drawH < height;
+  const canScrollX = room.innerW>20 && cam.drawW < width;
+  const canScrollY = room.innerH>20 && cam.drawH < height;
   const centeredTargetX = canScrollX
     ? centerX - cam.drawW * 0.5
     : (bounds.minX - (cam.drawW - width) * 0.5);
@@ -13877,8 +13905,10 @@ function updateCamera() {
   const minClampY = canScrollY ? bounds.minY : centeredTargetY;
   const maxClampY = canScrollY ? (bounds.maxY - cam.drawH) : centeredTargetY;
 
-  const targetX = clamp(centeredTargetX, minClampX, maxClampX);
-  const targetY = clamp(centeredTargetY, minClampY, maxClampY);
+  const deadX=Math.min(2*CELL,cam.drawW*.1);
+  const targetX = clamp(Number.isFinite(cam.x)&&canScrollX?clamp(cam.x,centeredTargetX-deadX,centeredTargetX+deadX):centeredTargetX, minClampX, maxClampX);
+  const deadY=Math.min(2*CELL,cam.drawH*.1);
+  const targetY = clamp(Number.isFinite(cam.y)&&canScrollY?clamp(cam.y,centeredTargetY-deadY,centeredTargetY+deadY):centeredTargetY, minClampY, maxClampY);
 
   if (!Number.isFinite(cam.x)) cam.x = targetX;
   if (!Number.isFinite(cam.y)) cam.y = targetY;
@@ -14130,13 +14160,18 @@ function drawPlatforms() {
     if (c.id) drawTinyTag(pos.x + w * 0.5, pos.y - 8, c.id, active ? (fast ? '#ffd08c' : '#9fe9ff') : '#c9d0dc');
   }
   // movers
+  const drawnMoverRoutes=new Set();
   for (const m of state.room.movers) {
     const axisSign=(m.dir==='l'||m.dir==='u')?-1:1,vectorX=Number.isFinite(m.vectorX)?m.vectorX:(m.axis==='h'?axisSign:0),vectorY=Number.isFinite(m.vectorY)?m.vectorY:(m.axis==='v'?axisSign:0),sx=worldToScreen(m.startX*CELL,m.startY*CELL),ex=worldToScreen((m.startX+vectorX*m.dist)*CELL,(m.startY+vectorY*m.dist)*CELL);
     const renderW = m.w*CELL*state.cam.scale, renderH = CELL*0.5*state.cam.scale;
     const c1x = sx.x + renderW*.5, c1y = sx.y + renderH*.5;
     const c2x = ex.x + renderW*.5, c2y = ex.y + renderH*.5;
-    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.moveTo(c1x, c1y); ctx.lineTo(c2x, c2y); ctx.stroke();
-    drawNode(c1x, c1y); drawNode(c2x, c2y);
+    if(!m.detachedFall&&!drawnMoverRoutes.has(m.id||m)){
+      drawnMoverRoutes.add(m.id||m);
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.moveTo(c1x, c1y); ctx.lineTo(c2x, c2y); ctx.stroke();
+      drawNode(c1x, c1y); drawNode(c2x, c2y);
+    }
+    if(m.loop===false&&!m.detachedFall&&m.respawnTimer>0)continue;
     const pos = worldToScreen(m.x*CELL, m.y*CELL), w = renderW, h = renderH;
     if (m.enabled) {
       ctx.fillStyle = '#90f2b1'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
@@ -14771,16 +14806,16 @@ function drawSpikes() {
       ctx.beginPath();
       if (sp.dir === 'u') {
         const x0 = pos.x + i * CELL * state.cam.scale;
-        ctx.moveTo(x0, pos.y + h); ctx.lineTo(x0 + CELL*state.cam.scale*.5, pos.y + h*.5); ctx.lineTo(x0 + CELL*state.cam.scale, pos.y + h); }
+        ctx.moveTo(x0, pos.y + h); ctx.lineTo(x0 + CELL*state.cam.scale*.5, pos.y + h*.491); ctx.lineTo(x0 + CELL*state.cam.scale, pos.y + h); }
       else if (sp.dir === 'd') {
         const x0 = pos.x + i * CELL * state.cam.scale;
-        ctx.moveTo(x0, pos.y); ctx.lineTo(x0 + CELL*state.cam.scale*.5, pos.y + h*.5); ctx.lineTo(x0 + CELL*state.cam.scale, pos.y); }
+        ctx.moveTo(x0, pos.y); ctx.lineTo(x0 + CELL*state.cam.scale*.5, pos.y + h*.49); ctx.lineTo(x0 + CELL*state.cam.scale, pos.y); }
       else if (sp.dir === 'l') {
         const y0 = pos.y + i * CELL * state.cam.scale;
-        ctx.moveTo(pos.x + w, y0); ctx.lineTo(pos.x + w*.5, y0 + CELL*state.cam.scale*.5); ctx.lineTo(pos.x + w, y0 + CELL*state.cam.scale); }
+        ctx.moveTo(pos.x + w, y0); ctx.lineTo(pos.x + w*.491, y0 + CELL*state.cam.scale*.5); ctx.lineTo(pos.x + w, y0 + CELL*state.cam.scale); }
       else {
         const y0 = pos.y + i * CELL * state.cam.scale;
-        ctx.moveTo(pos.x, y0); ctx.lineTo(pos.x + w*.5, y0 + CELL*state.cam.scale*.5); ctx.lineTo(pos.x, y0 + CELL*state.cam.scale); }
+        ctx.moveTo(pos.x, y0); ctx.lineTo(pos.x + w*.49, y0 + CELL*state.cam.scale*.5); ctx.lineTo(pos.x, y0 + CELL*state.cam.scale); }
       ctx.closePath();
       if (active) ctx.fill();
       else { ctx.stroke(); ctx.fill(); }
@@ -15016,11 +15051,8 @@ function drawLabels() {
     ctx.restore();
   }
 }
-function drawCrusherWalls() {
-  for (const wall of (state.room.crusherWalls || [])) {
-    const box = crusherWallRect(wall);
-    const pos = worldToScreen(box.x, box.y);
-    const w = box.w * state.cam.scale, h = box.h * state.cam.scale;
+function drawCrusherRoutes(){
+  for(const wall of state.room.crusherWalls||[]){const box=crusherWallRect(wall);
     const pts = wall.points || [];
     if (pts.length >= 2) {
       ctx.strokeStyle = 'rgba(255,165,165,.28)';
@@ -15039,9 +15071,16 @@ function drawCrusherWalls() {
         drawNode(wp.x, wp.y, '#ff9aa8');
       });
     }
-    ctx.fillStyle = wall.enabled ? '#d9dee8' : 'rgba(217,222,232,.20)';
+  }
+}
+function drawCrusherWalls() {
+  for (const wall of (state.room.crusherWalls || [])) {
+    const box = crusherWallRect(wall);
+    const pos = worldToScreen(box.x, box.y);
+    const w = box.w * state.cam.scale, h = box.h * state.cam.scale;
+    ctx.fillStyle = wall.enabled ? '#d9dee8' : '#a4a9b2';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
-    ctx.strokeStyle = wall.enabled ? '#6f7b8f' : 'rgba(111,123,143,.55)';
+    ctx.strokeStyle = wall.enabled ? '#6f7b8f' : '#596273';
     ctx.strokeRect(Math.round(pos.x) + 0.5, Math.round(pos.y) + 0.5, Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
     ctx.fillStyle = wall.enabled ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.10)';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.max(1, Math.round(h * 0.12)));
@@ -15223,6 +15262,7 @@ function render(alpha=1) {
       drawTiles();
       drawLabels();
       drawDriftFields();
+      drawCrusherRoutes();
       drawPlatforms();
       drawCannons();
       drawSpawners();
