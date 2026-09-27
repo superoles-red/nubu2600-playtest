@@ -98,7 +98,7 @@
     boss:'Бункерная крыса в паучьем механизме. Тащите педали отдельно; выберите педаль, чтобы изменить ширину. При переносе босса педали едут вместе с ним. После его атаки наступите на светящуюся педаль и прыгните на открытое брюхо. Вилка подключает механизмы или кнопки босса. Все сложности используют один бой.',
     spawn:'Вход игрока. Отсюда начинается уровень.', exit:'Выход. При касании уровень завершается.', secretExit:'Секретный выход. Зелёная дверь ведёт в секретную комнату эпизода. Только для карт автора.', developerNote:'Комментарий разработчику. В игре не появляется и не имеет игровых свойств.',
     solid:'Надёжная стена или пол. Перетащите на карту и измените размер за углы.', oneWay:'Простая платформа: держит сверху, снизу пропускает.',
-    fragilePlatform:'Ломается под игроком и всегда восстанавливается через 4 секунды.', blinkPlatform:'Без провода мигает по циклу; с проводом управляется кнопкой.', movingPlatform:'Платформы идут с шагом 8 клеток и падают в конце маршрута. Длина маршрута не ограничена.', smartPlatform:'Тяните узлы к бледным точкам. Жёлтая точка добавляет узел. Углы ≥30°, пересечений ≤1.',
+    fragilePlatform:'Ломается под игроком и всегда восстанавливается через 4 секунды.', blinkPlatform:'Без провода мигает по циклу; с проводом управляется кнопкой.', movingPlatform:'Платформы идут с шагом 8 клеток и падают в конце маршрута. Длина маршрута не ограничена.', smartPlatform:'Тяните углы и стороны с шагом 3 клетки. Прямые углы. Выделялка тянет несколько сторон.',
     fallingPlatform:'Начинает падать, когда на неё наступают.', conveyor:'Перемещает игрока и предметы в выбранную сторону.', bouncePad:'Подбрасывает игрока вверх.', driftField:'Парящее поле. Единственный предмет, который можно накладывать на другие типы.',
     spike:'Один зуб занимает клетку по длине и половину клетки по высоте. Автоматически прилипает к опоре.', crusherWall:'Пресс всегда повторяет маршрут; к нему можно добавить шипы.', door:'Проход, который открывается кнопкой.',
     button:'Кнопка T переключает, H работает пока нажата. От неё можно провести несколько связей.', portal:'Сразу создаётся пара. Цвет выбирается автоматически, стрелка показывает направление выхода.',
@@ -135,7 +135,7 @@
     enemyFlyer: { label: 'Шарик', color: '#78cdec', layer: 'entity', group: 'Враги', fixedSize: [2, 2], rotate: true },
     enemyLeech: { label: 'Пиявка', color: '#d381a8', layer: 'entity', group: 'Враги', fixedSize: [1, 1] },
     enemySpikeCube: { label: 'Шипастый куб', color: '#e55f79', layer: 'entity', group: 'Враги', resize: 'xy', defaultSize: [2, 2], rotate: true },
-    pushBlock: { label: 'Гиря', color: '#ff5d66', layer: 'hazard', group: 'Опасности', resize: 'square', defaultSize: [2, 2] },
+    pushBlock: { label: 'Гиря', color: '#ff5d66', layer: 'hazard', group: 'Опасности', resize: 'xy', defaultSize: [2, 2] },
     coin: { label: 'Монета', color: '#ffc94a', layer: 'entity', group: 'Предметы', fixedSize: [1, 1] },
     collectible: { label: 'Коллекционный значок', color: '#8be8ff', layer: 'entity', group: 'Предметы', fixedSize: [3, 3] },
     pickup: { label: 'Способность', color: '#cb9dff', layer: 'entity', group: 'Предметы', fixedSize: [3, 3] },
@@ -155,7 +155,7 @@
     { id:'hoist', type:'movingPlatform', label:'Лифт', color:'#69c8ff', preset:{loop:true}, help:'Одна платформа ездит туда и обратно. Максимальная длина маршрута — 10 клеток.' },
     { id: 'portal', type: 'portal' },
     { id: 'playerCannon', type: 'playerCannon' },
-    { id: 'generator', type: 'flyerSpawner', label: 'Генератор' },
+    { id: 'generator', type: 'cannon', label: 'Генератор' },
     ...['enemyGoomba', 'enemyFlyer', 'enemyLeech'].map(type => ({ id: type, type })),
     { id: 'pushBlock', type: 'pushBlock', label: 'Гиря' },
     { id: 'coin', type: 'coin' },
@@ -194,11 +194,7 @@
       { key: 'pathEndY', label: 'Конец Y', type: 'number', min: 0, max: 100, step: .5 },
       { key: 'speedCellsPerSecond', label: 'Скорость', type: 'number', min: 2.4, max: 12, step: .1 },
     ],
-    smartPlatform: [
-      { key: 'pathEndX', label: 'Конечная X', type: 'number', min: 0, max: 100, step: .5 },
-      { key: 'pathEndY', label: 'Конечная Y', type: 'number', min: 0, max: 100, step: .5 },
-      { key: 'speedCellsPerSecond', label: 'Скорость', type: 'number', min: .5, max: 12, step: .1 },
-    ],
+    smartPlatform: [{key:'speedCellsPerSecond',label:'Скорость',type:'select',options:[[2.4,'Медленно'],[4,'Быстро']]}],
     fallingPlatform: [
       { key: 'speed', label: 'Скорость', type: 'select', options: [['slow', 'Медленно'], ['fast', 'Быстро']] },
       { key: 'respawnDelay', label: 'Возврат, сек', type: 'number', min: .5, max: 10, step: .1 },
@@ -242,7 +238,7 @@
     cannon: [{ key: 'direction', label: 'Стреляет', type: 'select', options: DIRECTION_CYCLE.map(value => [value, value]) }, { key: 'interval', label: 'Интервал, сек', type: 'number', min: 1, max: 15, step: .1 }],
     enemyGoomba: [{ key: 'direction', label: 'Смотрит', type: 'select', options: [['left', 'Влево'], ['right', 'Вправо']] }, { key: 'patrol', label: 'Патруль, клеток', type: 'number', min: 2, max: 30, step: 1 }],
     enemyFlyer: [{ key: 'direction', label: 'Направление', type: 'select', options: DIRECTION_CYCLE.map(value => [value, value]) }, { key: 'distance', label: 'Дистанция', type: 'number', min: 1, max: 30, step: .5 }],
-    enemyLeech: [{ key: 'direction', label: 'Старт', type: 'select', options: [['left', 'Влево'], ['right', 'Вправо']] }],
+    enemyLeech: [{ key: 'direction', label: 'Обход', type: 'select', options: [['left', 'Против часовой'], ['right', 'По часовой']] }],
     enemySpikeCube: [{ key: 'sides', label: 'Шипованные стороны', type: 'select', options: [['udlr', 'Все'], ['u', 'Сверху'], ['lr', 'По бокам'], ['d', 'Снизу']] }],
     pushBlock: [{ key: 'fallTrigger', label: 'Падение', type: 'select', options: [['none', 'Не падает'], ['proximity', 'Когда игрок снизу']] }, { key: 'fallDelay', label: 'Задержка', type: 'number', min: 0, max: 5, step: .1 }],
     pickup: [{ key: 'pickupType', label: 'Способность', type: 'select', options: [['GR', 'Зацеп'], ['WJ', 'Отскок'], ['PDJ', 'Двойной прыжок']] }],
@@ -416,7 +412,7 @@
   }
 
   function normalizeObject(raw, index = 0) {
-    const type = TYPE_DEFS[raw?.type] ? raw.type : 'solid';
+    const type = ['flyerSpawner','shooterSpawner'].includes(raw?.type)?'cannon':TYPE_DEFS[raw?.type] ? raw.type : 'solid';
     const def = TYPE_DEFS[type];
     const size = def.fixedSize || def.defaultSize || [1, 1];
     const object = {
@@ -427,6 +423,7 @@
       layer: String(raw?.layer || def.layer),
       props: { ...defaultProps(type), ...(raw?.props && typeof raw.props === 'object' && !Array.isArray(raw.props) ? deepClone(raw.props) : {}) },
     };
+    if(raw?.type==='shooterSpawner')object.props.projectileMode='hard';
     if (raw?.notes) object.notes = String(raw.notes);
     if (type === 'boss') { object.x=Math.round(object.x);object.y=Math.round(object.y);object.props.bossKind=bossKindDefinition(object.props.bossKind)?object.props.bossKind:'ratSpider';[object.w,object.h]=BOSS_KINDS[object.props.bossKind].size;object.props.targets=Array.isArray(object.props.targets)?object.props.targets:[];object.props.controls=bossControls(object); }
     if(['pickup','collectible'].includes(type)){object.y=Math.max(0,object.y+object.h-3);object.w=object.h=3;}
@@ -454,8 +451,9 @@
       object.props.rotateInterval = [1, .5, .25].includes(Number(object.props.rotateInterval)) ? Number(object.props.rotateInterval) : .5;
       object.props.clockwise = object.props.clockwise !== false;
     }
+    if(type==='smartPlatform')object.props.speedCellsPerSecond=Number(object.props.speedCellsPerSecond)>=4?4:2.4;
     if (type === 'enemyGoomba') { const size=Number(object.w)>=3||Number(object.h)>=3?4:2;object.w=size;object.h=size; }
-    if (type === 'pushBlock') { const requested=Math.max(Number(object.w)||2,Number(object.h)||2); object.w=object.h=[2,4,8].reduce((best,size)=>Math.abs(size-requested)<Math.abs(best-requested)?size:best,2); object.props.fallTrigger = 'proximity'; object.props.fallDelay = .5; }
+    if (type === 'pushBlock') { object.w=Math.max(1,Math.round(Number(object.w)||2)); object.h=Math.max(1,Math.round(Number(object.h)||2)); object.props.fallTrigger = 'proximity'; object.props.fallDelay = .5; }
     if (type === 'door') { const horizontal=object.props.orientation==='horizontal'; const length=clamp(Math.round(horizontal?object.w:object.h),3,6); object.w=horizontal?length:1; object.h=horizontal?1:length; object.props.open=object.props.open===true||object.props.enabled===false||object.props.startActive===false;delete object.props.enabled;delete object.props.startActive; }
     if (type === 'label') { const explicitMode=raw?.props&&Object.prototype.hasOwnProperty.call(raw.props,'mode');object.w = clamp(Math.round(Number(object.w)||8),3,8); object.h = 2; object.props.decorative = true; object.props.marquee = true;object.props.mode=explicitMode&&['player','message','emoji'].includes(object.props.mode)?object.props.mode:'message'; }
     if (type === 'button' && object.props.buttonType === 'O') object.props.buttonType = 'T';
@@ -1638,6 +1636,82 @@
     return point.rawX>=end.x&&point.rawX<end.x+object.w&&point.rawY>=end.y&&point.rawY<end.y+object.h;
   })||null;}
 
+  // Four permanent corners and automatically subdivided three-cell sides.
+  function tramShapeParts(object){
+    const path=object.props.path||[],primary=new Set(object.props.primaryNodes||path.slice(0,4).map((_,i)=>i)),parts=[];
+    for(let i=0;i<path.length;i++){
+      const a=path[i],b=path[(i+1)%path.length],length=Math.hypot(b.x-a.x,b.y-a.y);
+      if(!length)continue;
+      const count=Math.max(1,Math.round(length/3));
+      for(let j=0;j<count;j++)parts.push({key:`${i}:${j}`,a:{x:a.x+(b.x-a.x)*j/count,y:a.y+(b.y-a.y)*j/count,main:j===0&&primary.has(i)?i:null},b:{x:a.x+(b.x-a.x)*(j+1)/count,y:a.y+(b.y-a.y)*(j+1)/count},routeIndex:i});
+    }
+    return parts;
+  }
+  function tramShapeIssue(object,path){
+    if(path.length<4)return 'У трамвая остаются четыре основных угла.';
+    const seg=tramRouteSegments(object,path);
+    for(const [a,b] of seg){const dx=Math.abs(a.x-b.x),dy=Math.abs(a.y-b.y);if(dx>.001&&dy>.001)return 'Стороны трамвая идут только под прямым углом.';const length=dx+dy;if(length<3-.001||Math.abs(length/3-Math.round(length/3))>.001)return 'Длина и изменение сторон кратны трём клеткам.';}
+    for(let i=0;i<seg.length;i++)for(let j=i+1;j<seg.length;j++){
+      if(j===i+1||i===0&&j===seg.length-1)continue;
+      const [a,b]=seg[i],[c,d]=seg[j];
+      if(tramSegmentsIntersect(a,b,c,d))return 'Стороны одного трамвая не пересекаются.';
+      const horizontal=a.y===b.y;
+      if(horizontal===(c.y===d.y)){
+        const axis=horizontal?'x':'y',other=horizontal?'y':'x',overlap=Math.min(Math.max(a[axis],b[axis]),Math.max(c[axis],d[axis]))-Math.max(Math.min(a[axis],b[axis]),Math.min(c[axis],d[axis]));
+        if(overlap>-.001&&Math.abs(a[other]-c[other])<3-.001)return 'Между параллельными сторонами минимум три клетки.';
+      }
+    }
+    return '';
+  }
+  function tramShapeHit(point,pointerType='mouse'){
+    const threshold=(pointerType==='touch'?14:8)/cellPixels(),hits=[];
+    for(const object of state.level.objects.filter(o=>o.type==='smartPlatform')){
+      const x=point.rawX-object.w/2,y=point.rawY-object.h/2,path=object.props.path||[],primary=object.props.primaryNodes||[0,1,2,3];
+      for(const i of primary){const p=path[i];if(!p)continue;const distance=Math.hypot(x-p.x,y-p.y);if(distance<threshold)hits.push({object,corner:i,distance});}
+      const pieces=tramShapeParts(object);
+      if(pieces.some(part=>part.a.main==null&&Math.hypot(x-part.a.x,y-part.a.y)<4/cellPixels()))continue;
+      for(const part of pieces){
+        const dx=part.b.x-part.a.x,dy=part.b.y-part.a.y,t=clamp(((x-part.a.x)*dx+(y-part.a.y)*dy)/(dx*dx+dy*dy),0,1),distance=Math.hypot(x-part.a.x-t*dx,y-part.a.y-t*dy);
+        if(distance<threshold)hits.push({object,part,distance:distance+.02});
+      }
+    }
+    return hits.sort((a,b)=>a.distance-b.distance)[0]||null;
+  }
+  function tramShapeCandidate(drag){
+    const object=drag.object,point=drag.current||drag.start,dx=snap(point.rawX-drag.start.rawX,3),dy=snap(point.rawY-drag.start.rawY,3);
+    if(!dx&&!dy)return{object,ok:true,changed:false};
+    const origin=object.props.path[0],grid=p=>({...p,x:origin.x+snap(p.x-origin.x,3),y:origin.y+snap(p.y-origin.y,3)});
+    let vertices;
+    if(drag.corner!==undefined){
+      const primary=new Set(object.props.primaryNodes||[0,1,2,3]);vertices=object.props.path.map((p,i)=>grid({...p,main:primary.has(i)?i:null}));
+      const i=drag.corner,n=vertices.length,old=vertices.map(p=>({...p})),prev=(i+n-1)%n,next=(i+1)%n;
+      vertices[i].x+=dx;vertices[i].y+=dy;
+      if(old[prev].x===old[i].x)vertices[prev].x=vertices[i].x;else vertices[prev].y=vertices[i].y;
+      if(old[next].x===old[i].x)vertices[next].x=vertices[i].x;else vertices[next].y=vertices[i].y;
+    }else{
+      const parts=tramShapeParts(object).map(p=>({...p,a:grid(p.a),b:grid(p.b)})),selected=new Set(drag.parts);
+      const displaced=parts.map(p=>{const horizontal=p.a.y===p.b.y,offset=selected.has(p.key)?horizontal?dy:dx:0;return{...p,a:{...p.a,x:p.a.x+(horizontal?0:offset),y:p.a.y+(horizontal?offset:0)},b:{...p.b,x:p.b.x+(horizontal?0:offset),y:p.b.y+(horizontal?offset:0)}};});
+      vertices=[];
+      for(let i=0;i<displaced.length;i++){
+        const curr=displaced[i],prev=displaced[(i+displaced.length-1)%displaced.length],horizontal=curr.a.y===curr.b.y,previousHorizontal=prev.a.y===prev.b.y;
+        if(horizontal!==previousHorizontal)vertices.push({x:horizontal?prev.b.x:curr.a.x,y:horizontal?curr.a.y:prev.b.y,main:curr.a.main});
+        else {if(Math.hypot(prev.b.x-curr.a.x,prev.b.y-curr.a.y)>.001)vertices.push({...prev.b,main:null});vertices.push({...curr.a});}
+      }
+    }
+    let changed=true;
+    while(changed&&vertices.length>4){changed=false;for(let i=0;i<vertices.length;i++){const a=vertices[(i+vertices.length-1)%vertices.length],b=vertices[i],c=vertices[(i+1)%vertices.length];if(b.main==null&&((a.x===b.x&&b.x===c.x)||(a.y===b.y&&b.y===c.y))){vertices.splice(i,1);changed=true;break;}}}
+    const path=vertices.map(p=>({x:p.x,y:p.y})),candidate={...object,x:path[0].x,y:path[0].y,props:{...object.props,path,routeStyle:'orthogonal3',primaryNodes:vertices.flatMap((p,i)=>p.main==null?[]:[i])}};
+    const issue=tramShapeIssue(candidate,path),placement=issue?{ok:false,message:issue}:pairedPathPlacement(candidate,path,state.level,{checkStyle:false});
+    return{object:candidate,...placement,changed:true};
+  }
+  function selectTramSides(rect){
+    state.selectedTramSides=[];
+    for(const object of state.level.objects.filter(o=>o.type==='smartPlatform'))for(const p of tramShapeParts(object)){
+      const mid={x:(p.a.x+p.b.x)/2+object.w/2,y:(p.a.y+p.b.y)/2+object.h/2};
+      if(mid.x>=rect.x&&mid.x<=rect.x+rect.w&&mid.y>=rect.y&&mid.y<=rect.y+rect.h)state.selectedTramSides.push({id:object.id,key:p.key});
+    }
+  }
+
   function tramRouteNodeHit(object, point, pointerType = 'mouse') {
     if (object?.type !== 'smartPlatform') return -1;
     const radius = (pointerType === 'touch' ? 25 : 15) / cellPixels();
@@ -1666,6 +1740,7 @@
   }
 
   function tramRouteStyleIssue(object, path) {
+    if(object.props?.routeStyle==='orthogonal3')return tramShapeIssue(object,path);
     if(!Array.isArray(path)||path.length<3)return '';
     const loop=object.props?.loop!==false;
     for(let index=loop?0:1;index<(loop?path.length:path.length-1);index++){
@@ -1673,6 +1748,7 @@
       const a={x:prev.x-node.x,y:prev.y-node.y},b={x:next.x-node.x,y:next.y-node.y};
       const cosine=(a.x*b.x+a.y*b.y)/(Math.hypot(a.x,a.y)*Math.hypot(b.x,b.y));
       const angle=Math.acos(clamp(cosine,-1,1))*180/Math.PI;
+      // Legacy routes keep their geometry until a shape edit migrates them.
       if(angle<TRAM_MIN_ANGLE-1e-6)return `Угол на узле трамвая должен быть не меньше ${TRAM_MIN_ANGLE}°.`;
     }
     const segments=tramRouteSegments(object,path);let crossings=0;
@@ -1802,6 +1878,7 @@
 
   function tramPathForRender(object) {
     const drag=state.drag;
+    if(drag?.kind==='tramShape'&&drag.object.id===object.id){const candidate=tramShapeCandidate(drag);return candidate.ok?candidate.object.props.path:object.props.path;}
     if(drag?.kind==='pathNode'&&drag.object.id===object.id){
       const next=pathNodeFromDrag(drag);
       if(drag.insertedNode)return drag.previewValid?drag.object.props.path.map((node,index)=>index===drag.nodeIndex?next:node):object.props.path;
@@ -1875,31 +1952,16 @@
     }
   }
 
-  function drawTramInsertionHandles(cell) {
+  function drawTramInsertionHandles(cell){
     ctx.save();ctx.setLineDash([]);
-    const drag=state.drag?.kind==='pathNode'?state.drag:null;
-    for(const object of state.level.objects.filter(candidate=>candidate.type==='smartPlatform')){
-      const path=tramPathForRender(object),editing=drag?.object.id===object.id;
-      if(!drag)for(const handle of tramInsertionPoints(object,path)){
-        const cx=(handle.point.x+object.w/2)*cell,cy=(handle.point.y+object.h/2)*cell;
-        const hovered=!!state.hoverPoint&&Math.hypot((state.hoverPoint.rawX-handle.point.x-object.w/2)*cell,(state.hoverPoint.rawY-handle.point.y-object.h/2)*cell)<=12;
-        ctx.beginPath();ctx.arc(cx,cy,hovered?6.5:5,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=hovered?2.5:1.5;ctx.strokeStyle=hovered?'#f5fff9':'#08100d';ctx.stroke();
+    for(const object of state.level.objects.filter(o=>o.type==='smartPlatform')){
+      const path=tramPathForRender(object),candidate=state.drag?.kind==='tramShape'&&state.drag.object.id===object.id?tramShapeCandidate(state.drag):null,preview=candidate?.ok?candidate.object:{...object,props:{...object.props,path}};
+      for(const part of tramShapeParts(preview)){
+        const selected=(state.selectedTramSides||[]).some(s=>s.id===object.id&&s.key===part.key);
+        if(selected){ctx.strokeStyle='#ffe26f';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo((part.a.x+object.w/2)*cell,(part.a.y+object.h/2)*cell);ctx.lineTo((part.b.x+object.w/2)*cell,(part.b.y+object.h/2)*cell);ctx.stroke();}
+        ctx.beginPath();ctx.arc((part.a.x+object.w/2)*cell,(part.a.y+object.h/2)*cell,part.a.main==null?3:6,0,Math.PI*2);ctx.fillStyle=part.a.main==null?'#ffd56b':'#67d7ff';ctx.fill();
       }
-      drawTramNodeCircles(object,path,cell,TYPE_DEFS.smartPlatform.color);
-      if(!editing)continue;
-      if(!drag.outside)for(const point of tramNodeSuggestions(drag)){
-        const cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
-        ctx.beginPath();ctx.arc(cx,cy,Math.min(3.5,cell*.2),0,Math.PI*2);ctx.fillStyle='rgba(255,213,107,.26)';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(255,237,179,.45)';ctx.stroke();
-      }
-      if(drag.insertedNode&&!drag.previewValid){
-        const point=drag.requestedNode||drag.object.props.path[drag.nodeIndex],cx=clamp((point.x+object.w/2)*cell,7,canvas.width-7),cy=clamp((point.y+object.h/2)*cell,7,canvas.height-7);
-        ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=TRAM_INSERTION_COLOR;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=drag.nodeMoved?'#ff6974':TYPE_DEFS.smartPlatform.color;ctx.stroke();
-      }else if(drag.deleteCandidate){
-        const point=object.props.path[drag.nodeIndex],cx=(point.x+object.w/2)*cell,cy=(point.y+object.h/2)*cell;
-        ctx.beginPath();ctx.moveTo(cx-7,cy-7);ctx.lineTo(cx+7,cy+7);ctx.moveTo(cx+7,cy-7);ctx.lineTo(cx-7,cy+7);ctx.strokeStyle='#ff6974';ctx.lineWidth=3;ctx.stroke();
-      }
-    }
-    ctx.restore();
+    }ctx.restore();
   }
 
   function drawPairedPlacementPreview(object,cell,color,invalid=false) {
@@ -2156,7 +2218,7 @@
       const distance=object.type==='crusherWall'?(dx?object.w:object.h):Math.max(6,dx?object.w:object.h);
       return[start,{x:start.x+dx*distance,y:start.y+dy*distance}];
     }
-    const side=Math.max(3,Math.ceil(object.w),Math.ceil(object.h)),perpendicular={x:-dy,y:dx};
+    const side=3*Math.ceil(Math.max(3,object.w,object.h)/3),perpendicular={x:-dy,y:dx};
     return[start,{x:start.x+dx*side,y:start.y+dy*side},{x:start.x+(dx+perpendicular.x)*side,y:start.y+(dy+perpendicular.y)*side},{x:start.x+perpendicular.x*side,y:start.y+perpendicular.y*side}];
   }
 
@@ -2229,6 +2291,7 @@
     const widthCap=authoringWidthCap(item.type);if(widthCap)geometry.w=Math.min(geometry.w,widthCap);geometry.x=clamp(geometry.x,0,Math.max(0,state.level.size.width-geometry.w));geometry.y=clamp(geometry.y,0,Math.max(0,state.level.size.height-geometry.h));const object=constrainNewObjectWidth(normalizeObject({id:id||nextObjectId(item.type),type:item.type,...geometry,layer:def.layer,props:{...defaultProps(item.type),...(item.preset||{})}}));
     if(object.type==='spike')autoOrientSpike(object,rect);
     if(PATH_ENDPOINT_TYPES.has(object.type))prepareInitialPairedPath(object);
+    if(object.type==='smartPlatform'){object.props.routeStyle='orthogonal3';object.props.primaryNodes=[0,1,2,3];}
     if(object.type==='portal'){object.props.pairId=nextPortalPairId();object.props.color=PORTAL_COLORS[Math.floor(Math.random()*PORTAL_COLORS.length)];object.props.length=object.h;}
     return object;
   }
@@ -2246,6 +2309,8 @@
   function overlapAllowed(a,b){
     if(a.type==='crusherWall'||b.type==='crusherWall')return a.type!=='solid'&&b.type!=='solid';
     if(a.type===b.type)return false;
+    const spike=a.type==='spike'?a:b.type==='spike'?b:null,platform=spike===a?b:a;
+    if(spike&&['oneWay','fragilePlatform','blinkPlatform','movingPlatform','smartPlatform','fallingPlatform','conveyor'].includes(platform.type))return true;
     if(['driftField','label'].includes(a.type)||['driftField','label'].includes(b.type))return true;
     const pad=a.type==='bouncePad'?a:b.type==='bouncePad'?b:null;
     const support=a.type==='bouncePad'?b:b.type==='bouncePad'?a:null;
@@ -2575,7 +2640,13 @@
       if(event.pointerType==='touch'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');}
       refreshAll();return;
     }
-    const tramHandle=routeHandleOverride||tramRouteHandleAt(point,event.pointerType);
+    const shapeHit=state.tool==='select'?tramShapeHit(point,event.pointerType):null;
+    if(shapeHit&&event.button===0){
+      const selected=(state.selectedTramSides||[]).filter(s=>s.id===shapeHit.object.id),parts=shapeHit.part?(selected.some(s=>s.key===shapeHit.part.key)?selected.map(s=>s.key):[shapeHit.part.key]):[];
+      const activate=()=>{setSelectedObjectIds([shapeHit.object.id]);state.drag={kind:'tramShape',pointerId:event.pointerId,pointerType:event.pointerType,object:deepClone(shapeHit.object),corner:shapeHit.corner,parts,start:point,current:point};refreshAll();};
+      if(event.pointerType==='touch')beginTouchCanvasIntent(event,activate);else activate();return;
+    }
+    const tramHandle=null;
     if((event.button===2||state.tool==='erase')&&tramHandle?.nodeIndex>0){toast('Чтобы удалить узел трамвая, перетащите его за границу поля.');return;}
     if(event.button===2){eraseRegion({x:point.x,y:point.y,w:1,h:1});return;}
     if(event.button===1||state.spaceHeld||state.tool==='pan'){state.pan={pointerId:event.pointerId,x:event.clientX,y:event.clientY,scrollLeft:viewport.scrollLeft,scrollTop:viewport.scrollTop};viewport.classList.add('dragging');return;}
@@ -2640,7 +2711,7 @@
   function handlePointerUp(event){state.pointers.delete(event.pointerId);if(finishFieldTapCandidate(event))return;if(event.pointerType==='touch')discardTouchSelectionSnapshot();if(state.touchObjectIntent?.pointerId===event.pointerId){clearTouchObjectIntent();if(selectedBossControl())showBossControlHint(state.selectedBossControl.index);return;}if(state.pinch){if(state.pointers.size<2)state.pinch=null;return;}if(state.pan){if(state.pan.pointerId!==event.pointerId)return;state.pan=null;viewport.classList.remove('dragging');return;}const drag=state.drag;if(drag&&drag.pointerId!==event.pointerId)return;state.drag=null;if(!drag)return;
     if(drag.kind==='draw'){const item=PALETTE_BY_ID.get(drag.paletteId);const object=makeObjectFromTool(item,normalizedGridRect(drag.start,drag.current));const placed=addPlacedObject(object);if(placed&&item.type!=='solid')setTool('select');}
     else if(drag.kind==='erase'){eraseRegion(normalizedGridRect(drag.start,drag.current));}
-    else if(drag.kind==='selectRect'){const rect=normalizedGridRect(drag.start,drag.current||drag.start),selected=state.level.objects.filter(object=>placementFootprints(object).some(footprint=>rectsOverlap(footprint,rect))).map(object=>object.id);setSelectedObjectIds(selected);state.groupSelection=true;showInteractionHint(selectedObject());refreshAll();}
+    else if(drag.kind==='selectRect'){const rect=normalizedGridRect(drag.start,drag.current||drag.start);selectTramSides(rect);const selected=state.level.objects.filter(object=>placementFootprints(object).some(footprint=>rectsOverlap(footprint,rect))).map(object=>object.id);setSelectedObjectIds(selected);state.groupSelection=true;showInteractionHint(selectedObject());refreshAll();}
     else if(drag.kind==='moveGroup'){if(pointerInDeleteZone(event)){removeObjectGroup(drag.objects.map(object=>object.id));canvas.classList.remove('will-delete');canvas.style.cursor='grab';renderCanvas();return;}const result=groupMovePreview(drag);if(result.ok&&result.changed)mutate('Группа предметов перемещена',()=>{for(const candidate of result.candidates){const current=state.level.objects.find(object=>object.id===candidate.id);if(current)Object.assign(current,candidate);}});else if(!result.ok)toast(result.message,'error');}
     else if(drag.kind==='move'){if(pointerInDeleteZone(event)){if(removeObject(drag.object.id))toast('Предмет удалён: он вынесен за границу поля.','ok');}else{const current=state.level.objects.find(object=>object.id===drag.object.id),candidate=moveCandidateFromDrag(drag);if(current&&candidate&&(candidate.x!==current.x||candidate.y!==current.y)){const verdict=placementPreviewVerdict(candidate,[current.id]);if(verdict.ok)mutate('Предмет перемещён',()=>{current.x=candidate.x;current.y=candidate.y;if(Array.isArray(candidate.props?.path))current.props.path=candidate.props.path;if(candidate.type==='boss')current.props.controls=candidate.props.controls;});else toast(verdict.message,'error');}}}
     else if(drag.kind==='bossControl'){
@@ -2650,6 +2721,7 @@
       else if(!pointInsideCanvas(event.clientX,event.clientY))toast('Педаль остаётся на поле: её нельзя удалить отдельно.');
       else if(current&&JSON.stringify(candidate.props.controls)!==JSON.stringify(bossControls(current))){const verdict=placementPreviewVerdict(candidate,[current.id]);if(verdict.ok)mutate('Педаль босса перемещена',()=>{current.props.controls=candidate.props.controls;});else toast(verdict.message,'error');}
     }
+    else if(drag.kind==='tramShape'){drag.current=pointerGridPoint(event);const result=tramShapeCandidate(drag),current=state.level.objects.find(o=>o.id===drag.object.id);if(current&&result.changed&&result.ok){mutate('Форма трамвая изменена',()=>Object.assign(current,result.object));state.selectedTramSides=[];}else if(!result.ok)toast(result.message,'error');}
     else if(drag.kind==='pathEndpoint'){const current=state.level.objects.find(object=>object.id===drag.object.id);const end=pathEndpointFromDrag(drag);const previous=pathEnd(drag.object);if(current&&(end.x!==previous.x||end.y!==previous.y)){const placement=pathEndpointPlacement(current,end);if(placement.ok)mutate('Конечная точка маршрута перемещена',()=>{current.props.path=routeForObject(current,end);});else toast(`Конечная точка маршрута: ${placement.message}`,'error');}}
     else if(drag.kind==='pathNode'){
       const current=state.level.objects.find(object=>object.id===drag.object.id),previous=drag.object.props.path[drag.nodeIndex];
@@ -2703,7 +2775,7 @@
 
   function getPropertyValue(object,key){if(key==='pathEndX')return pathEnd(object).x;if(key==='pathEndY')return pathEnd(object).y;if(key==='buttonSide')return object.props?.sides?.[0]||'up';if(key==='portalSide')return object.props?.side||'right';return object.props?.[key];}
   function setCannonDirection(object,value){const direction=CANNON_DIRECTION_CYCLE.includes(value)?value:'right',start=CANNON_DIRECTION_CYCLE.indexOf(direction);object.props.direction=direction;object.props.dirs=[...CANNON_DIRECTION_CYCLE.slice(start),...CANNON_DIRECTION_CYCLE.slice(0,start)];}
-  function setPropertyValue(object,key,value){if(object.type==='movingPlatform'&&key==='speedCellsPerSecond'){object.props[key]=Math.max(2.4,Number(value)||2.4);return;}if(key==='pathEndX'||key==='pathEndY'){const axis=key==='pathEndX'?'x':'y',end=pathEnd(object);end[axis]=value;if(object.type==='smartPlatform'){const index=smartEndpointIndex(object),path=object.props.path.map(point=>({...point}));path[index]={x:clamp(snap(end.x,1),0,state.level.size.width-object.w),y:clamp(snap(end.y,1),0,state.level.size.height-object.h)};object.props.path=path;}else object.props.path=routeForObject(object,constrainPathEndpoint(object,end));return;}if(key==='buttonSide'){object.props.sides=[value];return;}if(key==='portalSide'){Object.assign(object,portalWithSide(object,value));return;}if(object.type==='playerCannon'&&key==='direction'){setCannonDirection(object,value);return;}object.props[key]=value;}
+  function setPropertyValue(object,key,value){if(object.type==='smartPlatform'&&key==='speedCellsPerSecond'){object.props[key]=Number(value)>=4?4:2.4;return;}if(object.type==='movingPlatform'&&key==='speedCellsPerSecond'){object.props[key]=Math.max(2.4,Number(value)||2.4);return;}if(key==='pathEndX'||key==='pathEndY'){const axis=key==='pathEndX'?'x':'y',end=pathEnd(object);end[axis]=value;if(object.type==='smartPlatform'){const index=smartEndpointIndex(object),path=object.props.path.map(point=>({...point}));path[index]={x:clamp(snap(end.x,1),0,state.level.size.width-object.w),y:clamp(snap(end.y,1),0,state.level.size.height-object.h)};object.props.path=path;}else object.props.path=routeForObject(object,constrainPathEndpoint(object,end));return;}if(key==='buttonSide'){object.props.sides=[value];return;}if(key==='portalSide'){Object.assign(object,portalWithSide(object,value));return;}if(object.type==='playerCannon'&&key==='direction'){setCannonDirection(object,value);return;}object.props[key]=value;}
 
   function renderFriendlyProperties(object){const root=$('friendlyProperties');root.innerHTML='';const defs=PROPERTY_DEFS[object.type]||[];for(const definition of defs){const row=document.createElement('label');row.className='property-row';const label=document.createElement('span');label.textContent=definition.label;let input;if(definition.type==='select'){input=document.createElement('select');for(const [value,text] of definition.options){const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);}input.value=String(getPropertyValue(object,definition.key)??definition.options[0][0]);}else{input=document.createElement('input');input.type=definition.type==='checkbox'?'checkbox':definition.type==='text'?'text':'number';if(definition.type==='checkbox')input.checked=!!getPropertyValue(object,definition.key);else{input.value=String(getPropertyValue(object,definition.key)??'');if(definition.type==='number'){input.min=definition.min;input.max=definition.max;input.step=definition.step;}if(definition.maxLength)input.maxLength=definition.maxLength;}}
       input.addEventListener('change',()=>{const selected=selectedObject();if(!selected)return;let value=definition.type==='checkbox'?input.checked:definition.type==='number'?Number(input.value):input.value;if(definition.key==='pathEndX'||definition.key==='pathEndY'){const axis=definition.key==='pathEndX'?'x':'y',end=pathEnd(selected);end[axis]=value;if(selected.type==='smartPlatform'){const index=smartEndpointIndex(selected),constrained={x:clamp(snap(end.x,1),0,state.level.size.width-selected.w),y:clamp(snap(end.y,1),0,state.level.size.height-selected.h)},path=selected.props.path.map((point,candidate)=>candidate===index?constrained:point),placement=pairedPathPlacement(selected,path);if(!placement.ok){toast(`Узел маршрута: ${placement.message}`,'error');refreshInspector();return;}value=constrained[axis];}else{const constrained=constrainPathEndpoint(selected,end),placement=pathEndpointPlacement(selected,constrained);if(!placement.ok){toast(`Конечная точка маршрута: ${placement.message}`,'error');refreshInspector();return;}value=constrained[axis];}}if(selected.type==='portal'&&definition.key==='portalSide'){const next=portalWithSide(selected,value),placement=canPlace(next,[selected.id],{checkOwnPair:false});if(!placement.ok){toast(`Направление портала: ${placement.message}`,'error');refreshInspector();return;}mutate(`Изменено: ${definition.label}`,()=>Object.assign(selected,next));return;}mutate(`Изменено: ${definition.label}`,()=>setPropertyValue(selected,definition.key,value));});row.append(label,input);root.append(row);}
@@ -2745,10 +2817,17 @@
   function centerArrowRun(button,arrow,count){const glyph=button.querySelector('.context-glyph');if(!glyph)return;glyph.textContent='';Object.assign(glyph.style,{display:'flex',width:'100%',maxWidth:'none',overflow:'visible',alignItems:'center',justifyContent:'center',gap:'0',fontSize:'11px',letterSpacing:'0'});for(let index=0;index<count;index++){const item=document.createElement('span');item.textContent=arrow;Object.assign(item.style,{display:'block',width:'7px',flex:'0 0 7px',textAlign:'center'});glyph.append(item);}}
   function contextMutation(label,callback,feedback){const changed=mutate(label,callback);if(changed&&feedback)toast(feedback,'ok');return changed;}
   function cycleContextValue(object,key,values,label,labels=values){const current=object.props?.[key],index=Math.max(0,values.findIndex(value=>value===current)),nextIndex=(index+1)%values.length,next=values[nextIndex],feedback=`${label}: ${labels[nextIndex]}`;contextMutation(`${label} изменено`,()=>{object.props[key]=next;},feedback);}
-  function cycleContextNumber(object,key,values,label,suffix=''){const current=Number(object.props?.[key]),index=Math.max(0,values.reduce((best,value,candidate)=>Math.abs(value-current)<Math.abs(values[best]-current)?candidate:best,0)),next=values[(index+1)%values.length];const human=key==='distance'?(next<=2?'близко':next>=10?'далеко':'средне'):key==='speedCellsPerSecond'?(next>=4?'быстро':object.type==='movingPlatform'?'медленно':next>=2?'средне':'медленно'):key==='cycle'?(next>=4?'медленно':next>=2?'средне':'быстро'):key==='rotateInterval'?(next<=.25?'быстро':next<=.5?'средне':'медленно'):null;contextMutation(`${label} изменено`,()=>{object.props[key]=next;},`${label}: ${human||`${formatNumber(next)}${suffix}`}`);}
+  function cycleContextNumber(object,key,values,label,suffix=''){const current=Number(object.props?.[key]),index=Math.max(0,values.reduce((best,value,candidate)=>Math.abs(value-current)<Math.abs(values[best]-current)?candidate:best,0)),next=values[(index+1)%values.length];const human=key==='distance'?(next<=2?'близко':next>=10?'далеко':'средне'):key==='speedCellsPerSecond'?(next>=4?'быстро':['movingPlatform','smartPlatform'].includes(object.type)?'медленно':next>=2?'средне':'медленно'):key==='cycle'?(next>=4?'медленно':next>=2?'средне':'быстро'):key==='rotateInterval'?(next<=.25?'быстро':next<=.5?'средне':'медленно'):null;contextMutation(`${label} изменено`,()=>{object.props[key]=next;},`${label}: ${human||`${formatNumber(next)}${suffix}`}`);}
   function modeIcon(value){return value==='always'?'∞':value==='toggle'?'⌁':'◷';}
-  function generatorVariantIndex(object){if(object.type!=='cannon')return Math.max(0,GENERATOR_TYPES.indexOf(object.type));return object.props?.projectileMode==='hard'?4:3;}
-  function cycleGeneratorVariant(object){const variants=[['flyerSpawner','Шарик','ball'],['bomberSpawner','Бомбочка','bomb'],['shooterSpawner','Блок','block'],['cannon','Обычное ядро','soft'],['cannon','Красное ядро','hard']];const current=generatorVariantIndex(object);const [type,,mode]=variants[(current+1)%variants.length];const next=normalizeObject({...deepClone(object),type,layer:TYPE_DEFS[type].layer,props:{...defaultProps(type),projectileMode:mode}},0);next.id=object.id;next.x=object.x;next.y=object.y;next.w=TYPE_DEFS[type].fixedSize?.[0]||object.w;next.h=TYPE_DEFS[type].fixedSize?.[1]||object.h;const placement=canPlace(next,[object.id]);if(!placement.ok){toast(placement.message,'error');return;}mutate('Тип генератора изменён',()=>Object.assign(object,next));}
+  function generatorVariantIndex(object){return object.type==='bomberSpawner'?2:object.props?.projectileMode==='hard'?1:0;}
+  function cycleGeneratorVariant(object){
+    const variants=[['cannon','soft'],['cannon','hard'],['bomberSpawner','bomb']];
+    const [type,mode]=variants[(generatorVariantIndex(object)+1)%variants.length];
+    const next=normalizeObject({...deepClone(object),type,layer:TYPE_DEFS[type].layer,props:{...defaultProps(type),...object.props,projectileMode:mode,shotMode:mode}},0);
+    next.id=object.id;next.x=object.x;next.y=object.y;
+    const placement=canPlace(next,[object.id]);if(!placement.ok){toast(placement.message,'error');return;}
+    mutate('Тип генератора изменён',()=>Object.assign(object,next));
+  }
   function cycleLabel(object, delta=1){const author=(localStorage.getItem(AUTHOR_NAME_KEY)||'Автор').trim()||'Автор';const current=LABEL_TEMPLATES.findIndex(template=>template.replace('{author}',author)===object.props?.text);const index=(current<0?0:current+delta+LABEL_TEMPLATES.length)%LABEL_TEMPLATES.length;object.props.text=LABEL_TEMPLATES[index].replace('{author}',author);}
   function labelModeText(mode){const author=(localStorage.getItem(AUTHOR_NAME_KEY)||'Автор').trim()||'Автор';if(mode==='player')return `Автор: ${author}`;return mode==='emoji'?LABEL_EMOJIS[0]:LABEL_TEMPLATES[0].replace('{author}',author);}
   function cycleLabelMode(object){const modes=['player','message','emoji'],current=modes.includes(object.props?.mode)?object.props.mode:'message',next=modes[(modes.indexOf(current)+1)%modes.length];object.props.mode=next;object.props.text=labelModeText(next);object.props.randomWeights={};delete object.props.lastRandom;return next;}
@@ -2763,11 +2842,11 @@
       add('↑','Выбрать корпус босса',()=>{state.selectedBossControl=null;refreshAll();},'context-variant',false,'boss-control-owner');
       positionSelectionUi(object,def);return;
     }
-    if(object.type==='pushBlock')add(`${object.w}×${object.h}`,'Размер гири: 2×2, 4×4 или 8×8',()=>{const sizes=[2,4,8],size=sizes[(sizes.indexOf(object.w)+1)%sizes.length],candidate={...object,w:size,h:size};const verdict=placementPreviewVerdict(candidate,[object.id]);if(!verdict.ok){toast(verdict.message,'error');return;}contextMutation('Размер гири изменён',()=>Object.assign(object,candidate),`Гиря: ${size}×${size}`);},'context-variant',false,'weight-size');
+
     if(def.rotate)add(object.type==='playerCannon'?directionArrow(object.props?.direction||'right'):'↻',object.type==='playerCannon'?'Начальное направление пушки':'Повернуть предмет',rotateSelected,'context-rotate',true,'rotate');
     if(object.type==='portal'){const current=PORTAL_COLORS.includes(object.props?.color)?object.props.color:'purple',used=new Set(state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId!==object.props?.pairId).map(candidate=>candidate.props?.color)),choices=PORTAL_COLORS.filter(color=>color===current||!used.has(color)),next=choices[(choices.indexOf(current)+1)%choices.length],colorButton=add('●',`Цвет портала: ${PORTAL_COLOR_LABELS[current]}`,()=>contextMutation('Цвет пары порталов изменён',()=>{for(const portal of state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId))portal.props.color=next;},`Цвет порталов: ${PORTAL_COLOR_LABELS[next]}`),'context-variant',false,'portal-color');colorButton.style.setProperty('--context-color',PORTAL_COLOR_VALUES[current]);colorButton.style.setProperty('--context-ink',PORTAL_COLOR_VALUES[current]);}
     if(object.type==='blinkPlatform'&&!incomingLinks(object.id).length){const value=Number(object.props?.cycle)||2,label=value>=4?'Медленно':value>=2?'Средне':'Быстро';add(value>=4?'>':value>=2?'>>':'>>>',`Скорость цикла: ${label}`,()=>cycleContextNumber(object,'cycle',[4,2,1],'Скорость','','',['медленно','средне','быстро']),'context-variant',false,'cycle');}
-    if(['movingPlatform','smartPlatform','crusherWall'].includes(object.type)){const value=Number(object.props?.speedCellsPerSecond)||2.4,label=value>=4?'Быстро':object.type==='movingPlatform'?'Медленно':value>=2?'Средне':'Медленно';add(object.type==='movingPlatform'?(value>=4?'>>':'>'):value>=4?'>>>':value>=2?'>>':'>',`Скорость: ${label}`,()=>cycleContextNumber(object,'speedCellsPerSecond',object.type==='movingPlatform'?[2.4,4]:[1.2,2.4,4],'Скорость',''),'context-variant',false,'speed');}
+    if(['movingPlatform','smartPlatform','crusherWall'].includes(object.type)){const value=Number(object.props?.speedCellsPerSecond)||2.4,label=value>=4?'Быстро':['movingPlatform','smartPlatform'].includes(object.type)?'Медленно':value>=2?'Средне':'Медленно';add(['movingPlatform','smartPlatform'].includes(object.type)?(value>=4?'>>':'>'):value>=4?'>>>':value>=2?'>>':'>',`Скорость: ${label}`,()=>cycleContextNumber(object,'speedCellsPerSecond',['movingPlatform','smartPlatform'].includes(object.type)?[2.4,4]:[1.2,2.4,4],'Скорость',''),'context-variant',false,'speed');}
     if(object.type==='smartPlatform'){const clockwise=object.props?.clockwise!==false;add(clockwise?'↻':'↺',clockwise?'Маршрут по часовой стрелке':'Маршрут против часовой стрелки',()=>contextMutation('Направление трамвая изменено',()=>{object.props.clockwise=!clockwise;},clockwise?'Трамвай поедет против часовой стрелки':'Трамвай поедет по часовой стрелке'),'context-variant',clockwise,'tram-direction');}
     if(object.type==='crusherWall'){const spikes=!!object.props?.spikes;add('▲',spikes?'Шипы на прессе включены':'Шипы на прессе выключены',()=>contextMutation('Шипы пресса изменены',()=>{object.props.spikes=!spikes;object.props.sides=!spikes?'udlr':'';},!spikes?'Шипы включены со всех сторон':'Шипы выключены'),'context-danger',spikes,'press-spikes');}
     if(object.type==='fallingPlatform'){const speed=object.props?.speed==='fast'?'fast':'slow';add(speed==='fast'? '>>':'>',speed==='fast'?'До падения: 0,25 сек':'До падения: 0,5 сек',()=>cycleContextValue(object,'speed',['slow','fast'],'Задержка падения',['0,5 сек','0,25 сек']),'context-variant',speed==='fast','fall-speed');}
@@ -2776,15 +2855,16 @@
     if(object.type==='boss'){add('1','Босс 1 · Бункерная крыса — паук',()=>toast('Босс 1 · Бункерная крыса — паук. Другие боссы появятся здесь.'),'context-variant',true,'boss-kind');const plug=add('plug','Подключить механизм или кнопку T босса',()=>{},'context-link',true,'link');plug.addEventListener('pointerdown',event=>beginWireDrag(event,object.id));}
     if(object.type==='button'&&(object.props?.bossOnly===true||state.level.objects.some(item=>item.type==='boss'))){const bossOnly=object.props?.bossOnly===true;add(bossOnly?'Б':'И',bossOnly?'Кнопку нажимает только босс':'Кнопку нажимают игрок и босс',()=>contextMutation('Доступ к кнопке изменён',()=>{object.props.bossOnly=!bossOnly;},bossOnly?'Кнопка доступна игроку':'Кнопка только для босса'),'context-variant',bossOnly,'boss-only');}
     if(object.type==='button'){const types=['T','H'],labels=['переключатель','пока нажата'],current=types.includes(object.props?.buttonType)?object.props.buttonType:'T';add(current,`Кнопка: ${labels[types.indexOf(current)]}`,()=>cycleContextValue(object,'buttonType',types,'Тип кнопки',labels),'context-variant',false,'button-type');const plug=add('plug','Перетащите вилку в зелёную розетку',()=>{},'context-link',true,'link');plug.addEventListener('pointerdown',event=>beginWireDrag(event,object.id));}
-    if(GENERATOR_TYPES.includes(object.type)){const variants=['○','✹','■','●','◉'],names=['шарик','бомбочка','блок','ядро','красное ядро'],index=generatorVariantIndex(object),interval=Number(object.props?.interval)||2;add(variants[index],`Генератор создаёт: ${names[index]}`,()=>{cycleGeneratorVariant(object);toast(`Тип генератора: ${names[(index+1)%names.length]}`,'ok');},'context-variant',index===4,'generator-type');add(interval<=1?'>>>':interval<=2?'>>':'>',`Интервал: ${formatNumber(interval)} сек`,()=>cycleContextNumber(object,'interval',[4,2,1],'Интервал',' сек'),'context-variant',false,'interval');}
+    if(GENERATOR_TYPES.includes(object.type)){const variants=['●','◉','✹'],names=['ядро','красное ядро','бомбочка'],index=generatorVariantIndex(object),interval=Number(object.props?.interval)||2;add(variants[index],`Генератор создаёт: ${names[index]}`,()=>{cycleGeneratorVariant(object);toast(`Тип генератора: ${names[(index+1)%names.length]}`,'ok');},'context-variant',index===4,'generator-type');add(interval<=1?'>>>':interval<=2?'>>':'>',`Интервал: ${formatNumber(interval)} сек`,()=>cycleContextNumber(object,'interval',[4,2,1],'Интервал',' сек'),'context-variant',false,'interval');}
     if(object.type==='playerCannon'){const manual=!!object.props?.manual,manualControl=add(manual?'✋':'↻',manual?'Ручное управление. Переключить на автоматическое вращение':'Автоматическое вращение. Переключить на ручное управление',()=>contextMutation('Режим пушки изменён',()=>{object.props.manual=!manual;},manual?'Включено автовращение':'Включено ручное управление'),'context-state context-parent',manual,'manual');manualControl.style.order='-12';if(!manual){const interval=Number(object.props?.rotateInterval)||.5,speedLabel=interval<=.25?'Быстро':interval<=.5?'Средне':'Медленно',clockwise=object.props?.clockwise!==false,speedControl=add(interval<=.25?'>>>':interval<=.5?'>>':'>',`Скорость вращения: ${speedLabel}`,()=>cycleContextNumber(object,'rotateInterval',[1,.5,.25],'Скорость вращения'),'context-variant context-nested',false,'cannon-speed'),clockwiseControl=add(clockwise?'↻':'↺',clockwise?'Вращение по часовой стрелке':'Вращение против часовой стрелки',()=>contextMutation('Направление вращения изменено',()=>{object.props.clockwise=!clockwise;},clockwise?'Вращение против часовой':'Вращение по часовой'),'context-variant context-nested',clockwise,'cannon-clockwise');speedControl.style.order='-11';clockwiseControl.style.order='-10';}}
-    if(['enemyGoomba','enemyLeech'].includes(object.type)){const direction=object.props?.direction==='left'?'left':'right';add(directionArrow(direction),'Стартовое движение: '+(direction==='left'?'влево':'вправо'),()=>cycleContextValue(object,'direction',['left','right'],'Стартовое движение',['влево','вправо']),'context-variant',false,'start-direction');}
+    if(object.type==='enemyLeech'){const clockwise=object.props?.direction!=='left';add(clockwise?'↻':'↺',clockwise?'Обход по часовой стрелке':'Обход против часовой стрелки',()=>cycleContextValue(object,'direction',['left','right'],'Обход',['против часовой','по часовой']),'context-variant',false,'start-direction');}
+    if(object.type==='enemyGoomba'){const direction=object.props?.direction==='left'?'left':'right';add(directionArrow(direction),'Стартовое движение: '+(direction==='left'?'влево':'вправо'),()=>cycleContextValue(object,'direction',['left','right'],'Стартовое движение',['влево','вправо']),'context-variant',false,'start-direction');}
     if(object.type==='enemyFlyer'){const value=Number(object.props?.distance)||5,label=value<=2?'Близко':value>=10?'Далеко':'Средне',arrow=directionArrow(object.props?.direction||'right'),count=value<=2?1:value>=10?3:2,control=add(arrow.repeat(count),`Направление и расстояние: ${label}`,()=>cycleContextNumber(object,'distance',[2,5,10],'Расстояние',''),'context-variant context-distance',false,'distance');centerArrowRun(control,arrow,count);}
     if(object.type==='pickup'){const gravity=object.props?.abilityGroup==='gravity',values=gravity?['JP','FL','VV']:['GR','WJ','PDJ'],labels=gravity?['джетпак','парение','инверсия']:['зацеп','отскок','двойной прыжок'];add('★',`Способность: ${labels[Math.max(0,values.indexOf(object.props?.pickupType||values[0]))]}`,()=>cycleContextValue(object,'pickupType',values,'Способность',labels),'context-variant',false,'pickup');}
     if(object.type==='unlockSwitch'){const values=['jp','fl','vv'],labels=['джетпак','парение','инверсия'];add('◇',`Открывает: ${labels[Math.max(0,values.indexOf(object.props?.key||'jp'))]}`,()=>cycleContextValue(object,'key',values,'Переключатель',labels),'context-variant',false,'unlock');}
     if(object.type==='label'){const mode=['player','message','emoji'].includes(object.props?.mode)?object.props.mode:'message',modeLabels={player:'имя игрока',message:'сообщение',emoji:'эмодзи'},modeIcons={player:'☺',message:'≡',emoji:'★'};add(modeIcons[mode],`Режим: ${modeLabels[mode]}`,()=>{let next;contextMutation('Режим строки изменён',()=>{next=cycleLabelMode(object);},'');toast(`Режим: ${modeLabels[next]}`,'ok');},'context-variant context-parent',false,'label-mode');if(mode!=='player')add('⚄',mode==='emoji'?'Новый набор эмодзи':'Случайное сообщение',()=>contextMutation('Содержание строки изменено',()=>randomizeLabel(object),'Выбран новый вариант'),'context-variant context-nested',false,'random-label');}
     if(object.type==='developerNote')add('✎','Открыть комментарий разработчика',()=>openDeveloperNote(object),'context-variant',true,'developer-note');
-    if(LINKABLE_TYPES.has(object.type)){const sockets=linkSocketEntries(object,0,0,object.w*cellPixels(),object.h*cellPixels());for(let index=0;index<sockets.length;index++){const definition=sockets[index],descriptor=`${object.id}${definition.suffix}`,connected=state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).includes(descriptor)),socket=add('socket',connected?`${definition.label}: подключено`:`${definition.label}: свободно`,()=>{},'context-link context-socket',connected,index===0?'socket':`aux-socket-${index}`);socket.tabIndex=-1;socket.style.setProperty('--context-color',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');socket.style.setProperty('--context-ink',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');}const primaryDescriptor=object.id,visibilityDescriptor=`${object.id}@visibility`,hasPrimaryLink=state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).some(value=>String(value)===primaryDescriptor)),hasVisibilityLink=object.type==='movingPlatform'&&state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).some(value=>String(value)===visibilityDescriptor)),showBulb=!GENERATOR_TYPES.includes(object.type)&&object.type!=='conveyor'&&(object.type==='movingPlatform'?hasVisibilityLink:hasPrimaryLink||object.type==='blinkPlatform'&&object.props?.mode!=='always');if(object.type==='movingPlatform'&&hasPrimaryLink){const moving=object.props?.moving!==false;add(moving?'▶':'Ⅱ',moving?`${movingPlatformLabel(object)} движется сначала`:`${movingPlatformLabel(object)} остановлен сначала`,()=>contextMutation('Начальное движение лифта изменено',()=>{object.props.moving=!moving;},moving?`${movingPlatformLabel(object)} остановлен сначала`:`${movingPlatformLabel(object)} движется сначала`),'context-state',moving,'moving');}if(showBulb){const enabled=initialObjectEnabled(object);add('bulb',enabled?'Предмет включён сначала':'Предмет выключен сначала',()=>contextMutation('Начальное состояние изменено',()=>{if(object.type==='blinkPlatform'||object.type==='spike')object.props.startActive=!enabled;else if(object.type==='door')object.props.open=enabled;else object.props.enabled=!enabled;},enabled?'Предмет выключен сначала':'Предмет включён сначала'),'context-state',enabled,'enabled');}}
+    if(LINKABLE_TYPES.has(object.type)){const sockets=linkSocketEntries(object,0,0,object.w*cellPixels(),object.h*cellPixels());for(let index=0;index<sockets.length;index++){const definition=sockets[index],descriptor=`${object.id}${definition.suffix}`,connected=state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).includes(descriptor)),socket=add('socket',connected?`${definition.label}: подключено`:`${definition.label}: свободно`,()=>{},'context-link context-socket',connected,index===0?'socket':`aux-socket-${index}`);socket.tabIndex=-1;socket.style.setProperty('--context-color',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');socket.style.setProperty('--context-ink',definition.suffix==='@spikes'?'#ff8d99':definition.suffix==='@visibility'?'#d5a8ff':definition.suffix==='@reverse'?'#67d7ff':'#65ff9a');}const primaryDescriptor=object.id,visibilityDescriptor=`${object.id}@visibility`,hasPrimaryLink=state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).some(value=>String(value)===primaryDescriptor)),hasVisibilityLink=object.type==='movingPlatform'&&state.level.objects.some(button=>isControlSource(button)&&(button.props?.targets||[]).some(value=>String(value)===visibilityDescriptor)),showBulb=!GENERATOR_TYPES.includes(object.type)&&object.type!=='conveyor'&&(object.type==='movingPlatform'?hasVisibilityLink:hasPrimaryLink||object.type==='blinkPlatform'&&object.props?.mode!=='always');if(object.type==='conveyor'&&hasPrimaryLink){const active=object.props?.startActive!==false;add(active?'▶':'Ⅱ',active?'Конвейер движется сначала':'Конвейер остановлен сначала',()=>contextMutation('Начальное движение конвейера изменено',()=>{object.props.startActive=!active;object.props.enabled=!active;object.props.mode='toggle';},active?'Начальная пауза':'Начальное движение'),'context-state',active,'moving');}if(object.type==='movingPlatform'&&hasPrimaryLink){const moving=object.props?.moving!==false;add(moving?'▶':'Ⅱ',moving?`${movingPlatformLabel(object)} движется сначала`:`${movingPlatformLabel(object)} остановлен сначала`,()=>contextMutation('Начальное движение лифта изменено',()=>{object.props.moving=!moving;},moving?`${movingPlatformLabel(object)} остановлен сначала`:`${movingPlatformLabel(object)} движется сначала`),'context-state',moving,'moving');}if(showBulb){const enabled=initialObjectEnabled(object);add('bulb',enabled?'Предмет включён сначала':'Предмет выключен сначала',()=>contextMutation('Начальное состояние изменено',()=>{if(object.type==='blinkPlatform'||object.type==='spike')object.props.startActive=!enabled;else if(object.type==='door')object.props.open=enabled;else object.props.enabled=!enabled;},enabled?'Предмет выключен сначала':'Предмет включён сначала'),'context-state',enabled,'enabled');}}
     root.hidden=root.childElementCount===0;positionSelectionUi(object,def);
   }
 
@@ -2812,7 +2892,7 @@
     safelyCapturePointer(event.currentTarget,event.pointerId);
     if(event.pointerType==='touch'){state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});beginTouchCanvasIntent(event,activate);}else activate();
   }
-  function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const requestedLength=Math.max(Math.abs(dx),Math.abs(dy));const length=clamp(Math.round(requestedLength),3,6);next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=clamp(Math.round(requested),3,8);next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}constrainCrusherSize(next);if(drag.object.type==='crusherWall'){next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-next.w:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-next.h:drag.object.y;}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}if(drag.object.type==='pushBlock'){const requested=Math.max(next.w,next.h),size=[2,4,8].reduce((best,value)=>Math.abs(value-requested)<Math.abs(best-requested)?value:best,2);next.w=size;next.h=size;next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-size:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-size:drag.object.y;}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
+  function resizePreviewFromPointer(clientX,clientY){const drag=state.domResize;if(!drag)return null;const def=TYPE_DEFS[drag.object.type],rect=canvas.getBoundingClientRect(),cell=cellPixels(),rawX=clamp(snap((clientX-rect.left)/cell,1),0,state.level.size.width),rawY=clamp(snap((clientY-rect.top)/cell,1),0,state.level.size.height),px=Math.round(rawX),py=Math.round(rawY);let left=drag.object.x,top=drag.object.y,right=drag.object.x+drag.object.w,bottom=drag.object.y+drag.object.h;if(drag.handle.includes('w'))left=rawX;else right=rawX;if(drag.handle.includes('n'))top=rawY;else bottom=rawY;const min=1;if(right-left<min){if(drag.handle.includes('w'))left=right-min;else right=left+min;}if(bottom-top<min){if(drag.handle.includes('n'))top=bottom-min;else bottom=top+min;}let next={...drag.object,x:left,y:top,w:right-left,h:bottom-top};const anchorX=drag.handle.includes('w')?drag.object.x+drag.object.w:drag.object.x,anchorY=drag.handle.includes('n')?drag.object.y+drag.object.h:drag.object.y,dx=rawX-anchorX,dy=rawY-anchorY,horizontal=Math.abs(dx)>=Math.abs(dy);const orient=(longSize,thickness)=>{const length=Math.max(longSize,drag.object.type==='spike'?snap(horizontal?Math.abs(dx):Math.abs(dy),1):longSize);if(horizontal)return{...drag.object,x:dx<0?anchorX-length:anchorX,y:dy<0?anchorY-thickness:anchorY,w:length,h:thickness};return{...drag.object,x:dx<0?anchorX-thickness:anchorX,y:dy<0?anchorY-length:anchorY,w:thickness,h:length};};if(drag.object.type==='spike'){next=orient(1,1);next.props={...next.props,direction:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right')};}else if(drag.object.type==='door'){const requestedLength=Math.max(Math.abs(dx),Math.abs(dy));const length=clamp(Math.round(requestedLength),3,6);next=orient(length,1);next.props={...next.props,orientation:horizontal?'horizontal':'vertical'};}else if(drag.object.type==='portal'){next=orient(6,2);next.props={...next.props,orientation:horizontal?'horizontal':'vertical',side:horizontal?(dy<0?'up':'down'):(dx<0?'left':'right'),length:6};}else if(drag.object.type==='enemyGoomba'){const size=Math.max(Math.abs(px-anchorX),Math.abs(py-anchorY))>=3?4:2;next={...drag.object,x:px<anchorX?anchorX-size:anchorX,y:py<anchorY?anchorY-size:anchorY,w:size,h:size};}else{if(def.resize==='x')next={...next,y:drag.object.y,h:drag.object.h};if(def.resize==='label'){const requested=Math.abs(right-left);const width=clamp(Math.round(requested),3,8);next={...next,x:drag.handle.includes('w')?drag.object.x+drag.object.w-width:drag.object.x,y:drag.object.y,w:width,h:2};}if(def.resize==='y')next={...next,x:drag.object.x,w:drag.object.w};if(def.resize==='axis'){const isHorizontal=drag.object.w>=drag.object.h;if(isHorizontal)next={...next,y:drag.object.y,h:drag.object.h};else next={...next,x:drag.object.x,w:drag.object.w};}}constrainCrusherSize(next);if(drag.object.type==='crusherWall'){next.x=drag.handle.includes('w')?drag.object.x+drag.object.w-next.w:drag.object.x;next.y=drag.handle.includes('n')?drag.object.y+drag.object.h-next.h:drag.object.y;}const widthCap=authoringWidthCap(drag.object.type);if(widthCap&&next.w>widthCap){if(drag.handle.includes('w'))next.x+=next.w-widthCap;next.w=widthCap;}if(drag.object.type==='pushBlock'){next.w=Math.max(1,Math.round(next.w));next.h=Math.max(1,Math.round(next.h));}next.x=clamp(next.x,0,state.level.size.width-next.w);next.y=clamp(next.y,0,state.level.size.height-next.h);snapSpikeToSupport(next);if(PATH_ENDPOINT_TYPES.has(drag.object.type)&&Array.isArray(drag.object.props?.path)){const routeDx=next.x-drag.object.x,routeDy=next.y-drag.object.y;next.props={...next.props,path:drag.object.props.path.map(point=>({x:point.x+routeDx,y:point.y+routeDy}))};}return next;}
   function updateDomResize(event){if(!state.domResize||state.domResize.pointerId!==event.pointerId)return;state.domResize.preview=resizePreviewFromPointer(event.clientX,event.clientY);renderCanvas();}
   function cancelDomResize(event=null){if(!state.domResize||(event&&state.domResize.pointerId!==event.pointerId))return;state.domResize=null;renderCanvas();}
   function endDomResize(event){const drag=state.domResize;if(!drag||drag.pointerId!==event.pointerId)return;state.domResize=null;const current=state.level.objects.find(object=>object.id===drag.object.id),next=drag.preview;if(current&&next&&(next.x!==current.x||next.y!==current.y||next.w!==current.w||next.h!==current.h)){const placement=canPlace(next,[current.id],{checkOwnPair:false});if(!placement.ok){toast(placement.message,'error');renderCanvas();return;}if(PATH_ENDPOINT_TYPES.has(next.type)){const routePlacement=pairedPathPlacement(next,next.props?.path);if(!routePlacement.ok){toast(`Размер маршрута: ${routePlacement.message}`,'error');renderCanvas();return;}}mutate('Размер предмета изменён',()=>{Object.assign(current,next);if(current.type==='portal')current.props.length=Math.max(current.w,current.h);});}else renderCanvas();}
@@ -3150,7 +3230,7 @@
     const geometryStep=['solid','boss'].includes(object.type)?1:GRID_STEP,requested=snap(Number($(id).value),geometryStep),widthCap=property==='w'?authoringWidthCap(object.type):null;let value=requested;
     if(property==='x')value=clamp(value,0,state.level.size.width-object.w);if(property==='y')value=clamp(value,0,state.level.size.height-object.h);if(property==='w')value=clamp(Math.max(geometryStep,value),geometryStep,Math.min(state.level.size.width-object.x,widthCap||Infinity));if(property==='h')value=clamp(Math.max(geometryStep,value),geometryStep,state.level.size.height-object.y);
     let nextPath=Array.isArray(object.props?.path)?object.props.path.map(point=>({...point})):null;if(object.type==='smartPlatform'&&['x','y'].includes(property)){const target=constrainMoveTarget(object,property==='x'?value:object.x,property==='y'?value:object.y,geometryStep),dx=target.x-object.x,dy=target.y-object.y;value=target[property];nextPath=object.props.path.map(point=>({x:point.x+dx,y:point.y+dy}));}else if(PATH_ENDPOINT_TYPES.has(object.type)&&['x','y'].includes(property)&&nextPath?.length>1)nextPath=[{x:property==='x'?value:object.x,y:property==='y'?value:object.y},nextPath[nextPath.length-1]];
-    const linkedGeometry={};if(object.type==='crusherWall'&&['w','h'].includes(property)){const shape=constrainCrusherSize({...object,[property]:value});linkedGeometry.w=shape.w;linkedGeometry.h=shape.h;}if(object.type==='pushBlock'&&['w','h'].includes(property)){const requested=Math.max(geometryStep,value),size=[2,4,8].reduce((best,candidate)=>Math.abs(candidate-requested)<Math.abs(best-requested)?candidate:best,2);value=size;linkedGeometry.w=size;linkedGeometry.h=size;}if(object.type==='door'&&['w','h'].includes(property)){const horizontal=object.props?.orientation==='horizontal',length=clamp(Math.round(value),3,6);value=length;linkedGeometry.w=horizontal?length:1;linkedGeometry.h=horizontal?1:length;}if(object.type==='label'&&property==='w')value=clamp(Math.round(value),3,8);
+    const linkedGeometry={};if(object.type==='crusherWall'&&['w','h'].includes(property)){const shape=constrainCrusherSize({...object,[property]:value});linkedGeometry.w=shape.w;linkedGeometry.h=shape.h;}if(object.type==='pushBlock'&&['w','h'].includes(property))value=Math.max(1,Math.round(value));if(object.type==='door'&&['w','h'].includes(property)){const horizontal=object.props?.orientation==='horizontal',length=clamp(Math.round(value),3,6);value=length;linkedGeometry.w=horizontal?length:1;linkedGeometry.h=horizontal?1:length;}if(object.type==='label'&&property==='w')value=clamp(Math.round(value),3,8);
     const next={...object,[property]:value,...linkedGeometry,props:{...object.props,...(nextPath?{path:nextPath}:{}),...(object.type==='boss'&&['x','y'].includes(property)?{controls:shiftedBossControls(object,property==='x'?value-object.x:0,property==='y'?value-object.y:0)}:{})}},placement=canPlace(next,[object.id],{checkOwnPair:false}),routePlacement=PATH_ENDPOINT_TYPES.has(next.type)?pairedPathPlacement(next,nextPath):{ok:true};
     if(!placement.ok||!routePlacement.ok){toast(placement.ok?routePlacement.message:placement.message,'error');refreshInspector();return;}
     const changed=mutate('Размер или положение изменены',()=>{Object.assign(object,next);});if(changed&&widthCap&&requested>widthCap)toast(`Максимальная ширина: ${widthCap} клеток.`);
