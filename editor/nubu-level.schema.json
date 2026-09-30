@@ -188,26 +188,36 @@
         {
           "if": { "properties": { "type": { "const": "boss" } }, "required": ["type"] },
           "then": {
+            "allOf": [
+              {"if":{"properties":{"props":{"properties":{"bossKind":{"const":"ratSpider"}}}}},"then":{"properties":{"w":{"const":4},"h":{"const":4}}}},
+              {"if":{"properties":{"props":{"properties":{"bossKind":{"const":"drone"}}}}},"then":{"properties":{"w":{"const":3},"h":{"const":3}}}},
+              {"if":{"properties":{"props":{"properties":{"bossKind":{"const":"turret"}}}}},"then":{"properties":{"w":{"const":5},"h":{"const":5}}}}
+            ],
             "properties": {
               "x": { "type": "integer", "minimum": 0 },
               "y": { "type": "integer", "minimum": 0 },
-              "w": { "const": 5 },
-              "h": { "const": 5 },
+              "w": { "enum": [3,4,5] },
+              "h": { "enum": [3,4,5] },
               "props": {
                 "required": ["bossKind", "targets"],
                 "properties": {
-                  "bossKind": { "enum": ["ratSpider"] },
+                  "bossKind": { "enum": ["ratSpider","drone","turret"] },
                   "targets": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
                   "controls": {
                     "type": "array", "minItems": 2, "maxItems": 2,
                     "items": {
                       "type": "object", "additionalProperties": false,
                       "required": ["x", "y", "w", "h"],
+                      "oneOf": [
+                        {"properties":{"w":{"const":3},"h":{"const":1},"side":{"enum":["up","down"]}}},
+                        {"properties":{"w":{"const":1},"h":{"const":3},"side":{"enum":["left","right"]}}}
+                      ],
                       "properties": {
                         "x": { "type": "integer", "minimum": 0 },
                         "y": { "type": "integer", "minimum": 0 },
-                        "w": { "type": "integer", "minimum": 1, "maximum": 4 },
-                        "h": { "const": 1 }
+                        "w": { "enum": [1,3] },
+                        "h": { "enum": [1,3] },
+                        "side": { "enum": ["up","right","down","left"] }
                       }
                     }
                   }

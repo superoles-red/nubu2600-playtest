@@ -1208,7 +1208,7 @@ function addDoor(room, id, x, y, len=3, orientation='v', open=false) {
 }
 function addButton(room, type, sides, x, y, targets, opts={}) {
   room.buttons.push({
-    type, sides, x, y, id:opts.id||null, bossOnly:!!opts.bossOnly,
+    type, sides, x, y, w:opts.w||1, h:opts.h||1, id:opts.id||null, bossOnly:!!opts.bossOnly,
     startX:x, startY:y,
     prevX:x, prevY:y,
     dx:0, dy:0,
@@ -2388,7 +2388,7 @@ function validateRoomLayout(room) {
 function buttonRect(btn) {
   const baseX = btn.x * CELL;
   const baseY = btn.y * CELL;
-  return { x: baseX, y: baseY, w: CELL, h: CELL };
+  return { x: baseX, y: baseY, w: (btn.w||1)*CELL, h: (btn.h||1)*CELL };
 }
 function getButtonSolidRects(btn) {
   return [{ ...buttonRect(btn), kind:'button', ref:btn }];
@@ -2396,7 +2396,7 @@ function getButtonSolidRects(btn) {
 function getButtonTopRects() {
   const rects = [];
   for (const btn of state.room.buttons) {
-    if (btn.sides.includes('u')) rects.push({ x:btn.x*CELL, y:btn.y*CELL, w:CELL, h:BUTTON_THICK, top:btn.y*CELL, kind:'buttonTop', ref:btn });
+    if (btn.sides.includes('u')) rects.push({ x:btn.x*CELL, y:btn.y*CELL, w:(btn.w||1)*CELL, h:BUTTON_THICK, top:btn.y*CELL, kind:'buttonTop', ref:btn });
   }
   return rects;
 }
@@ -2416,10 +2416,10 @@ function getButtonHitRect(btn) {
     const maxX = Math.max(a.x+a.w,b.x+b.w), maxY=Math.max(a.y+a.h,b.y+b.h);
     return {x,y,w:maxX-x,h:maxY-y};
   }
-  if (sides.includes('u')) r = mergeRect(r, { x:base.x, y:base.y, w:CELL, h:s });
-  if (sides.includes('b')) r = mergeRect(r, { x:base.x, y:base.y + CELL - s, w:CELL, h:s });
-  if (sides.includes('l')) r = mergeRect(r, { x:base.x, y:base.y, w:s, h:CELL });
-  if (sides.includes('r')) r = mergeRect(r, { x:base.x + CELL - s, y:base.y, w:s, h:CELL });
+  if (sides.includes('u')) r = mergeRect(r, { x:base.x, y:base.y, w:base.w, h:s });
+  if (sides.includes('b')) r = mergeRect(r, { x:base.x, y:base.y + base.h - s, w:base.w, h:s });
+  if (sides.includes('l')) r = mergeRect(r, { x:base.x, y:base.y, w:s, h:base.h });
+  if (sides.includes('r')) r = mergeRect(r, { x:base.x + base.w - s, y:base.y, w:s, h:base.h });
   return r || base;
 }
 function doorRect(door) {
@@ -6777,6 +6777,9 @@ function getOneWayRects() {
   const room = state.room;
   const rects = [];
   for (const o of room.oneWays) rects.push({ x:o.x*CELL, y:o.y*CELL, w:o.w*CELL, h:CELL*0.5, top:o.y*CELL, kind:'oneway', ref:o });
+  for(const boss of room.bosses||[])if(!boss.defeated&&(boss.surface||'floor')==='floor'&&!['stunned','reboot','bodyburst'].includes(boss.state)&&!((state.player?.jumpAttachBlockTimer||0)>0&&!state.player.onGround)){
+    const roof=bossParts(boss).roof;rects.push({...roof,top:roof.y,kind:'bossRoof',ref:boss});
+  }
   return rects;
 }
 function getBounceRects() {
@@ -8269,6 +8272,7 @@ function updatePlatforms(dt) {
     wall.dx = (wall.x - wall.prevX) * CELL;
     wall.dy = (wall.y - wall.prevY) * CELL;
   }
+  resolveBossPresses(dt);
   for(const wall of room.crusherWalls||[])moveWeightsWithPress(wall);
   syncAttachedButtons(room);
   for (const s of room.smarts) {
@@ -8610,32 +8614,32 @@ function canPressButton(p, btn) {
   const minOverlap = CELL * 0.2;
   const faceTol = Math.max(0.75, CELL * 0.08);
   if (btn.sides.includes('u')) {
-    const xOverlap = Math.min(p.x + p.w, base.x + CELL) - Math.max(p.x, base.x);
+    const xOverlap = Math.min(p.x + p.w, base.x + base.w) - Math.max(p.x, base.x);
     const onTop = p.onGround && xOverlap > minOverlap && Math.abs((p.y + p.h) - base.y) <= 1.5;
     if (onTop) return true;
   }
   if (btn.sides.includes('l')) {
-    const yOverlap = Math.min(p.y + p.h, base.y + CELL) - Math.max(p.y, base.y);
+    const yOverlap = Math.min(p.y + p.h, base.y + base.h) - Math.max(p.y, base.y);
     const playerRight = p.x + p.w;
     const touchesLeftFace = yOverlap > minOverlap
       && Math.abs(playerRight - base.x) <= faceTol
-      && p.x + p.w * 0.5 <= base.x + CELL * 0.5;
+      && p.x + p.w * 0.5 <= base.x + base.w * 0.5;
     if (touchesLeftFace) return true;
   }
   if (btn.sides.includes('r')) {
-    const yOverlap = Math.min(p.y + p.h, base.y + CELL) - Math.max(p.y, base.y);
+    const yOverlap = Math.min(p.y + p.h, base.y + base.h) - Math.max(p.y, base.y);
     const playerLeft = p.x;
     const touchesRightFace = yOverlap > minOverlap
-      && Math.abs(playerLeft - (base.x + CELL)) <= faceTol
-      && p.x + p.w * 0.5 >= base.x + CELL * 0.5;
+      && Math.abs(playerLeft - (base.x + base.w)) <= faceTol
+      && p.x + p.w * 0.5 >= base.x + base.w * 0.5;
     if (touchesRightFace) return true;
   }
   if (btn.sides.includes('b')) {
-    const xOverlap = Math.min(p.x + p.w, base.x + CELL) - Math.max(p.x, base.x);
+    const xOverlap = Math.min(p.x + p.w, base.x + base.w) - Math.max(p.x, base.x);
     const playerTop = p.y;
     const touchesBottomFace = xOverlap > minOverlap
-      && Math.abs(playerTop - (base.y + CELL)) <= faceTol
-      && p.y + p.h * 0.5 >= base.y + CELL * 0.5;
+      && Math.abs(playerTop - (base.y + base.h)) <= faceTol
+      && p.y + p.h * 0.5 >= base.y + base.h * 0.5;
     if (touchesBottomFace) return true;
   }
   return false;
@@ -8656,7 +8660,7 @@ function anyCubePressesButton(btn) {
   return (state.room.pushBlocks||[]).filter(c=>!c.dead).some(c=>{
     const r=pushCubeRect(c),ox=rectOverlapX(r,base),oy=rectOverlapY(r,base);
     return btn.sides.includes('u')&&ox>.01&&Math.abs(r.y+r.h-base.y)<=tol
-      ||btn.sides.includes('d')&&ox>.01&&Math.abs(r.y-base.y-base.h)<=tol
+      ||btn.sides.includes('b')&&ox>.01&&Math.abs(r.y-base.y-base.h)<=tol
       ||btn.sides.includes('l')&&oy>.01&&Math.abs(r.x+r.w-base.x)<=tol
       ||btn.sides.includes('r')&&oy>.01&&Math.abs(r.x-base.x-base.w)<=tol;
   });
@@ -8709,6 +8713,11 @@ function updateButtons(dt=0) {
   for (const btn of state.room.buttons) {
     btn.flashTimer = Math.max(0, (btn.flashTimer || 0) - step);
     const activeNow = (!btn.bossOnly&&(canPressButton(p, btn) || anyGoombaPressesButton(btn) || (!btn.attachTo && anyCubePressesButton(btn)))) || (state.room.bosses||[]).some(boss=>bossTouchesButton(boss,btn));
+    if(btn.bossOwnerId){
+      const boss=state.room.bosses.find(b=>b.id===btn.bossOwnerId);
+      if(boss&&!boss.defeated&&!['stunned','reboot'].includes(boss.state)&&activeNow&&!btn.pressed){btn.toggled=true;btn.flashTimer=.15;boss.padPressed[btn.bossPadIndex]=true;boss.contactGrace=.25;}
+      btn.pressed=activeNow;continue;
+    }
     if (btn.type === 'O') {
       if (activeNow && !btn.pressed && !btn.used) {
         btn.pressed = true;
@@ -12345,6 +12354,7 @@ function resolveEnemyVsEnemy(a, b) {
   if (enemyIsSpikedCube(b) && !enemyIsSpikedCube(a)) { enemyCrush(a); return true; }
 
   if (enemyIsBomber(a) && enemyIsBomber(b)) {
+    if(a.owner?.bossId&&a.owner.bossId===b.owner?.bossId&&Math.max(a.bossBombClearance||0,b.bossBombClearance||0)>0)return false;
     a.dead = true;
     b.dead = true;
     return true;
@@ -12620,27 +12630,34 @@ function splitDeadLargeGoombas(room) {
 
 // A boss is a reusable actor plus two inseparable floor controls. Its authored
 // rectangle and editable controls belong to one species. Difficulty never changes AI.
-const BOSS_SPECIES = Object.freeze({ratSpider:Object.freeze({w:5,h:5,title:'Бункерная крыса · Паучий мех'})});
-const RAT_SPIDER_RULES = Object.freeze({ hits:3, telegraph:1.05, charge:1.4, recover:2.4, stun:4, reboot:1.15, speed:4.8*CELL, wallJumpSpeed:4.4*CELL, wallJumpHeight:5.5*CELL });
+const BOSS_SPECIES = Object.freeze({ratSpider:{w:4,h:4,title:'Паук'},drone:{w:3,h:3,title:'Дрон'},turret:{w:5,h:5,title:'Турель'}});
+const RAT_SPIDER_RULES = Object.freeze({ hits:3, telegraph:.5, stun:5, reboot:.7 });
+function normalizedBossControl(c){
+  const side=['up','right','down','left'].includes(c.side)?c.side:'up',vertical=side==='left'||side==='right';
+  return {...c,w:vertical?1:3,h:vertical?3:1,side};
+}
+function defaultBossControls(x,y,w,h){return[{x,y:y+h-1,w:3,h:1,side:'up'},{x:x+Math.max(3,w-3),y:y+h-1,w:3,h:1,side:'up'}];}
 function validateBossControls(room, controls) {
   if(controls===undefined)return;
   if(!Array.isArray(controls)||controls.length!==2)throw new Error('У босса должны быть две педали.');
   for(const [i,c]of controls.entries()){
-    if(!c||![c.x,c.y,c.w,c.h].every(Number.isInteger)||c.w<1||c.w>4||c.h!==1||c.x<0||c.y<0||c.x+c.w>room.innerW||c.y+c.h>room.innerH)throw new Error(`Педаль босса ${i+1} выходит за комнату или имеет неверный размер.`);
+    if(!c||![c.x,c.y,c.w,c.h].every(Number.isInteger)||!((c.w===3&&c.h===1)||(c.w===1&&c.h===3))||c.x<0||c.y<0||c.x+c.w>room.innerW||c.y+c.h>room.innerH)throw new Error(`Педаль босса ${i+1} выходит за комнату или имеет неверный размер.`);
     for(let y=c.y;y<c.y+c.h;y++)for(let x=c.x;x<c.x+c.w;x++)if(!roomCellInShape(room,x,y))throw new Error(`Педаль босса ${i+1} выходит за форму панелей.`);
   }
   if(rectsOverlap(controls[0],controls[1]))throw new Error('Педали босса не должны пересекаться.');
 }
-function addBoss(room, id, x, y, w=5, h=5, props={}) {
-  validateBossControls(room,props.controls);
+function addBoss(room, id, x, y, w=4, h=4, props={}) {
   const kind=props.bossKind||'ratSpider',species=Object.hasOwn(BOSS_SPECIES,kind)?BOSS_SPECIES[kind]:null;
   if(!species)throw new Error(`Неизвестный вид босса: ${kind}`);
-  const width=species.w,height=species.h;
-  (room.bosses ||= []).push({id,bossKind:'ratSpider',x:x*CELL,y:y*CELL,w:width,h:height,
+  const width=species.w,height=species.h;y+=h-height;
+  const controls=(props.controls||defaultBossControls(x,y,width,height)).map(normalizedBossControl);validateBossControls(room,controls);
+  (room.bosses ||= []).push({id,bossKind:kind,x:x*CELL,y:y*CELL,w:width,h:height,
     homeX:x*CELL,homeY:y*CELL,prevX:x*CELL,prevY:y*CELL,vx:0,vy:0,onGround:false,ignoreOneWay:0,landedOnOneWay:false,
     dir:props.direction==='right'?1:-1,state:'telegraph',timer:RAT_SPIDER_RULES.telegraph,
-    hits:0,activePad:0,padHeld:[false,false],controls:Array.isArray(props.controls)&&props.controls.length===2&&props.controls.every(c=>Number.isFinite(c?.x)&&Number.isFinite(c?.y))?props.controls.map(c=>({x:c.x*CELL,y:c.y*CELL,w:clamp(Number(c.w)||1,1,4)*CELL,h:CELL})):null,targets:Array.isArray(props.targets)?props.targets.slice():[],
+    hits:0,activePad:0,padHeld:[false,false],padPressed:[false,false],turnBag:[],controls:controls.map(c=>({...c,x:c.x*CELL,y:c.y*CELL,w:c.w*CELL,h:c.h*CELL})),targets:Array.isArray(props.targets)?props.targets.slice():[],
     wallJumps:0,stuns:0,cycles:0,mechanismPulses:0,awake:false,anchorSettled:false,padSupportKey:null,contactGrace:0,defeated:false,signalOn:false});
+  const boss=room.bosses.at(-1);
+  boss.controls.forEach((c,index)=>{addButton(room,'T',[{up:'u',right:'r',down:'b',left:'l'}[c.side]],c.x/CELL,c.y/CELL,[],{id:`${id}:control:${index}`,w:c.w/CELL,h:c.h/CELL});Object.assign(room.buttons.at(-1),{bossOwnerId:id,bossPadIndex:index});});
 }
 function bossRect(boss) {
   const height=(boss.state==='stunned'||boss.state==='reboot'||boss.defeated)?Math.min(1.25,boss.h)*CELL:boss.h*CELL;
@@ -12648,49 +12665,38 @@ function bossRect(boss) {
 }
 function bossBellyRect(boss) {
   const box=bossRect(boss);
-  return {x:box.x+box.w*.26,y:box.y,w:box.w*.48,h:Math.max(2,box.h*.2)};
+  return {x:box.x+box.w*.22,y:box.y-CELL*.08,w:box.w*.56,h:Math.max(2,box.h*.3)};
 }
-function bossPadRects(boss) {
-  if(boss.controls)return boss.controls.map(c=>({x:c.x,y:c.y+c.h-CELL*.25,w:c.w,h:CELL*.25}));
-  return [0,1].map(index=>({x:boss.homeX+(index?boss.w-1:0)*CELL,y:boss.homeY+(boss.h-.25)*CELL,w:CELL,h:CELL*.25}));
-}
+function bossPadRects(boss){return boss.controls.map(c=>({...c}));}
 function roomHasLivingBoss(room=state.room) { return !!room?.bosses?.some(boss=>!boss.defeated); }
 function bossCanAct(boss) {
   const p=state.player,room=state.room;
-  if (!p||!room||state.roomTransition||state.mode!=='playing') return false;
-  const box=bossRect(boss),cx=box.x+box.w/2,cy=box.y+box.h/2;
-  if (!roomCellInShape(room,Math.floor(cx/CELL),Math.floor(cy/CELL))) return false;
-  const cam=state.cam;
-  // The camera scrolls continuously; a 20x20 panel boundary is not a wall.
-  // Wait while the actor is outside the view, and telegraph anew when it returns.
-  if (cam?.drawW>0&&cam?.drawH>0 && (box.x+box.w<cam.x||box.x>cam.x+cam.drawW||box.y+box.h<cam.y||box.y>cam.y+cam.drawH)) return false;
-  return Math.abs(cx-(p.x+p.w/2))<24*CELL&&Math.abs(cy-(p.y+p.h/2))<18*CELL;
+  if(!p||!room||state.roomTransition||state.mode!=='playing')return false;
+  if(boss.engaged||boss.awake)return true;
+  const box=bossRect(boss),px=p.x+p.w/2,py=p.y+p.h/2;
+  return bossPadRects(boss).some((pad,i)=>!boss.padPressed[i]&&Math.hypot(px-pad.x-pad.w/2,py-pad.y-pad.h/2)<=15*CELL)||
+    Math.abs(box.x+box.w/2-px)<24*CELL&&Math.abs(box.y+box.h/2-py)<18*CELL;
+}
+function bossUpdateTarget(boss){
+  const p=state.player,px=p.x+p.w/2,py=p.y+p.h/2;
+  const threatened=bossPadRects(boss).map((pad,i)=>({...pad,index:i,distance:Math.hypot(px-pad.x-pad.w/2,py-pad.y-pad.h/2)}))
+    .filter(pad=>!boss.padPressed[pad.index]&&pad.distance<=15*CELL).sort((a,b)=>a.distance-b.distance)[0];
+  boss.intent=bossHasRider(boss)?'rider':threatened?'defend':'chase';
+  boss.defendedPad=threatened?.index??null;
+  // Intercept on the player's side of the working button; use its actual height.
+  boss.guardX=threatened?threatened.x+threatened.w/2+clamp((px-threatened.x-threatened.w/2)*.4,-4*CELL,4*CELL):px;
+  boss.guardY=threatened?threatened.y-CELL:py;
+  boss.targetX=boss.guardX;boss.targetY=boss.guardY;
 }
 function bossTargetSignals(boss,active,defeated=false) {
-  const room=state.room;
-  if (!room||(!defeated&&boss.signalOn===active)) return;
-  boss.signalOn=active;
-  const targets=[];
-  for (const raw of [...boss.targets,...(defeated?(boss.activatedButtons||[]):[])]) {
-    const button=room.buttons.find(btn=>btn.id===parseTargetDescriptor(raw).id);
-    if (button) {
-      button.toggled=active;button.flashTimer=.2;
-      targets.push(...button.targets);
-    } else targets.push(raw);
-  }
-  for (const raw of new Set(targets)) {
-    const id=parseTargetDescriptor(raw).id;
-    if (defeated&&room.doors.some(door=>door.id===id)) applyTargetRoomState(room,id,true);
-    else setButtonTargetState(room,raw,active);
-  }
-  if (active) boss.mechanismPulses++;
+  if(!defeated||boss.signalOn)return;
+  boss.signalOn=true;boss.mechanismPulses++;
+  const room=state.room,targets=new Set();
+  for(const raw of boss.targets){const button=room.buttons.find(b=>b.id===parseTargetDescriptor(raw).id);if(button){button.toggled=!button.toggled;button.flashTimer=.2;button.targets.forEach(t=>targets.add(t));}else targets.add(raw);}
+  for(const raw of targets)setButtonTargetActualState(room,raw,!readTargetRoomState(room,raw));
   syncButtonTargetStates(room);
 }
-function setBossPhase(boss,phase,time) {
-  boss.state=phase;boss.timer=time;
-  if (phase==='charge') {boss.cycles++;bossTargetSignals(boss,true);}
-  if (phase==='recover'||phase==='stunned'||phase==='reboot') bossTargetSignals(boss,false);
-}
+function setBossPhase(boss,phase,time){boss.state=phase;boss.timer=time;}
 function bossBlocked(boss,solids) {
   const rect=bossRect(boss),epsilon=1e-6;
   for(let y=Math.floor(rect.y/CELL);y<=Math.floor((rect.y+rect.h-epsilon)/CELL);y++)
@@ -12727,8 +12733,6 @@ function bossMovingSupports(room) {
 }
 function carryBossOnSupport(boss,solids,supports) {
   const box=bossRect(boss),feet=box.y+box.h;
-  const homeSupport=supports.find(s=>s.key===boss.padSupportKey);
-  if(homeSupport&&boss.anchorSettled){boss.homeX+=homeSupport.dx;boss.homeY+=homeSupport.dy;}
   if(boss.vy<0||(!boss.onGround&&boss.anchorSettled))return;
   const support=supports.find(s=>Math.abs(feet-(s.y-s.dy))<.6&&rectOverlapX(box,{x:s.x-s.dx,w:s.w})>CELL*.25);
   if(!support)return;
@@ -12744,155 +12748,530 @@ function carryBossOnSupport(boss,solids,supports) {
   }
   boss.onGround=true;
 }
+// Eight movement tickets keep traversal more common than all attacks combined.
+function bossChooseTurn(boss) {
+  const p=state.player,box=bossRect(boss),px=p.x+p.w/2,riding=bossHasRider(boss);
+  bossUpdateTarget(boss);
+  boss.dir=boss.targetX<box.x+box.w/2?-1:1;
+  if(boss.blockedDir===boss.dir&&(boss.blockedUntil||0)>(state.room.localTime||0))boss.dir*=-1;
+  if(!boss.turnBag?.length)boss.turnBag=['walk','walk','attack1','walk','attack2','walk','walk','super','walk','attack1','walk','attack2','walk'];
+  boss.action=boss.turnBag.shift();if(boss.bossKind!=='turret')boss.surface='floor';boss.wallPlan=null;
+  // A rider is considered only after the current action finishes. Every second
+  // occupied turn may charge the armor; other turns retain their normal action.
+  if(riding){boss.riderTurns=(boss.riderTurns||0)+1;if(boss.riderTurns%2===1)boss.action='body';}
+  if(boss.action==='walk'&&Math.hypot(box.x+box.w/2-boss.targetX,box.y+box.h-boss.targetY-CELL)<3*CELL)boss.action='attack1';
+  if(boss.action!=='walk'){boss.targetX=px;boss.targetY=p.y+p.h/2;boss.dir=boss.targetX<box.x+box.w/2?-1:1;}
+  if(boss.bossKind==='ratSpider'&&['attack2','super'].includes(boss.action)){
+    boss.wallPlan=bossWallPlan(boss,boss.action==='super');if(!boss.wallPlan){boss.action='walk';boss.targetX=boss.guardX;boss.targetY=boss.guardY;boss.dir=boss.targetX<box.x+box.w/2?-1:1;}
+  }
+  boss.aimAngle=Math.atan2(p.y+p.h/2-(box.y+box.h*.4),px-box.x-box.w/2);
+  boss.cycles++;boss.vx=0;boss.vy=0;boss.shots=0;boss.shotTimer=0;
+  setBossPhase(boss,'telegraph',.5);
+}
+function bossParts(boss) {
+  const b=bossRect(boss),r=(x,y,w,h)=>bossSurfaceRect(boss,x,y,w,h);
+  const torso=r(.18,.1,.64,.48),roof={...torso,h:CELL*.08};
+  const legs=boss.bossKind==='turret'?[r(.42,.53,.16,.26),r(.04,.75,.92,.21)]:
+    boss.bossKind==='drone'?[r(.04,.5,.22,.42),r(.74,.5,.22,.42)]:
+    [r(.12,.42,.1,.58),r(.78,.42,.1,.58),...[.04,.82].flatMap(x=>[0,1,2].map(i=>r(x,.46+i*.2,.14,.14)))];
+  const inset=rect=>({x:rect.x+.06*CELL,y:rect.y+.04*CELL,w:Math.max(0,rect.w-.12*CELL),h:Math.max(0,rect.h-.08*CELL)});
+  const under=r(.2,.51,.6,.07);
+  return {torso,roof,legs,hurt:[inset(under),...legs.map(inset)],under};
+}
+function bossFinishTurn(boss){boss.vx=boss.vy=0;bossNavJobs.delete(boss);boss.navPending=false;if(boss.bossKind!=='turret')boss.surface='floor';setBossPhase(boss,'recover',.08);}
+function bossStartAction(boss) {
+  boss.shots=0;boss.shotTimer=0;
+  if(boss.action!=='walk'||!boss.walkRoute?.length||Math.hypot((boss.routeTargetX??Infinity)-boss.targetX,(boss.routeTargetY??Infinity)-boss.targetY)>CELL*2)boss.walkRoute=null;
+  boss.airRoute=null;boss.navTag=null;bossNavJobs.delete(boss);boss.navPending=false;
+  if(boss.bossKind==='turret'&&(!boss.crawlDir||boss.surface==='floor'))boss.crawlDir=boss.dir;
+  const spider=boss.bossKind==='ratSpider',drone=boss.bossKind==='drone';
+  if(boss.action==='body'){boss.vx=boss.vy=0;setBossPhase(boss,'bodyburst',.35);return;}
+  if(boss.action==='walk'){
+    setBossPhase(boss,'walk',1.4);boss.vx=boss.dir*CELL*(drone?6:spider?6:3.5);
+    boss.hoverY=clamp(boss.targetY-boss.h*CELL-4*CELL,CELL,(state.room.innerH-boss.h)*CELL);
+    boss.vy=drone?clamp((boss.hoverY-boss.y)*3,-6*CELL,6*CELL):0;return;
+  }
+  if(spider){
+    if(boss.action==='attack1'){boss.vx=boss.dir*CELL*4.5;boss.vy=-Math.sqrt(2*GRAVITY*9*CELL);setBossPhase(boss,'jump',2);}
+    else{const plan=boss.wallPlan||bossWallPlan(boss,boss.action==='super');if(!plan){boss.action='walk';bossUpdateTarget(boss);bossStartAction(boss);return;}boss.wallPlan=plan;boss.dir=plan.dir;boss.surface=plan.side;boss.vx=plan.dir*plan.speed;boss.vy=plan.jump;setBossPhase(boss,'walljump',1.8);}
+    boss.onGround=false;
+  }else if(drone){
+    if(boss.action==='attack2'){
+      const p=state.player,px=p.x+p.w/2;boss.dir=px<boss.x+boss.w*CELL/2?-1:1;
+      boss.bombRunX=clamp(px-boss.dir*5*CELL-boss.w*CELL/2,CELL,(state.room.innerW-boss.w-1)*CELL);
+      boss.bombRunY=clamp(p.y-(boss.h+3)*CELL,CELL,(state.room.innerH-boss.h)*CELL);
+      boss.bombPassX=clamp(px+boss.dir*6*CELL-boss.w*CELL/2,CELL,(state.room.innerW-boss.w-1)*CELL);
+      boss.vx=boss.vy=0;setBossPhase(boss,'bombapproach',2.8);
+    }
+    else{const dx=boss.targetX-boss.x-boss.w*CELL/2,dy=boss.targetY-boss.y-boss.h*CELL/2,len=Math.max(1,Math.hypot(dx,dy)),speed=CELL*(boss.action==='super'?18:17);boss.vx=dx/len*speed;boss.vy=dy/len*speed;setBossPhase(boss,'dash',boss.action==='super'?2.2:1.05);}
+  }else{boss.vx=0;
+    const p=state.player,box=bossRect(boss);boss.flakAim=Math.atan2(p.y+p.h/2-box.y-box.h*.4,p.x+p.w/2-box.x-box.w/2);
+    setBossPhase(boss,'shoot',boss.action==='super'?2:1);
+  }
+}
+function bossFire(boss) {
+  const room=state.room;
+  if(room.bullets.length>=80)return;
+  const box=bossRect(boss),bomb=boss.bossKind==='drone';
+  if(bomb){
+    if(room.enemies.filter(e=>!e.dead&&e.owner?.bossId===boss.id).length>=8)return;
+    const drop={x:box.x+box.w/2-CELL,y:box.y+box.h+CELL*.12,w:2*CELL,h:2*CELL};
+    if(roomRectHitsSolids(room,drop)||room.enemies.some(e=>!e.dead&&e.owner?.bossId===boss.id&&rectsOverlap(drop,enemyRect(e))))return;
+    room.enemies.push({type:'E6',x:drop.x,y:drop.y,w:2,h:2,dir:boss.dir,axis:'h',speed:CELL*1.2,vx:boss.dir*CELL*1.2,vy:CELL*2,dead:false,onGround:false,owner:{kind:'boss',bossId:boss.id},safeTime:.18,bossBombClearance:.6,bossBombLife:6});boss.shots=(boss.shots||0)+1;return;
+  }
+  if(boss.action==='super'&&boss.shots>=24)return;
+  const spread=boss.action==='attack2'?[-.32,-.16,0,.16,.32]:[0];
+  const size=CELL,cx=box.x+box.w/2,cy=box.y+box.h*.4;
+  const p=state.player,liveAim=Math.atan2(p.y+p.h/2-cy,p.x+p.w/2-cx);
+  // A complete circle in two seconds, starting at the initial player bearing.
+  const shot=boss.shots||0,flakOffset=shot===0?0:shot*Math.PI/12;
+  const aim=boss.action==='super'?(boss.flakAim??liveAim)+flakOffset:liveAim;
+  boss.aimAngle=aim;
+  for(const offset of spread){
+    const angle=aim+offset,ux=Math.cos(angle),uy=Math.sin(angle),radius=boss.action==='attack2'?Math.hypot(box.w*.34,box.h*.3)+size*.75:Math.min((box.w*.34+size*.55)/Math.max(.001,Math.abs(ux)),(box.h*(uy>0?.2:.3)+size*.55)/Math.max(.001,Math.abs(uy)));
+    room.bullets.push({x:cx+ux*radius-size/2,y:cy+uy*radius-size/2,w:size,h:size,baseH:size,squash:1,vx:ux*BULLET_SPEED*2,vy:uy*BULLET_SPEED*2,ttl:22,safeTime:.08,owner:{kind:'C1',bossId:boss.id},cannonKind:'soft',dx:0,dy:0});
+  }
+  boss.shots=(boss.shots||0)+1;
+}
+function bossResetPads(boss){boss.padPressed=[false,false];for(const btn of state.room.buttons)if(btn.bossOwnerId===boss.id){btn.toggled=false;btn.flashTimer=0;}}
+function bossTakeHit(boss) {
+  if(boss.defeated||boss.state!=='stunned')return false;
+  boss.hits++;bossResetPads(boss);boss.vx=boss.vy=0;
+  if(boss.hits>=3){boss.defeated=true;bossTargetSignals(boss,true,true);pushMsg('БОСС ПОБЕЖДЁН','#9affcb',2);}
+  else{setBossPhase(boss,'reboot',.7);pushMsg(`БРОНЯ ${3-boss.hits}/3 · ДВЕ КНОПКИ`,'#ffe6a4',1.5);}
+  return true;
+}
+function bossSolids(room){return getInitialDynamicRects(room);}
+function bossReversePress(wall) {
+  // Reverse the route at its current position, preserving its distance phase.
+  const pts=wall.points||[];if(pts.length<2)return;
+  const lengths=pts.slice(1).map((p,i)=>Math.hypot(p.x-pts[i].x,p.y-pts[i].y)),length=lengths.reduce((a,b)=>a+b,0);
+  const duration=wall.loop?mechanismTravelSeconds(length,wall.speed):Math.max(.001,length/(wall.speed/CELL));
+  const time=wall.motionTime||0;wall.points=pts.slice().reverse();
+  wall.motionTime=duration-(wall.loop?positiveModulo(time,duration):Math.min(duration,time));
+  wall.finished=false;wall.enabled=true;wall.seg=pts.length-2-(wall.seg||0);wall.segT=1-(wall.segT||0);
+  wall.bossReverseCooldown=.15;
+}
+function resolveBossPresses(dt){
+  for(const wall of state.room.crusherWalls||[]){
+    wall.bossReverseCooldown=Math.max(0,(wall.bossReverseCooldown||0)-dt);
+    for(const boss of state.room.bosses||[]){
+      if(boss.defeated)continue;
+      const box=bossRect(boss),press=crusherWallRect(wall);
+      if(!rectsOverlap(press,box))continue;
+      if(boss.state==='stunned'&&rectsOverlap(press,bossBellyRect(boss))){bossTakeHit(boss);}
+      if(wall.bossReverseCooldown<=0){wall.x=wall.prevX;wall.y=wall.prevY;wall.motionTime=Math.max(0,(wall.motionTime||0)-dt);bossReversePress(wall);wall.dx=wall.dy=0;}
+    }
+  }
+}
+function bossWorldContacts(boss,dt) {
+  const box=bossRect(boss),belly=bossBellyRect(boss),room=state.room;
+  for(const bullet of room.bullets){
+    if(bullet.ttl<=0||!rectsOverlap(bullet,box)||bullet.owner?.bossId===boss.id&&boss.state!=='stunned')continue;
+    if(boss.state==='stunned'&&rectsOverlap(bullet,belly))bossTakeHit(boss);
+    bullet.ttl=0;
+  }
+  if(boss.state==='stunned'&&room.spikes.some(s=>isSpikeActive(s)&&rectsOverlap(belly,spikeHitbox(s))))bossTakeHit(boss);
+  for(const cube of getPushCubes()){
+    if(cube.dead)continue;const c=pushCubeRect(cube);
+    if(!rectsOverlap(c,box))continue;
+    if(boss.state==='stunned'&&rectsOverlap(c,belly)&&((cube.vy||0)>0||(cube.dy||0)>0)){bossTakeHit(boss);continue;}
+    const roof=bossParts(boss).roof,previousBottom=(cube.prevY??cube.y)+c.h;
+    if(previousBottom<=roof.y+CELL*.25&&cube.vy>=0&&rectOverlapX(c,roof)>0){cube.y=roof.y-c.h;cube.vy=0;cube.onGround=true;continue;}
+    const dir=c.x+c.w/2<box.x+box.w/2?-1:1,amount=dir<0?box.x-c.x-c.w-.1:box.x+box.w-c.x+.1;
+    applyPushCubeGroupMotion([cube],amount,0);
+    if(rectsOverlap(pushCubeRect(cube),box)){boss.x=boss.prevX;boss.vx=0;}
+  }
+  for(const enemy of room.enemies){
+    if(enemy.dead||isPushCube(enemy)||enemy.owner?.bossId===boss.id&&(enemy.bossBombClearance||0)>0)continue;const e=enemyRect(enemy);
+    if(!rectsOverlap(e,box))continue;
+    if(boss.state==='stunned'&&rectsOverlap(e,belly)){bossTakeHit(boss);continue;}
+    const dir=e.x+e.w/2<box.x+box.w/2?-1:1;
+    const next={...e,x:dir<0?box.x-e.w-.1:box.x+box.w+.1};
+    if(!rectHitsEnemyCrushObstacle(next,enemy)){if(enemy.type==='E2')enemy.startX+=next.x-enemy.x;if(enemy.type==='E4'){enemy.leechFall=true;enemy.path=null;enemy.route=null;}enemy.x=next.x;enemy.vx=dir*CELL*4;enemy.dir=dir;enemy.vy=-CELL*3;enemy.onGround=false;enemy.stunTimer=.3;}
+    else {boss.x=boss.prevX;boss.vx=0;}
+  }
+}
+// Routes are planned against the full body, current mechanisms, and directional
+// platform tops. Only walk/approach phases steer; attacks retain their warning.
+function bossNavClear(boss,from,to,solids){
+  const test={...boss,x:from.x,y:from.y,state:'walk',ignoreOneWay:0};
+  return !bossMoveAxis(test,'x',to.x-from.x,solids)&&!bossMoveAxis(test,'y',to.y-from.y,solids);
+}
+function* bossAirRoute(boss,targetX,targetY,solids){
+  if(!Number.isFinite(targetX)||!Number.isFinite(targetY))return [];
+  const start={x:boss.x,y:boss.y,g:0,path:[]},distance=n=>Math.hypot(n.x-targetX,n.y-targetY)/CELL;
+  const open=[start],seen=new Map(),origin={x:boss.x,y:boss.y};let best=start,expanded=0;
+  start.f=distance(start);seen.set('0,0',0);
+  while(open.length&&expanded++<1600){
+    yield;open.sort((a,b)=>b.f-a.f);const n=open.pop();if(distance(n)<distance(best))best=n;if(distance(n)<.6){best=n;break;}
+    for(const [dx,dy]of [[1,0],[-1,0],[0,-1],[0,1],[1,-1],[-1,-1],[1,1],[-1,1]]){
+      const next={x:n.x+dx*CELL,y:n.y+dy*CELL,g:n.g+Math.hypot(dx,dy)},key=Math.round((next.x-origin.x)/CELL)+','+Math.round((next.y-origin.y)/CELL);
+      if((seen.get(key)??Infinity)<=next.g||!bossNavClear(boss,n,next,solids))continue;
+      seen.set(key,next.g);next.f=next.g+distance(next);next.path=[...n.path,{x:next.x,y:next.y}];open.push(next);
+    }
+  }
+  boss.navExpanded=expanded;return best.path;
+}
+function* bossGroundEdge(boss,node,vx,height,solids){
+  const initialVy=height?-Math.sqrt(2*GRAVITY*height*CELL):0,test={...boss,x:node.x,y:node.y,vx,vy:initialVy,state:'jump',ignoreOneWay:0};
+  let airborne=!!height;
+  for(let i=0;i<240;i++){
+    if(i%8===0)yield;
+    test.vy=Math.min(MAX_FALL,test.vy+GRAVITY/120);
+    const wall=bossMoveAxis(test,'x',vx/120,solids),down=test.vy>=0,land=bossMoveAxis(test,'y',test.vy/120,solids);
+    if(wall&&(!height||down))return null;
+    if(land){
+      if(!down){test.vy=0;continue;}
+      test.vy=0;
+      if(airborne||i>=47){if(Math.abs(test.x-node.x)<CELL*.3&&Math.abs(test.y-node.y)<CELL*.3)return null;return{x:test.x,y:test.y,vx,vy:initialVy,height,duration:(i+1)/120};}
+    }else airborne=true;
+  }return null;
+}
+function* bossGroundRoute(boss,solids){
+  if(!Number.isFinite(boss.targetX)||!Number.isFinite(boss.targetY))return [];
+  const start={x:boss.x,y:boss.y,g:0,path:[]},distance=n=>Math.hypot(n.x+boss.w*CELL/2-boss.targetX,(n.y+boss.h*CELL-boss.targetY-CELL)*1.3)/CELL;
+  const open=[start],seen=new Map(),key=n=>Math.round(n.x/CELL*2)+','+Math.round(n.y/CELL*2);let best=start,expanded=0;
+  start.f=distance(start);seen.set(key(start),0);
+  const speed=6,heights=[3,7,11];
+  while(open.length&&expanded++<96){
+    open.sort((a,b)=>b.f-a.f);const n=open.pop();if(distance(n)<distance(best))best=n;if(distance(n)<3){best=n;break;}
+    const moves=[[-speed,0],[speed,0],...heights.flatMap(h=>[-1,1].flatMap(sign=>[[sign*3,h],[sign*7,h]]))];
+    for(const [v,h]of moves){
+      const edge=yield* bossGroundEdge(boss,n,v*CELL,h,solids);if(!edge)continue;
+      const g=n.g+edge.duration*6+(h?1.5+h*.35:.15),k=key(edge);if((seen.get(k)??Infinity)<=g)continue;
+      seen.set(k,g);open.push({...edge,g,f:g+distance(edge),path:[...n.path,edge]});
+    }
+  }
+  boss.navExpanded=expanded;return best.path;
+}
+// Searches retain their frontier across simulation ticks. All bosses share one
+// wall-clock allowance, so an unreachable target cannot monopolize a frame.
+const bossNavJobs=new WeakMap();
+let bossNavDeadline=0;
+function bossNavAdvance(boss,make){
+  let job=bossNavJobs.get(boss);if(!job){job=make();bossNavJobs.set(boss,job);}
+  boss.navPending=true;
+  for(let i=0;i<256&&performance.now()<bossNavDeadline;i++){
+    const step=job.next();if(step.done){bossNavJobs.delete(boss);boss.navPending=false;return step.value;}
+  }
+  return null;
+}
+function bossFlyNavigate(boss,targetX,targetY,speed,dt,solids,tag){
+  boss.navTimer=(boss.navTimer||0)-dt;
+  if(boss.navTag!==tag){bossNavJobs.delete(boss);boss.airRoute=null;boss.navTag=tag;}
+  if(!boss.airRoute||boss.navTimer<=0){
+    if(!bossNavJobs.has(boss)&&bossNavClear(boss,boss,{x:targetX,y:targetY},solids)){
+      boss.airRoute=[{x:targetX,y:targetY}];boss.navTimer=.75;boss.navPending=false;
+    }else{
+      const route=bossNavAdvance(boss,()=>bossAirRoute({...boss},targetX,targetY,solids));
+      if(route){
+        while(route.length>1&&Math.hypot(route[1].x-boss.x,route[1].y-boss.y)<Math.hypot(route[0].x-boss.x,route[0].y-boss.y))route.shift();
+        boss.airRoute=route;boss.navTimer=.75;
+      }
+    }
+  }
+  while(boss.airRoute?.length&&Math.hypot(boss.airRoute[0].x-boss.x,boss.airRoute[0].y-boss.y)<CELL*.08)boss.airRoute.shift();
+  const next=boss.airRoute?.[0];if(!next){boss.vx=boss.vy=0;return;}
+  const dx=next.x-boss.x,dy=next.y-boss.y,distance=Math.hypot(dx,dy),velocity=Math.min(speed,distance/dt);
+  boss.vx=distance?dx/distance*velocity:0;boss.vy=distance?dy/distance*velocity:0;
+}
+const bossSurfaceNormal={floor:[0,1],right:[1,0],ceiling:[0,-1],left:[-1,0]};
+function bossCrawlerSupport(boss,side,solids){
+  const [nx,ny]=bossSurfaceNormal[side],test={...boss};
+  return bossMoveAxis(test,nx?'x':'y',(nx||ny)*CELL*.08,solids);
+}
+function bossCrawl(boss,dt,solids){
+  const side=boss.surface||'floor',[nx,ny]=bossSurfaceNormal[side],dir=boss.crawlDir||boss.dir||1;
+  const tx=ny*dir,ty=-nx*dir,axis=tx?'x':'y',step=(tx||ty)*3.5*CELL*dt;
+  boss.vx=tx*3.5*CELL;boss.vy=ty*3.5*CELL;
+  if(bossMoveAxis(boss,axis,step,solids)){
+    // Concave corner: the obstacle ahead becomes the new supporting side.
+    boss.surface=tx?(tx>0?'right':'left'):(ty>0?'floor':'ceiling');
+  }else if(!bossCrawlerSupport(boss,side,solids)){
+    // Convex corner: go around the last supporting edge with the full body.
+    const next=tx?(tx>0?'left':'right'):(ty>0?'ceiling':'floor');
+    const [ax,ay]=bossSurfaceNormal[next],test={...boss};
+    bossMoveAxis(test,ay?'x':'y',(ay||-ax)*dir*CELL*.08,solids);
+    if(bossMoveAxis(test,ax?'x':'y',(ax||ay)*CELL*.12,solids)){
+      boss.x=test.x;boss.y=test.y;boss.surface=next;
+    }
+  }
+  boss.crawlAttached=bossCrawlerSupport(boss,boss.surface||'floor',solids);
+  boss.onGround=boss.crawlAttached&&(boss.surface||'floor')==='floor';
+}
+function bossWalkNavigate(boss,dt,solids){
+  if(boss.bossKind==='turret')return;
+  if(boss.bossKind==='drone'){bossFlyNavigate(boss,boss.targetX-boss.w*CELL/2,boss.hoverY,6*CELL,dt,solids,'walk');return;}
+  if(!boss.onGround)return;
+  if(!boss.walkRoute){
+    const x=boss.targetX-boss.w*CELL/2,y=boss.y,level=Math.abs(y+boss.h*CELL-boss.targetY-CELL)<=CELL*2;
+    let flat=level&&!bossNavJobs.has(boss)&&bossNavClear(boss,boss,{x,y},solids);
+    if(flat)for(let t=0,n=Math.ceil(Math.abs(x-boss.x)/CELL);t<=n;t++){
+      if(!bossCrawlerSupport({...boss,x:boss.x+(x-boss.x)*t/Math.max(1,n)},'floor',solids)){flat=false;break;}
+    }
+    if(flat){boss.walkRoute=[{x,y,height:0}];boss.navPending=false;}
+    else boss.walkRoute=bossNavAdvance(boss,()=>bossGroundRoute({...boss},solids));
+    if(boss.walkRoute){boss.routeTargetX=boss.targetX;boss.routeTargetY=boss.targetY;}
+    if(!boss.walkRoute){boss.vx=0;boss.timer+=dt;return;}
+  }
+  // Landings differ by subpixels between the probe and actual integration.
+  while(boss.walkRoute.length&&Math.abs(boss.walkRoute[0].x-boss.x)<CELL*.2&&Math.abs(boss.walkRoute[0].y-boss.y)<CELL*.4)boss.walkRoute.shift();
+  const next=boss.walkRoute[0];if(!next){bossFinishTurn(boss);return;}
+  if(next.height){boss.vx=next.vx;boss.vy=next.vy;boss.onGround=false;boss.walkRoute.shift();setBossPhase(boss,'jump',2.1);return;}
+  if(Math.abs(next.x-boss.x)<CELL*.02){boss.walkRoute=null;boss.vx=0;return;}
+  boss.vx=clamp((next.x-boss.x)/dt,-6*CELL,6*CELL);
+}
+function bossSurfaceRect(boss,x,y,w,h){
+  const b=bossRect(boss),side=boss.surface||'floor';
+  if(side==='right')[x,y,w,h]=[y,1-x-w,h,w];
+  else if(side==='left')[x,y,w,h]=[1-y-h,x,h,w];
+  else if(side==='ceiling')[x,y]=[1-x-w,1-y-h];
+  return{x:b.x+x*b.w,y:b.y+y*b.h,w:w*b.w,h:h*b.h};
+}
+function bossHasRider(boss){const p=state.player,r=bossParts(boss).roof;return (boss.surface||'floor')==='floor'&&p.vy>=-.1&&rectOverlapX(p,r)>CELL*.1&&Math.abs(p.y+p.h-r.y)<CELL*.25;}
+function bossFeetAttached(boss,side,solids){
+  if(!bossCrawlerSupport(boss,side,solids))return false;
+  const box=bossRect(boss),legs=bossParts({...boss,surface:side}).legs;
+  return legs.some(leg=>{
+    let r;
+    if(side==='ceiling'&&Math.abs(leg.y-box.y)<CELL*.05)r={x:leg.x,y:box.y-CELL*.08,w:leg.w,h:CELL*.09};
+    if(side==='right'&&Math.abs(leg.x+leg.w-box.x-box.w)<CELL*.05)r={x:box.x+box.w-CELL*.01,y:leg.y,w:CELL*.09,h:leg.h};
+    if(side==='left'&&Math.abs(leg.x-box.x)<CELL*.05)r={x:box.x-CELL*.08,y:leg.y,w:CELL*.09,h:leg.h};
+    return r&&bossBlocked({x:r.x,y:r.y,w:r.w/CELL,h:r.h/CELL,state:'walk'},solids);
+  });
+}
+// Bounded trajectory probes use the same collision solver as the actual jump.
+// They mutate only a copy; no speculative attacks or mechanisms run here.
+function bossProbeJump(boss,vx,vy,solids,wantWall=false){
+  const test={...boss,state:'jump',vx,vy},startX=test.x,startY=test.y;let peak=startY;
+  for(let i=0;i<180;i++){
+    test.vy=Math.min(MAX_FALL,test.vy+GRAVITY/120);
+    const wall=bossMoveAxis(test,'x',vx/120,solids);
+    const down=test.vy>=0,hit=bossMoveAxis(test,'y',test.vy/120,solids);peak=Math.min(peak,test.y);
+    if(wall&&wantWall&&test.y<startY-CELL*.5&&bossFeetAttached(test,vx>0?'right':'left',solids))return {x:test.x,y:test.y,side:vx>0?'right':'left',peak};
+    if(wall&&!wantWall&&test.vy>=0)return null;
+    if(hit){if(down)return wantWall?null:{x:test.x,y:test.y,peak,distance:Math.abs(test.x-startX)};test.vy=0;}
+  }return null;
+}
+function bossWallPlan(boss,superAttack,solids=bossSolids(state.room)){
+  const speed=CELL*12,jump=-Math.sqrt(2*GRAVITY*10*CELL);
+  for(const dir of [boss.dir,-boss.dir]){
+    const wall=bossProbeJump(boss,dir*speed,jump,solids,true);if(!wall)continue;
+    if(!superAttack)return{...wall,dir,speed,jump};
+    const test={...boss,...wall,state:'ceilingjump',vy:-Math.sqrt(2*GRAVITY*17*CELL)};
+    for(let i=0;i<100&&test.vy<0;i++){
+      test.vy+=GRAVITY/120;
+      if(bossMoveAxis(test,'y',test.vy/120,solids)){if(bossFeetAttached(test,'ceiling',solids))return {...wall,dir,speed,jump,ceilingY:test.y};break;}
+    }
+  }return null;
+}
+function bossTryClimb(boss,solids){
+  const ahead={...boss,x:boss.x+boss.dir*CELL*.6};
+  const obstructed=bossBlocked(ahead,solids),higher=boss.targetY<boss.y-CELL;
+  if(!obstructed&&!higher)return false;
+  for(const height of [5,8,11])for(const speed of [4.5,7]){
+    const vx=boss.dir*CELL*speed,vy=-Math.sqrt(2*GRAVITY*height*CELL),landing=bossProbeJump(boss,vx,vy,solids);
+    if(!landing||landing.distance<CELL*1.5||higher&&!obstructed&&landing.y>=boss.y-CELL)continue;
+    boss.vx=vx;boss.vy=vy;boss.onGround=false;setBossPhase(boss,'jump',2);return true;
+  }
+  if(obstructed){boss.blockedDir=boss.dir;boss.blockedUntil=(state.room.localTime||0)+2;bossFinishTurn(boss);}
+  return false;
+}
+function bossCarryRider(boss,dt,wasRiding){
+  const p=state.player;
+  if(!wasRiding||!p.onGround||(p.jumpAttachBlockTimer||0)>0||(boss.surface||'floor')!=='floor'||['stunned','reboot'].includes(boss.state)){boss.riderVx=0;return;}
+  const dx=boss.x-boss.prevX,dy=boss.y-boss.prevY;
+  boss.riderVx=dx/Math.max(dt,.001);
+  // Transfer only actual support displacement. No residual belt velocity after
+  // stopping; the player's own movement and jump release remain independent.
+  for(const [axis,delta]of [['x',dx],['y',dy]]){
+    const steps=Math.max(1,Math.ceil(Math.abs(delta))),step=delta/steps;
+    for(let i=0;i<steps;i++){
+      const next={...p,[axis]:p[axis]+step};
+      if(roomRectHitsSolids(state.room,next)){
+        const body=bossParts(boss).torso;
+        if(rectsOverlap(p,body)||axis==='y'&&step<0)damagePlayer(0,0);
+        boss.riderVx=0;break;
+      }
+      p[axis]+=step;
+    }
+  }
+  p.prevY+=dy;
+}
+function bossPushPlayer(boss){
+  const p=state.player,body=bossParts(boss).torso;
+  if(!rectsOverlap(p,body)||bossHasRider(boss))return;
+  const dx=boss.x-boss.prevX,dy=boss.y-boss.prevY;
+  const roof=bossParts({...boss,x:boss.prevX,y:boss.prevY,surface:'floor'}).roof;
+  if((boss.surface||'floor')==='floor'&&Math.abs(dx)>=Math.abs(dy)&&(p.prevY??p.y)+p.h<=roof.y+CELL*.08)return;
+  const axis=Math.abs(dy)>Math.abs(dx)?'y':'x',sign=Math.sign(axis==='x'?dx:dy);
+  if(!sign)return;
+  const edge=axis==='x'?(sign>0?body.x+body.w:body.x-p.w):(sign>0?body.y+body.h:body.y-p.h);
+  const distance=edge-p[axis],steps=Math.max(1,Math.ceil(Math.abs(distance)));
+  for(let i=0;i<steps;i++){
+    const next={...p,[axis]:p[axis]+distance/steps};
+    if(roomRectHitsSolids(state.room,next)){damagePlayer(0,0);return;}
+    p[axis]=next[axis];
+  }
+}
+
 function updateBosses(dt) {
-  if (!state.room?.bosses?.length||state.roomTransition) return;
-  const solids=getInitialDynamicRects(state.room),supports=bossMovingSupports(state.room);
-  for(const boss of state.room.bosses) {
-    if (boss.defeated) continue;
+  if(!state.room?.bosses?.length||state.roomTransition||state.mode!=='playing')return;
+  const room=state.room,solids=bossSolids(room),supports=bossMovingSupports(room);
+  bossNavDeadline=performance.now()+2;
+  for(const boss of room.bosses){
+    if(boss.defeated)continue;
+    const wasRiding=bossHasRider(boss);
     boss.prevX=boss.x;boss.prevY=boss.y;
     carryBossOnSupport(boss,solids,supports);
-    if (!bossCanAct(boss)) {if(boss.awake){boss.awake=false;boss.vx=0;bossTargetSignals(boss,false);}continue;}
-    if (!boss.awake) {
-      boss.awake=true;
-      if(boss.state!=='stunned'&&boss.state!=='reboot')setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
-    }
-    boss.contactGrace=Math.max(0,boss.contactGrace-dt);boss.ignoreOneWay=Math.max(0,(boss.ignoreOneWay||0)-dt);
-    if (!boss.anchorSettled) {
-      // Dropping an actor into empty space is a useful editor workflow. Settle
-      // its inseparable home controls onto the first supporting solid floor.
+    boss.contactGrace=Math.max(0,boss.contactGrace-dt);
+    if(!bossCanAct(boss)){boss.awake=false;continue;}
+    if(!boss.awake){boss.awake=true;boss.engaged=true;if(!['stunned','reboot'].includes(boss.state))bossChooseTurn(boss);}
+    if(!boss.anchorSettled&&boss.bossKind==='drone'){boss.anchorSettled=true;boss.vy=0;bossChooseTurn(boss);}
+    if(!boss.anchorSettled){
       boss.vy=Math.min(MAX_FALL,boss.vy+GRAVITY*dt);
       if(bossMoveAxis(boss,'y',boss.vy*dt,solids)){
         boss.vy=0;boss.onGround=true;boss.anchorSettled=true;boss.homeY=boss.y;
-        const support=supports.find(s=>Math.abs(s.y-(boss.y+boss.h*CELL))<.6&&rectOverlapX(bossRect(boss),s)>CELL*.25);boss.padSupportKey=support?.key||null;
-        setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
+        const support=supports.find(s=>Math.abs(s.y-boss.y-boss.h*CELL)<.6&&rectOverlapX(bossRect(boss),s)>CELL*.25);boss.padSupportKey=support?.key||null;
+        bossChooseTurn(boss);
+      }continue;
+    }
+    const drone=boss.bossKind==='drone',turret=boss.bossKind==='turret';
+    if(turret)boss.crawlAttached=!['stunned','reboot'].includes(boss.state)&&bossCrawlerSupport(boss,boss.surface||'floor',solids);
+    boss.timer-=dt;
+    if(['wallcling','ceilingmove','dropwarn'].includes(boss.state)&&!bossFeetAttached(boss,boss.surface,solids)){boss.surface='floor';boss.vx=boss.vy=0;setBossPhase(boss,'dive',2);}
+    if(boss.state==='walk'){
+      boss.targetTimer=(boss.targetTimer||0)-dt;
+      if(boss.targetTimer<=0){const x=boss.targetX,y=boss.targetY;bossUpdateTarget(boss);boss.targetTimer=.35;
+        if(Math.hypot(x-boss.targetX,y-boss.targetY)>CELL*2){boss.walkRoute=boss.airRoute=null;bossNavJobs.delete(boss);boss.navPending=false;}
+        boss.hoverY=clamp(boss.targetY-boss.h*CELL-4*CELL,CELL,(room.innerH-boss.h)*CELL);
       }
-      continue;
     }
-    if(boss.state!=='recover'||boss.onGround)boss.timer-=dt;
-    if(boss.state==='walljump'&&boss.timer<=0){boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
-    if (boss.state==='telegraph'&&boss.timer<=0) {setBossPhase(boss,'charge',RAT_SPIDER_RULES.charge);boss.vx=boss.dir*RAT_SPIDER_RULES.speed;}
-    if (boss.state==='charge'&&boss.timer<=0) {boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
-    if (boss.state==='recover'&&boss.timer<=0) {
-      boss.dir=(state.player.x+state.player.w/2<boss.x+boss.w*CELL/2)?-1:1;
-      setBossPhase(boss,'telegraph',RAT_SPIDER_RULES.telegraph);
+    if(boss.bossKind==='turret'&&['telegraph','windup'].includes(boss.state)){const p=state.player,box=bossRect(boss);boss.aimAngle=Math.atan2(p.y+p.h/2-box.y-box.h*.4,p.x+p.w/2-box.x-box.w/2);}
+    if(boss.state==='stunned'&&boss.timer<=0){bossResetPads(boss);setBossPhase(boss,'reboot',.7);}
+    if(boss.state==='reboot'&&boss.timer<=0){
+      boss.state='telegraph';if(bossBlocked(boss,solids)){boss.state='reboot';boss.timer=.1;}else{boss.contactGrace=.35;bossChooseTurn(boss);}
     }
-    if (boss.state==='stunned'&&boss.timer<=0) setBossPhase(boss,'reboot',RAT_SPIDER_RULES.reboot);
-    if (boss.state==='reboot'&&boss.timer<=0) {
-      // Restore full height only where it fits; never materialize in a ceiling.
-      boss.state='telegraph';
-      if(bossBlocked(boss,solids)){boss.state='reboot';boss.timer=.15;continue;}
-      boss.timer=RAT_SPIDER_RULES.telegraph;boss.contactGrace=.35;
-      boss.dir=(state.player.x<boss.x+boss.w*CELL/2)?-1:1;
+    if(boss.state==='recover'&&boss.timer<=0&&(boss.onGround||drone||boss.crawlAttached))bossChooseTurn(boss);
+    if(boss.state==='telegraph'&&boss.timer<=0){if(boss.action==='walk')bossStartAction(boss);else setBossPhase(boss,'windup',['super','body'].includes(boss.action)?1:.5);}
+    else if(boss.state==='windup'&&boss.timer<=0)bossStartAction(boss);
+    else if(boss.state==='wallcling'&&boss.timer<=0){
+      boss.wallJumps++;
+      if(boss.action==='super'){boss.surface='ceiling';boss.vx=0;boss.vy=-Math.sqrt(2*GRAVITY*17*CELL);setBossPhase(boss,'ceilingjump',1.5);}
+      else{boss.surface='floor';boss.dir=boss.targetX<boss.x+boss.w*CELL/2?-1:1;boss.vx=boss.dir*CELL*6;boss.vy=-Math.sqrt(2*GRAVITY*10*CELL);setBossPhase(boss,'dive',2);}
+    }else if(boss.state==='ceilingmove'){
+      boss.targetX=state.player.x+state.player.w/2;
+      const distance=boss.targetX-boss.x-boss.w*CELL/2;boss.vx=clamp(distance/dt,-CELL*6,CELL*6);
+      if(Math.abs(distance)<CELL*.35||boss.timer<=0||!bossFeetAttached(boss,'ceiling',solids)){boss.vx=0;setBossPhase(boss,'dropwarn',.5);}
+    }else if(boss.state==='dropwarn'&&boss.timer<=0){boss.surface='floor';boss.vy=CELL*15;setBossPhase(boss,'drop',2);}
+    else if(['walk','dash','shoot','bombapproach','bombard','bodyburst'].includes(boss.state)&&boss.timer<=0)bossFinishTurn(boss);
+    else if(['walljump','ceilingjump','jump','dive','drop'].includes(boss.state)&&boss.timer<=0){boss.vx=0;setBossPhase(boss,'recover',.08);}
+    if(boss.state==='walk')bossWalkNavigate(boss,dt,solids);
+    if(boss.state==='bombapproach'){
+      const dx=boss.bombRunX-boss.x,dy=boss.bombRunY-boss.y;
+      bossFlyNavigate(boss,boss.bombRunX,boss.bombRunY,8*CELL,dt,solids,'bombapproach');
+      if(Math.abs(dx)<CELL*.35&&Math.abs(dy)<CELL*.35){boss.vx=boss.dir*7*CELL;boss.vy=0;setBossPhase(boss,'bombard',1.8);}
     }
-    boss.vy=Math.min(MAX_FALL,boss.vy+GRAVITY*dt);
-    if (boss.state!=='charge'&&boss.state!=='walljump') boss.vx=0;
-    const hitWall=bossMoveAxis(boss,'x',boss.vx*dt,solids);
-    if(hitWall&&(boss.state==='charge'||boss.state==='walljump')) {
-      if(boss.state==='charge') {
-        boss.dir*=-1;boss.vx=boss.dir*RAT_SPIDER_RULES.wallJumpSpeed;
-        boss.vy=-Math.sqrt(2*GRAVITY*RAT_SPIDER_RULES.wallJumpHeight);boss.onGround=false;boss.wallJumps++;
-        setBossPhase(boss,'walljump',2);
-      } else boss.vx=0;
+    if(boss.state==='bombard'){
+      boss.vy=clamp((boss.bombRunY-boss.y)*4,-4*CELL,4*CELL);
+      if((boss.bombPassX-boss.x)*boss.dir<=0)bossFinishTurn(boss);
     }
-    boss.landedOnOneWay=false;
-    const falling=boss.vy>=0,hitFloor=bossMoveAxis(boss,'y',boss.vy*dt,solids);
-    boss.onGround=hitFloor&&falling;
-    if(hitFloor)boss.vy=0;
-    if(boss.state==='walljump'&&boss.onGround&&boss.landedOnOneWay&&boss.y<boss.homeY-CELL){
-      // Release the climbing legs on a high catwalk and return to the controls.
-      boss.ignoreOneWay=.8;boss.onGround=false;boss.vy=0;
+    if(['shoot','bombard'].includes(boss.state)){
+      boss.shotTimer-=dt;if(boss.shotTimer<=1e-8){bossFire(boss);boss.shotTimer=boss.state==='bombard'?.45:boss.action==='super'?(2/24):boss.action==='attack2'?2:.22;}
     }
-    if(boss.state==='walljump'&&boss.onGround){boss.vx=0;setBossPhase(boss,'recover',RAT_SPIDER_RULES.recover);}
-    // A falling boss is never damaged off-screen or removed by a pit. A room
-    // boundary is solid, including missing cells of a v2 panel shape.
+    if(boss.state==='dive'&&Math.sign(boss.targetX-boss.x-boss.w*CELL/2)!==Math.sign(boss.vx))boss.vx=0;
+    if(turret&&boss.crawlAttached){
+      const belt=boss.onGround?getStandingConveyorForRect(bossRect(boss),1):null;
+      if(belt)bossMoveAxis(boss,'x',conveyorVelocity(belt)*dt,solids);
+      if(boss.state==='walk')bossCrawl(boss,dt,solids);else boss.vx=boss.vy=0;
+      bossCarryRider(boss,dt,wasRiding);bossPushPlayer(boss);bossWorldContacts(boss,dt);continue;
+    }
+    const attached=['wallcling','ceilingmove','dropwarn'].includes(boss.state),still=['telegraph','windup','stunned','reboot','recover','shoot'].includes(boss.state);
+    if(boss.state==='bodyburst')boss.vx=0;
+    if(still)boss.vx=0;
+    if(attached){boss.vy=0;}else if(!drone||['stunned','reboot'].includes(boss.state))boss.vy=Math.min(MAX_FALL,boss.vy+GRAVITY*dt);else if(still)boss.vy=0;
+    const belt=boss.onGround?getStandingConveyorForRect(bossRect(boss),1):null;
+    const carry=belt?conveyorVelocity(belt):0;
+    const wall=bossMoveAxis(boss,'x',(boss.vx+carry)*dt,solids);
+    if(wall){
+      if(boss.state==='walljump'){boss.vx=0;if(bossFeetAttached(boss,boss.surface,solids)){boss.vy=0;setBossPhase(boss,'wallcling',.25);}else{boss.surface='floor';setBossPhase(boss,'dive',2);}}
+      else if(boss.state==='dash'){boss.vx*=-1;boss.dir*=-1;boss.wallJumps++;}
+      else if(boss.state==='walk'||boss.state==='bombapproach'){boss.vx=0;boss.walkRoute=null;boss.airRoute=null;}
+      else if(boss.state==='ceilingmove'){boss.vx=0;setBossPhase(boss,'dropwarn',.5);}
+      else if(!(['jump','dive'].includes(boss.state)&&boss.vy<0))boss.vx=0;
+    }
+    const falling=boss.vy>=0,hitY=bossMoveAxis(boss,'y',boss.vy*dt,solids);
+    boss.onGround=hitY&&falling;
+    if(hitY){
+      if(drone&&['walk','bombapproach'].includes(boss.state))boss.airRoute=null;
+      if(boss.state==='ceilingjump'&&!falling){boss.vy=0;if(bossFeetAttached(boss,'ceiling',solids)){boss.surface='ceiling';setBossPhase(boss,'ceilingmove',2);}else{boss.surface='floor';setBossPhase(boss,'dive',2);}}
+      else if(boss.state==='dash'){boss.vy*=-1;boss.wallJumps++;}
+      else{boss.vy=0;if(falling&&['jump','dive','drop','walljump'].includes(boss.state))bossFinishTurn(boss);}
+    }
+    if(boss.state==='dash'){const px=state.player.x+state.player.w/2-boss.x-boss.w*CELL/2,py=state.player.y+state.player.h/2-boss.y-boss.h*CELL/2;if(Math.hypot(px,py)>16*CELL&&px*boss.vx+py*boss.vy<0)bossFinishTurn(boss);}
+    if(boss.state==='walk'){
+      boss.walkStall=(!boss.navPending&&Math.hypot(boss.x-boss.prevX,boss.y-boss.prevY)<CELL*.005)?(boss.walkStall||0)+dt:0;
+      boss.navWait=boss.navPending?(boss.navWait||0)+dt:0;
+      if(boss.walkStall>.5||boss.navWait>8){boss.turnBag.unshift('attack1');bossFinishTurn(boss);boss.walkRoute=boss.airRoute=null;boss.walkStall=boss.navWait=0;}
+    }
+    bossCarryRider(boss,dt,wasRiding);
+    bossPushPlayer(boss);
+    bossWorldContacts(boss,dt);
   }
 }
 function bossTouchesButton(boss,btn) {
-  if(boss.defeated||!boss.awake||!['charge','walljump'].includes(boss.state))return false;
-  if(boss.targets.some(raw=>parseTargetDescriptor(raw).id===btn.id))return false;
-  const body=bossRect(boss),base=buttonRect(btn);
-  const pressed=rectsOverlap({x:body.x-1,y:body.y-1,w:body.w+2,h:body.h+2},base);
-  if(pressed&&btn.id&&!((boss.activatedButtons||[]).includes(btn.id)))(boss.activatedButtons ||= []).push(btn.id);
-  return pressed;
+  if(btn.bossOwnerId||boss.defeated||!boss.awake||['telegraph','windup','stunned','reboot'].includes(boss.state))return false;
+  return rectsOverlap(bossRect(boss),buttonRect(btn));
 }
 function updateBossContacts() {
-  const p=state.player;
-  if(!p||state.roomTransition)return;
-  for(const boss of state.room.bosses||[]) {
+  const p=state.player;if(!p||state.roomTransition)return;
+  for(const boss of state.room.bosses||[]){
     if(boss.defeated)continue;
-    const pads=bossPadRects(boss);
-    const pressed=pads.map(pad=>p.onGround&&rectOverlapX(p,pad)>CELL*.2&&Math.abs(p.y+p.h-(pad.y+pad.h))<CELL*.45);
-    if(bossCanAct(boss)&&boss.state==='recover'&&boss.onGround&&pressed[boss.activePad]&&!boss.padHeld[boss.activePad]) {
-      boss.stuns++;boss.vx=0;setBossPhase(boss,'stunned',RAT_SPIDER_RULES.stun);
-      pushMsg('БРЮХО ОТКРЫТО · ПРЫГАЙ СВЕРХУ', '#9affcb',1.8);
+    if(bossCanAct(boss)&&!['stunned','reboot'].includes(boss.state)&&boss.padPressed.every(Boolean)){
+      boss.stuns++;boss.vx=boss.vy=0;setBossPhase(boss,'stunned',5);pushMsg('БРЮХО ОТКРЫТО · 5 СЕКУНД','#9affcb',1.5);
     }
-    boss.padHeld=pressed;
     if(!bossCanAct(boss))continue;
-    const box=bossRect(boss);
-    if(boss.state==='stunned') {
-      const previousFeet=(p.prevY??p.y)+p.h;
-      if(p.vy>0&&previousFeet<=box.y+Math.max(1,p.vy/120)&&p.y+p.h>=box.y&&rectOverlapX(p,bossBellyRect(boss))>CELL*.2) {
-        boss.hits++;p.y=box.y-p.h;p.vy=-Math.sqrt(2*GRAVITY*JUMP_LOW_HEIGHT);
-        p.onGround=false;p.groundRef=null;p.jumpActive=false;p.invuln=Math.max(p.invuln,.6);
-        boss.activePad=1-boss.activePad;
-        if(boss.hits>=RAT_SPIDER_RULES.hits) {
-          boss.defeated=true;boss.vx=0;boss.vy=0;bossTargetSignals(boss,false,true);
-          pushMsg('КРЫСА СБЕЖАЛА · ВЫХОД ОТКРЫТ', '#9affcb',3);
-        } else {
-          setBossPhase(boss,'reboot',RAT_SPIDER_RULES.reboot);
-          pushMsg(`БРОНЯ ${RAT_SPIDER_RULES.hits-boss.hits}/${RAT_SPIDER_RULES.hits} · ДРУГАЯ ПЕДАЛЬ`, '#ffe6a4',1.5);
-        }
-      }
-    } else if(boss.contactGrace<=0&&['telegraph','charge','walljump'].includes(boss.state)) {
-      // Tall legs leave a readable underpass while winding up. The red sweeping
-      // feet become dangerous only during the actual charge / wall jump.
-      const torso={x:box.x+box.w*.16,y:box.y+box.h*.1,w:box.w*.68,h:box.h*.45};
-      const feet={x:box.x,y:box.y+box.h-Math.min(CELL*.55,box.h*.4),w:box.w,h:Math.min(CELL*.55,box.h*.4)};
-      if(rectsOverlap(p,torso)||(boss.state!=='telegraph'&&rectsOverlap(p,feet)))damagePlayer(boss.dir*2*CELL,-2*CELL);
+    const box=bossRect(boss),previousFeet=(p.prevY??p.y)+p.h;
+    if(boss.state==='stunned'){
+      const belly=bossBellyRect(boss);
+      if(p.vy>0&&previousFeet<=belly.y+Math.max(1,p.vy/120)&&p.y+p.h>=belly.y&&p.y<belly.y+belly.h&&rectOverlapX(p,belly)>.1*CELL){
+        if(bossTakeHit(boss)){p.y=box.y-p.h;p.vy=-Math.sqrt(2*GRAVITY*JUMP_LOW_HEIGHT);p.onGround=false;p.groundRef=null;p.invuln=Math.max(p.invuln,.6);}
+      }continue;
     }
+    if(boss.state==='reboot'||boss.contactGrace>0)continue;
+    const parts=bossParts(boss),roof=parts.roof,previousRoof=roof.y-(boss.y-boss.prevY);
+    if((boss.surface||'floor')==='floor'&&boss.state!=='bodyburst'&&p.gravityDir!==-1&&!(p.jumpAttachBlockTimer>0&&!p.onGround)&&p.vy>=0&&previousFeet<=previousRoof+CELL*.15&&p.y+p.h>=roof.y&&p.y<roof.y&&rectOverlapX(p,roof)>CELL*.08){
+      const landed={...p,y:roof.y-p.h};
+      if(!roomRectHitsSolids(state.room,landed)){p.y=landed.y;p.vy=0;p.onGround=true;p.groundRef=null;p.jumpActive=false;boss.playerOnRoof=true;continue;}
+    }
+    boss.playerOnRoof=false;
+    const charged=boss.state==='bodyburst'&&rectsOverlap(p,{x:parts.torso.x-CELL*.08,y:parts.torso.y-CELL*.2,w:parts.torso.w+CELL*.16,h:parts.torso.h+CELL*.3});
+    if(charged||parts.hurt.some(r=>rectsOverlap(p,r)))damagePlayer(boss.dir*CELL*2,-CELL*2);
   }
 }
-function drawBosses() {
-  for(const boss of state.room.bosses||[]) {
-    const pads=bossPadRects(boss),scale=state.cam.scale;
-    const ready=boss.state==='recover'&&boss.onGround&&!boss.defeated;
-    for(let i=0;i<pads.length;i++) {
-      const pad=pads[i],pos=worldToScreen(pad.x,pad.y),active=i===boss.activePad&&!boss.defeated;
-      ctx.fillStyle=ready&&active?'#8dffbf':active?'#eec36c':'#58616e';
-      ctx.fillRect(pos.x,pos.y,pad.w*scale,pad.h*scale);
-      ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(1,scale*.35);
-      ctx.strokeRect(pos.x-scale*.3,pos.y-scale*.3,pad.w*scale+scale*.6,pad.h*scale+scale*.6);
-      if(ready&&active){ctx.fillStyle='#c0ffdb';ctx.font=`bold ${Math.max(10,scale*2.4)}px system-ui`;ctx.textAlign='center';ctx.fillText('↓',pos.x+pad.w*scale/2,pos.y-scale*1.4);ctx.textAlign='left';}
+function drawBosses(){
+  for(const boss of state.room.bosses||[]){
+    const scale=state.cam.scale,fill=(r,color)=>{const p=worldToScreen(r.x,r.y);ctx.fillStyle=color;ctx.fillRect(p.x,p.y,r.w*scale,r.h*scale);};
+    for(const [i,pad]of bossPadRects(boss).entries()){
+      fill(pad,'#263b45');const face=pad.side||'up',stripe={x:pad.x+(face==='right'?pad.w-BUTTON_THICK:0),y:pad.y+(face==='down'?pad.h-BUTTON_THICK:0),w:['left','right'].includes(face)?BUTTON_THICK:pad.w,h:['left','right'].includes(face)?pad.h:BUTTON_THICK};fill(stripe,boss.padPressed[i]?'#63ffc3':'#f0c36d');
     }
-    const box=bossRect(boss),pos=worldToScreen(box.x,box.y),w=box.w*scale,h=box.h*scale;
-    const flipped=boss.state==='stunned'||boss.defeated||boss.state==='reboot';
-    const color=boss.defeated?'#5b6871':boss.state==='stunned'?'#82ffb2':boss.state==='recover'?'#ffd477':['charge','walljump'].includes(boss.state)?'#ff716b':'#b4c4d7';
-    ctx.save();ctx.translate(pos.x,pos.y);ctx.strokeStyle=color;ctx.fillStyle='#34465c';ctx.lineWidth=Math.max(1.3,scale*.6);
-    if(!flipped) {
-      const gait=Math.sin((state.room.localTime||0)*13)*h*.035;
-      for(let side of [-1,1])for(let i=0;i<3;i++) {
-        const start=w*(.5+side*.2),end=w*(.5+side*(.38+i*.035)),yy=h*(.85+i*.06);
-        ctx.beginPath();ctx.moveTo(start,h*(.3+i*.09));ctx.lineTo(w*(.5+side*.42),h*(.48+i*.04)+gait);ctx.lineTo(end,yy);ctx.stroke();
-      }
-      ctx.beginPath();ctx.ellipse(w*.5,h*.36,w*.33,h*.25,0,0,Math.PI*2);ctx.fill();ctx.stroke();
-      // The recurring antagonist is the small bunker rat driving the machine.
-      ctx.fillStyle='#c9b2bd';ctx.beginPath();ctx.ellipse(w*.5,h*.31,w*.105,h*.105,0,0,Math.PI*2);ctx.fill();
-      for(const side of [-1,1]){ctx.beginPath();ctx.ellipse(w*(.5+side*.075),h*.215,w*.05,h*.05,0,0,Math.PI*2);ctx.fill();}
-      ctx.fillStyle='#feefb0';ctx.fillRect(w*(boss.dir<0?.42:.53),h*.29,w*.045,Math.max(2,h*.035));
-      ctx.strokeStyle='#c9b2bd';ctx.beginPath();ctx.moveTo(w*.4,h*.34);ctx.quadraticCurveTo(w*.17,h*.21,w*.24,h*.45);ctx.stroke();
-    } else {
-      ctx.fillStyle=boss.defeated?'#394552':'#274c42';ctx.fillRect(w*.05,h*.18,w*.9,h*.72);
-      ctx.strokeRect(w*.05,h*.18,w*.9,h*.72);
-      ctx.fillStyle=color;ctx.fillRect(w*.26,0,w*.48,Math.max(2,h*.2));
-      for(const side of [-1,1])for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(w*(.5+side*.18),h*.55);ctx.lineTo(w*(.5+side*(.31+i*.07)),h*.06);ctx.stroke();}
+    const b=bossRect(boss),parts=bossParts(boss),flipped=['stunned','reboot'].includes(boss.state)||boss.defeated;
+    const warning=['telegraph','windup','dropwarn'].includes(boss.state),flash=warning&&Math.floor((state.room.localTime||0)*8)%2;
+    if(flipped){fill({x:b.x+b.w*.04,y:b.y+b.h*.15,w:b.w*.92,h:b.h*.8},boss.defeated?'#35404c':'#506681');fill({x:b.x+b.w*.26,y:b.y,w:b.w*.48,h:b.h*.22},boss.state==='stunned'?'#73ffc1':'#b3c8dd');}
+    else{
+      fill(parts.torso,boss.state==='bodyburst'?'#ff615b':boss.action==='body'&&warning?(flash?'#ffb96a':'#d06b64'):flash?'#ead090':'#43566d');fill(bossSurfaceRect(boss,.18,.1,.64,.06),boss.state==='bodyburst'?'#ff615b':'#b7d6ed');
+      for(const leg of parts.legs)fill(leg,flash?'#ffcf79':'#f27b70');fill(parts.under,'#f27b70');
+      // Small square armor tiles keep the silhouette and collision geometry in sync.
+      const t=parts.torso;for(let x=t.x+CELL*.15;x<t.x+t.w-CELL*.4;x+=CELL*.65)for(let y=t.y+CELL*.45;y<t.y+t.h-CELL*.3;y+=CELL*.65)fill({x,y,w:CELL*.48,h:CELL*.45},'#657b91');
+      for(const side of [.35,.55])fill(bossSurfaceRect(boss,side,.28,.1,.08),'#ffe397');
+      if(boss.bossKind==='turret'){const center=worldToScreen(b.x+b.w/2,b.y+b.h*.4),angle=boss.aimAngle??(boss.dir<0?Math.PI:0);ctx.save();ctx.translate(center.x,center.y);ctx.rotate(angle);ctx.fillStyle='#e4c898';ctx.fillRect(0,-CELL*.2*scale,b.w*.48*scale,CELL*.4*scale);ctx.restore();}
     }
-    const label=boss.defeated?'КРЫСА СБЕЖАЛА':boss.state==='stunned'?'БРЮХО ↓':boss.state==='recover'?'ПЕДАЛЬ ↓':boss.state==='walljump'?'WJ':boss.state==='charge'?'РЫВОК':boss.state==='reboot'?'БРОНЯ':`РЫВОК ${boss.dir<0?'←':'→'}`;
-    ctx.font=`bold ${Math.max(12,Math.min(20,scale*4))}px system-ui`;ctx.textAlign='center';
-    const textWidth=ctx.measureText(label).width;
-    ctx.fillStyle='rgba(5,12,23,.85)';ctx.fillRect(w*.5-textWidth/2-4,-scale*8,textWidth+8,scale*5.8);
-    ctx.fillStyle=color;ctx.fillText(label,w*.5,-scale*3.5);
-    for(let i=0;i<RAT_SPIDER_RULES.hits;i++){ctx.fillStyle=i<boss.hits?'#344054':'#ffcf7f';ctx.fillRect(w*.5+(i-1)*scale*2.8-scale, -scale*1.5,scale*2,scale*.8);}
-    ctx.restore();
+    const action=boss.navPending?'…':{body:'БРОНЯ ⚡',walk:'ХОД',attack1:boss.bossKind==='ratSpider'?'ПРЫЖОК':boss.bossKind==='drone'?'РЫВОК':'ОЧЕРЕДЬ',attack2:boss.bossKind==='ratSpider'?'СТЕНА':boss.bossKind==='drone'?'БОМБЫ':'ДРОБЬ',super:'СУПЕР'}[boss.action]||'ХОД';
+    const label=boss.defeated?'ПОБЕЖДЁН':boss.state==='stunned'?`БРЮХО · ${Math.max(0,Math.ceil(boss.timer))}`:boss.state==='telegraph'?'…':boss.state==='reboot'?'БРОНЯ':action;
+    const labelY=bossHasRider(boss)?Math.min(b.y,state.player.y-CELL*.5):b.y;
+    const pos=worldToScreen(b.x+b.w/2,labelY);ctx.font=`bold ${Math.max(10,Math.min(18,scale*4))}px system-ui`;ctx.textAlign='center';ctx.fillStyle='#f4e0b0';ctx.fillText(label,pos.x,pos.y-24);
+    for(let i=0;i<3;i++)fill({x:b.x+b.w/2+(i-1)*CELL*.7-CELL*.22,y:labelY-CELL*.35,w:CELL*.44,h:CELL*.18},i<boss.hits?'#35404c':'#ffcf79');ctx.textAlign='left';
   }
 }
 
@@ -13021,6 +13400,7 @@ function updateEnemies(dt) {
 
   for (const enemy of room.enemies) {
     if (enemy.dead) continue;
+    if(Number.isFinite(enemy.bossBombLife)){enemy.bossBombClearance=Math.max(0,(enemy.bossBombClearance||0)-dt);enemy.bossBombLife-=dt;if(enemy.bossBombLife<=0){enemy.dead=true;continue;}}
     const keepCubeMotion = isPushCube(enemy);
     if (!keepCubeMotion) {
       enemy.prevX = enemy.x;
@@ -13369,6 +13749,7 @@ function updateEnemies(dt) {
     bullet.prevX = bullet.x; bullet.prevY = bullet.y; bullet.dx = 0; bullet.dy = 0;
     bullet.safeTime = Math.max(0, (bullet.safeTime || 0) - dt);
     bullet.ttl -= dt;
+    if(bullet.bossBomb)bullet.vy=Math.min(MAX_FALL,(bullet.vy||0)+GRAVITY*.55*dt);
     bullet.squash = 1;
     bullet.h = bullet.baseH;
 
@@ -13418,6 +13799,11 @@ function updateEnemies(dt) {
       }
     }
   }
+  for(const bullet of room.bullets)for(const boss of room.bosses||[]){
+    if(boss.defeated||bullet.ttl<=0)continue;
+    const sweep={x:Math.min(bullet.x,bullet.prevX??bullet.x),y:Math.min(bullet.y,bullet.prevY??bullet.y),w:bullet.w+Math.abs(bullet.dx||0),h:bullet.h+Math.abs(bullet.dy||0)};
+    if(boss.state==='stunned'&&rectsOverlap(sweep,bossBellyRect(boss))){bossTakeHit(boss);bullet.ttl=0;}
+  }
   room.bullets = room.bullets.filter(b => b.ttl > 0 && (((b.safeTime || 0) > 0) || !bulletHitsSolid(b)));
   splitDeadLargeGoombas(room);
 }
@@ -13434,6 +13820,7 @@ function bulletHitsSolid(b) {
   for (const r of getDynamicSolids()) {
     if (dynamicSolidIsBulletLike(r.kind) && r.ref === b) continue;
     if (r.ref === b.owner) continue;
+    if(b.owner?.bossId&&r.ref?.owner?.bossId===b.owner.bossId)continue;
     if (isSpawnerSolidKind(r.kind) && r.ref === b.owner) continue;
     if (bulletPassesThroughDynamicSolid(b, r)) continue;
     if (rectsOverlap(b, r)) return true;
@@ -13631,7 +14018,6 @@ function collideHazardsAndEnemies(jumpHeldNow=false) {
 function checkExit() {
   const p = state.player;
   if (!p || !state.room) return;
-  if (roomHasLivingBoss()) return;
   if (tryEnterLevelDoor()) return;
   if (state.room.showDefaultExit === false || !state.room.exit) return;
   const e = state.room.exit;
@@ -14410,7 +14796,7 @@ function drawPlatforms() {
   }
   drawUnlockSwitches();
   // buttons
-  for (const btn of state.room.buttons) drawButton(btn);
+  for (const btn of state.room.buttons) if(!btn.bossOwnerId)drawButton(btn);
   // bounce pads
   for (const b of (state.room.bouncePads || [])) {
     const pos = worldToScreen(b.x*CELL, b.y*CELL), w = b.w*CELL*state.cam.scale, h = CELL*0.5*state.cam.scale;
@@ -14944,12 +15330,10 @@ function drawExitAndSpawn(spawnOnly=false) {
 function drawExitDoor(e, secret=false) {
     const exitRect = getExitDoorWorldRect(e);
     const pos = worldToScreen(exitRect.x, exitRect.y), w = exitRect.w * state.cam.scale, h = exitRect.h * state.cam.scale;
-    const bossLocked=!secret&&roomHasLivingBoss();
-    ctx.fillStyle = bossLocked ? '#9b7164' : secret ? '#61d994' : '#74d7ff';
+    ctx.fillStyle = secret ? '#61d994' : '#74d7ff';
     ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
     ctx.fillStyle = secret ? '#ddffdf' : '#eaf9ff';
     ctx.fillRect(Math.round(pos.x + w*.18), Math.round(pos.y + h*.18), Math.ceil(w*.64), Math.ceil(h*.64));
-    if(bossLocked){ctx.strokeStyle='#f7c086';ctx.lineWidth=Math.max(2,w*.07);ctx.beginPath();ctx.moveTo(pos.x+w*.18,pos.y+h*.2);ctx.lineTo(pos.x+w*.82,pos.y+h*.8);ctx.moveTo(pos.x+w*.82,pos.y+h*.2);ctx.lineTo(pos.x+w*.18,pos.y+h*.8);ctx.stroke();}
     ctx.fillStyle = '#20395d';
     ctx.fillRect(Math.round(pos.x + w*.60), Math.round(pos.y + h*.46), Math.ceil(w*.12), Math.ceil(h*.10));
     ctx.fillStyle = 'rgba(255,255,255,.22)';

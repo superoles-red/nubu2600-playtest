@@ -2,12 +2,12 @@
   "project": "NuBu2600",
   "channel": "development-playtest",
   "source": "02 Разработка/game/index.html",
-  "sha256": "bec18e854f5acc91a3c08788a3a74642afc67760f906a748b9c3a457cd03d562",
-  "bytes": 689319,
+  "sha256": "5ab504ed5d93d0ab8197494ace762bb006c7cadb9eacba37c4cab63aac6b62bb",
+  "bytes": 716767,
   "editorPath": "./editor/",
-  "campaignVersion": "7b20157039e0edd6",
+  "campaignVersion": "3341e9e8f4319d5b",
   "pwa": {
-    "version": "39ee85573e65c951",
+    "version": "65fae1192b90e08d",
     "scope": "./",
     "display": "standalone",
     "offline": true
