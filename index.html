@@ -2166,7 +2166,9 @@ function tryPortalTeleport(body, opts={}) {
   if (!outRect) return false;
 
   const oldX = body.x, oldY = body.y;
-  const outVel = applyPortalVelocity(velX, velY, best.portal, best.pair);
+  const outVel = (!!opts.projectile || body.type==='E2')
+    ? {vx:outN.x*Math.hypot(velX,velY),vy:outN.y*Math.hypot(velX,velY)}
+    : applyPortalVelocity(velX, velY, best.portal, best.pair);
   if (!pixelSize && body.type!=='E2') {
     const t = portalTangent(best.pair);
     const angle = ((0.5 + Math.random() * 1.7) * Math.PI) / 180;
@@ -2207,13 +2209,17 @@ function tryPortalTeleport(body, opts={}) {
       body.dir = outVel.vx >= 0 ? 1 : -1;
     }
     if (body.type === 'E2') {
-      const shiftX = body.x - oldX;
-      const shiftY = body.y - oldY;
-      body.startX += shiftX;
-      body.startY += shiftY;
-      body.axis = Math.abs(outVel.vx) >= Math.abs(outVel.vy) ? 'h' : 'v';
-      body.dir = body.axis === 'h' ? (outVel.vx >= 0 ? 'r' : 'l') : (outVel.vy >= 0 ? 'd' : 'u');
-      body.wait = 0;
+      body.portalVisual={x:oldX,y:oldY,started:room.localTime||0};
+      body.portalLaunchTimer=0;
+      body.axis=Math.abs(outVel.vx)>=Math.abs(outVel.vy)?'h':'v';
+      const travelSign=(body.axis==='h'?outVel.vx:outVel.vy)>=0?1:-1;
+      const sign=travelSign*(body.motionMode==='oneway'||body.forward!==false?1:-1);
+      body.dir=body.axis==='h'?(sign>0?'r':'l'):(sign>0?'d':'u');
+      const t=body.dist>0?clamp(body.progress/body.dist,0,1):0;
+      const offset=body.motionMode==='oneway'?0:sign*body.dist*(.5-Math.cos(Math.PI*t)*.5);
+      body.startX=body.x-(body.axis==='h'?offset:0);
+      body.startY=body.y-(body.axis==='v'?offset:0);
+      body.wait=0;
     }
     if (body.type === 'E6') {
       body.axis = Math.abs(outVel.vx) >= Math.abs(outVel.vy) ? 'h' : 'v';
@@ -6178,6 +6184,7 @@ function loadRoom(index, keepPlayer=true, withSpawnTransition=false, arrivalDoor
   for (const cube of (state.room.pushBlocks || [])) {
     cube.x = snapHalfPx(cube.x);
     cube.y = snapHalfPx(cube.y);
+    cube.landedThisFrame=false;
     cube.prevX = cube.pressPrevX??cube.x;
     cube.prevY = cube.pressPrevY??cube.y;
     delete cube.pressPrevX;delete cube.pressPrevY;
@@ -6821,6 +6828,7 @@ function getStandingConveyorForRect(rect, gravityDir=1) {
 
 function getHangRefRect(kind, ref) {
   if (!ref) return null;
+  if (kind === 'conveyor') return conveyorRect(ref);
   if (kind === 'door') return doorRect(ref);
   if (kind === 'crusherWall') return crusherWallRect(ref);
   if (kind === 'spawner') return { ...spawnerRect(ref), kind, ref };
@@ -7059,7 +7067,7 @@ function resolveMovingCubeVsPlayer(p) {
   const pRect = () => ({ x:p.x, y:p.y, w:p.w, h:p.h });
   const tryPlace = (targetX, targetY, enemy, opts={}) => {
     const test = { x:targetX, y:targetY, w:p.w, h:p.h };
-    if (rectHitsBlocking(test, enemy)) return false;
+    if (rectHitsBlocking(test, enemy, true)) return false;
     p.x = targetX;
     p.y = targetY;
     if (opts.ground) {
@@ -7092,8 +7100,8 @@ function resolveMovingCubeVsPlayer(p) {
     const overlapNowX = rectOverlapX(playerBox, box);
     const overlapNowY = rectOverlapY(playerBox, box);
 
-    const wasAbove = overlapPrevX > CELL * 0.25 && (playerPrev.y + playerPrev.h) <= prev.y + 1.5;
-    const wasBelow = overlapPrevX > CELL * 0.25 && playerPrev.y >= prev.y + prev.h - 1.5;
+    const wasAbove = overlapPrevX > 0.01 && (playerPrev.y + playerPrev.h) <= prev.y + 1.5;
+    const wasBelow = overlapPrevX > 0.01 && playerPrev.y >= prev.y + prev.h - 1.5;
     const wasLeft = overlapPrevY > CELL * 0.25 && (playerPrev.x + playerPrev.w) <= prev.x + 1.5;
     const wasRight = overlapPrevY > CELL * 0.25 && playerPrev.x >= prev.x + prev.w - 1.5;
 
@@ -7103,7 +7111,7 @@ function resolveMovingCubeVsPlayer(p) {
       && playerBox.y + playerBox.h * 0.5 < box.y + box.h * 0.5
       && rectHasStrongMovingCubeTopSupport(playerBox, cubeTopRect);
     const rodeFromTop = wasAbove
-      && (playerPrev.y + playerPrev.h) <= prev.y + 1.25
+      && Math.abs(playerPrev.y + playerPrev.h - prev.y) <= 1.25
       && rectHasStrongMovingCubeTopSupport(playerBox, cubeTopRect);
     const overlapContact = rectsOverlap(playerBox, box);
     const deadlyFallingPushCube = isPushCube(enemy) && (enemy.dy || 0) > CELL * 0.18 && rectHasImmediateSupportBelow(playerBox, enemy);
@@ -7116,7 +7124,7 @@ function resolveMovingCubeVsPlayer(p) {
     const touchingNowX = overlapNowX > 0.01;
     const touchingNowY = overlapNowY > 0.01;
     const touchedHoriz = touchingNowX && overlapNowY > CELL * 0.2 && ((enemy.dx > 0 && wasRight) || (enemy.dx < 0 && wasLeft));
-    const touchedVert = touchingNowY && overlapNowX > CELL * 0.2 && ((enemy.dy > 0 && wasAbove) || (enemy.dy < 0 && wasBelow));
+    const touchedVert = touchingNowY && overlapNowX > .01 && ((enemy.dy > 0 && wasBelow) || (enemy.dy < 0 && wasAbove));
     const sameGround = p.onGround && p.groundRef === enemy && playerActuallySupportedByMovingCube(p, enemy);
     const detachedFromThisCube = !!(p.e5DetachRef === enemy && (p.e5DetachTimer || 0) > 0 && !sameGround);
     const ignoreRegrab = detachedFromThisCube || isIgnoredKinematicTopForPlayer(enemy) || (((p.jumpAttachBlockTimer || 0) > 0) && p.vy < -0.01 && p.groundRef !== enemy);
@@ -7167,8 +7175,8 @@ function resolveMovingCubeVsPlayer(p) {
         const sideTargetX = (playerPrev.x + playerPrev.w * 0.5) < (prev.x + prev.w * 0.5) ? box.x - p.w : box.x + box.w;
         if (tryPlace(sideTargetX, p.y, enemy, {})) continue;
       } else {
-        const targetY = box.y + box.h;
-        if (tryPlace(p.x, targetY, enemy, { pushY:enemy.dy })) continue;
+        const targetY = box.y - p.h;
+        if (tryPlace(p.x, targetY, enemy, { ground:true })) continue;
       }
     }
 
@@ -7280,7 +7288,7 @@ function resolveKinematicPlatformContacts(p) {
     const prevXOverlap = rectOverlapX(playerPrev, prev);
     const nowXOverlap = rectOverlapX(playerNow, plat);
     const maxOverlap = Math.max(prevXOverlap, nowXOverlap);
-    const minimumOverlap=plat.kind==='crusher'?.01:KINEMATIC_TOP_MIN_OVERLAP;
+    const minimumOverlap=['crusher','cube','mover','smart','drop'].includes(plat.kind)?.01:KINEMATIC_TOP_MIN_OVERLAP;
     const sameGround = p.onGround && p.groundRef === plat.ref && maxOverlap > minimumOverlap;
     const prevSupportRect = { x:prev.x, y:prev.y, w:prev.w, h:CELL * 0.5 };
     const nowSupportRect = { x:plat.x, y:plat.y, w:plat.w, h:CELL * 0.5 };
@@ -7387,7 +7395,7 @@ function snapToGroundIfSupported(p, tolerance = 1.01) {
     const overlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
     let overlapNeeded = minOverlap;
     let strictTop = false;
-    if (r.kind === 'conveyor' || r.kind === 'cube' || r.kind === 'mover' || r.kind === 'smart' || r.kind === 'drop') {
+    if (r.kind === 'conveyor' || r.kind === 'cube' || r.kind === 'pushCube' || r.kind === 'mover' || r.kind === 'smart' || r.kind === 'drop') {
       strictTop = true;
       const supportRect = { x:r.x, y:top, w:r.w, h:CELL * 0.5 };
       if (!rectHasStableTopSupport({ x:p.x, y:p.y, w:p.w, h:p.h }, supportRect, r.kind)) return false;
@@ -7594,44 +7602,9 @@ function shouldIgnoreSpawnerSideSnap(p, r, nextX) {
 }
 
 function shouldIgnoreConveyorSideSnap(p, r, nextX) {
-  if (!p || !r || r.kind !== 'conveyor') return false;
-  if ((p.conveyorHeadBumpTimer || 0) > 0 && p.conveyorHeadBumpRef === r.ref) return true;
-
-  const vy = p.vy || 0;
-  if (vy >= CELL * 0.45) return false;
-
-  const box = r.ref ? conveyorRect(r.ref) : { x:r.x, y:r.y, w:r.w, h:r.h };
-  const sweepLeft = Math.min(p.x, nextX);
-  const sweepRight = Math.max(p.x + p.w, nextX + p.w);
-  const sweepRect = { x:sweepLeft, y:p.y + COLLISION_SKIN, w:sweepRight - sweepLeft, h:p.h - 2*COLLISION_SKIN };
-  if (!rectsOverlap(sweepRect, box)) return false;
-
-  const dt = Math.max(state.lastDt || (1/60), 1/120);
-  const conveyorBottom = box.y + box.h;
-  const headBandH = Math.max(4.0, CELL * 0.56);
-  const bandUp = Math.max(2.5, CELL * 0.24);
-  const bandDown = Math.max(6.0, CELL * 0.56);
-  const topSamples = [
-    p.prevY ?? p.y,
-    p.y,
-    p.y + Math.min(vy, 0) * dt
-  ];
-
-  let headTouchesUnderside = false;
-  for (const top of topSamples) {
-    const headBottom = top + headBandH;
-    if (headBottom >= conveyorBottom - bandUp && top <= conveyorBottom + bandDown) {
-      headTouchesUnderside = true;
-      break;
-    }
-  }
-  if (!headTouchesUnderside) return false;
-
-  const xOverlap = Math.min(sweepRect.x + sweepRect.w, box.x + box.w) - Math.max(sweepRect.x, box.x);
-  if (xOverlap <= Math.max(1.0, CELL * 0.04)) return false;
-
-  return true;
+  return false;
 }
+
 function shouldIgnorePushCubeSideSnap(p, r, nextX) {
   if (!p || !r || r.kind !== 'pushCube' || !isPushCube(r.ref)) return false;
   if ((p.cubeHeadBumpTimer || 0) > 0 && p.cubeHeadBumpRef === r.ref) return true;
@@ -7847,6 +7820,11 @@ function beginJump(p, wallDir = 0, customHeight = null) {
   if (wallDir !== 0) { p.vx = -wallDir * WALL_JUMP_X; p.wallJumpUsed = true; }
 }
 
+function ledgeSpaceFree(p, x, y, dir, ref=null) {
+  const body={x,y,w:p.w,h:p.h};
+  const grip={x:dir>0?x+p.w:x-CELL*.5,y:y-CELL*.5,w:CELL*.5,h:CELL*.5};
+  return !rectHitsBlocking(body,ref,true) && !rectHitsBlocking(grip,ref,true);
+}
 function tryLedgeGrab(p, inputX) {
   if (!hasLedgeGrab() || p.buffs.vv) return false;
   if (p.onGround || p.hanging || p.vy <= 0 || Math.abs(inputX) < 0.5) return false;
@@ -7863,13 +7841,14 @@ function tryLedgeGrab(p, inputX) {
     if (!(p.y <= ledgeTop && upperEndY >= ledgeTop)) continue;
     const hangX = dir > 0 ? sideX * CELL - p.w : (sideX + 1) * CELL;
     const hangY = ledgeTop;
+    if (!ledgeSpaceFree(p,hangX,hangY,dir)) continue;
     p.x = hangX; p.y = hangY; p.vx = 0; p.vy = 0; p.hanging = true; p.hangSide = dir; p.wallDir = dir; p.hangRef = null; p.hangRefKind = null; p.groundRef = null; return true;
   }
   // dynamic solids that should also behave like ordinary platforms for ledge grab
   for (const r of getDynamicSolids()) {
-    if (!(r.kind === 'door' || r.kind === 'spikeCube' || r.kind === 'pushCube' || r.kind === 'crusherWall' || r.kind === 'bullet' || isSpawnerSolidKind(r.kind))) continue;
+    if (!(r.kind === 'door' || r.kind === 'spikeCube' || r.kind === 'pushCube' || r.kind === 'crusherWall' || r.kind === 'bullet' || (r.kind === 'conveyor' && !isConveyorActive(r.ref)) || isSpawnerSolidKind(r.kind))) continue;
     const wallRect = dynamicWallRect(r);
-    if (!wallRect || !isWallInteractiveDynamicKind(wallRect.kind)) continue;
+    if (!wallRect || (!isWallInteractiveDynamicKind(wallRect.kind) && !(wallRect.kind==='conveyor'&&!isConveyorActive(wallRect.ref)))) continue;
     const ledgeTop = wallRect.y;
     const overlapBand = Math.min(upperEndY, wallRect.y + wallRect.h) - Math.max(upperStartY, wallRect.y);
     if (overlapBand <= 0) continue;
@@ -7880,6 +7859,7 @@ function tryLedgeGrab(p, inputX) {
     if (!(p.y <= ledgeTop && upperEndY >= ledgeTop)) continue;
     const hangX = dir > 0 ? wallRect.x - p.w : wallRect.x + wallRect.w;
     const hangY = ledgeTop;
+    if (!ledgeSpaceFree(p,hangX,hangY,dir,wallRect.ref)) continue;
     p.x = hangX; p.y = hangY; p.vx = 0; p.vy = 0; p.hanging = true; p.hangSide = dir; p.wallDir = dir; p.hangRef = wallRect.ref || null; p.hangRefKind = wallRect.kind || null; p.groundRef = null; return true;
   }
   return false;
@@ -8058,7 +8038,7 @@ function moveVertical(p, dt, jumpHeldNow) {
       const prevBottom = p.y + p.h;
       const nextBottom = nextY + p.h;
       const xOverlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
-      if (xOverlap <= CELL * 0.2) continue;
+      if (xOverlap <= (r.kind==='pushCube'?.01:CELL*.2)) continue;
       if (prevBottom <= top + STOMP_TOLERANCE && nextBottom >= top) {
         if (nextY > top - p.h) nextY = top - p.h;
         p.vy = 0; p.onGround = true; landedRef = r.ref || null; break;
@@ -8294,7 +8274,7 @@ function updatePlatforms(dt) {
   for (const s of room.smarts) {
     if(s.persistent&&s.loop){
       seedPersistentSmartInstances(s);
-      if(s.enabled!==false)s.motionTime=(s.motionTime||0)+dt;
+      s.motionTime=(s.motionTime||0)+dt;
       const length=s.points.reduce((sum,p,i)=>sum+Math.hypot(s.points[(i+1)%s.points.length].x-p.x,s.points[(i+1)%s.points.length].y-p.y),0);
       const duration=mechanismTravelSeconds(length,s.speed),travel=positiveModulo(Math.max(0,(s.motionTime||0)-.5),duration)/duration*length;
       for(const [index,inst] of s.instances.entries()){
@@ -8530,6 +8510,7 @@ function applyTargetRoomState(room, rawTarget, isOn) {
   };
   for (const d of room.doors) if (d.id === id) {
     const desired = explicit === 'toggle' ? !(d.pendingClose ? false : d.open) : !!explicit;
+    if(d.open&&!desired&&[...(room.pushBlocks||[]).filter(c=>!c.dead).map(pushCubeRect),...(room.crusherWalls||[]).map(crusherWallRect)].some(r=>rectsOverlap(r,doorRect(d))))continue;
     if(d.open&&!desired&&room===state.room)closeDoorOccupants(room,d);
     d.pendingClose=false;d.open=desired;
   }
@@ -8670,12 +8651,15 @@ function anyGoombaPressesButton(btn) {
   });
 }
 function anyCubePressesButton(btn) {
-  if (!btn || !btn.sides.includes('u')) return false;
-  const base = buttonRect(btn);
-  for (const cube of (state.room.pushBlocks || [])) {
-    if (cubePressesTopSurface(cube, base.x, base.y, CELL, 1.75, CELL * 0.2)) return true;
-  }
-  return false;
+  if(!btn)return false;
+  const base=buttonRect(btn),tol=1.75;
+  return (state.room.pushBlocks||[]).filter(c=>!c.dead).some(c=>{
+    const r=pushCubeRect(c),ox=rectOverlapX(r,base),oy=rectOverlapY(r,base);
+    return btn.sides.includes('u')&&ox>.01&&Math.abs(r.y+r.h-base.y)<=tol
+      ||btn.sides.includes('d')&&ox>.01&&Math.abs(r.y-base.y-base.h)<=tol
+      ||btn.sides.includes('l')&&oy>.01&&Math.abs(r.x+r.w-base.x)<=tol
+      ||btn.sides.includes('r')&&oy>.01&&Math.abs(r.x-base.x-base.w)<=tol;
+  });
 }
 function buttonTargetGroupKey(btn) {
   if (!btn || !(btn.targets || []).length) return '';
@@ -9004,7 +8988,7 @@ function resolveCrusherWallsVsPlayer(p) {
         { side:'right', pen: Math.abs((box.x + box.w) - now.x) },
         { side:'top', pen: Math.abs((now.y + now.h) - box.y) },
         { side:'bottom', pen: Math.abs((box.y + box.h) - now.y) },
-      ].sort((a, b) => a.pen - b.pen);
+      ].filter(entry=>entry.side!=='top'||p.vy>=-.01).sort((a, b) => a.pen - b.pen);
       for (const entry of penetrations) addSide(entry.side);
     }
 
@@ -10056,6 +10040,37 @@ function leechTryBestLocalSideAttach(enemy, sideCandidates, anchors, maxShift=CE
   return true;
 }
 
+function moveConveyorLeech(enemy,dt){
+  const w=enemy.w*CELL,h=enemy.h*CELL;
+  let belt=enemy.conveyorCrawlRef;
+  if(belt&&!(state.room.conveyors||[]).includes(belt))belt=null;
+  const frame=c=>{const b=conveyorRect(c);return{b,left:b.x-w,right:b.x+b.w,top:b.y-h,bottom:b.y+b.h,W:b.w+w,H:b.h+h};};
+  const project=f=>{
+    const candidates=[{x:clamp(enemy.x,f.left,f.right),y:f.top,side:0},{x:f.right,y:clamp(enemy.y,f.top,f.bottom),side:1},{x:clamp(enemy.x,f.left,f.right),y:f.bottom,side:2},{x:f.left,y:clamp(enemy.y,f.top,f.bottom),side:3}];
+    return candidates.map(p=>({...p,d:Math.hypot(p.x-enemy.x,p.y-enemy.y)})).sort((a,b)=>a.d-b.d)[0];
+  };
+  if(!belt){
+    for(const candidate of state.room.conveyors||[]){const f=frame(candidate),p=project(f);if(p.d>2.25)continue;
+      belt=candidate;enemy.conveyorCrawlRef=belt;
+      enemy.conveyorCrawlPos=p.side===0?p.x-f.left:p.side===1?f.W+p.y-f.top:p.side===2?f.W+f.H+f.right-p.x:2*f.W+f.H+f.bottom-p.y;
+      break;
+    }
+  }
+  if(!belt)return false;
+  const f=frame(belt),length=2*(f.W+f.H),direction=enemy.routeDir||1;
+  const velocity=((enemy.stunTimer||0)>0?0:direction*enemy.speed)+(isConveyorActive(belt)?conveyorVelocity(belt):0);
+  const point=d=>{d=positiveModulo(d,length);return d<f.W?{x:f.left+d,y:f.top,side:'floor'}:d<f.W+f.H?{x:f.right,y:f.top+d-f.W,side:'left'}:d<2*f.W+f.H?{x:f.right-(d-f.W-f.H),y:f.bottom,side:'ceiling'}:{x:f.left,y:f.bottom-(d-2*f.W-f.H),side:'right'};};
+  let remain=Math.abs(velocity*dt),pos=enemy.conveyorCrawlPos;
+  while(remain>.0001){const step=Math.min(1,remain)*Math.sign(velocity),next=point(pos+step);
+    if(tryPortalTeleport(enemy,{dt,nextX:next.x,nextY:next.y,allowShell:true})){enemy.conveyorCrawlRef=null;return true;}
+    if(rectHitsStaticBlockOnly({...next,w,h},belt)||enemyBlockingEnemyAtRect({...next,w,h},enemy))break;
+    pos=positiveModulo(pos+step,length);enemy.x=next.x;enemy.y=next.y;enemy.crawlSide=next.side;remain-=Math.abs(step);
+  }
+  enemy.conveyorCrawlPos=pos;enemy.leechFall=false;enemy.onGround=enemy.crawlSide==='floor';enemy.vx=enemy.vy=0;
+  enemy.cornerVisualX=enemy.cornerVisualY=enemy.cornerPauseTimer=0;
+  return true;
+}
+
 function moveLeechSolidCrawler(enemy, dt) {
   if (!enemy.crawlSide) {
     if (!leechTryAttachCrawler(enemy) && !leechInitSurface(enemy)) {
@@ -10200,6 +10215,10 @@ function moveLeechCrawler(enemy, dt) {
     if (prevPath && livePath.dynamicTop) {
       const dxCarry = (livePath.x - prevPath.x) * CELL;
       const dyCarry = (livePath.y - prevPath.y) * CELL;
+      const next={...rect,x:enemy.x+dxCarry,y:enemy.y+dyCarry};
+      if(rectHitsEnemyCrushObstacle(next,enemy,livePath.ref)){
+        enemy.path=null;enemy.route=null;enemy.prevTopLikePath=null;enemy.leechFall=true;enemy.onGround=false;enemy.vy=0;return;
+      }
       enemy.x += dxCarry;
       enemy.y += dyCarry;
     }
@@ -10386,7 +10405,8 @@ function moveGoomba(enemy, dt, player) {
   const rect = { x: enemy.x, y: enemy.y, w: enemy.w * CELL, h: enemy.h * CELL };
   const belt=getStandingConveyorForRect(rect,1)||(state.room.conveyors||[]).find(c=>isConveyorActive(c)&&Math.abs(rect.y+rect.h-c.y*CELL)<2.25&&rectOverlapX(rect,conveyorRect(c))>0);
   if(belt){enemy.conveyorAir=conveyorLaunchVelocity(belt,Math.sign(enemy.vx||enemy.dir||0));enemy.conveyorDeparture=belt;}
-  const groundedNow = enemySupported(rect) && enemy.vy >= 0;
+  enemy.bounceFallSpeed=Math.max(enemy.bounceFallSpeed||0,enemy.vy||0);
+  const groundedNow = !enemy.ignoredCarrier && enemySupported(rect) && enemy.vy >= 0;
   if (groundedNow) { enemy.onGround = true; if (enemy.vy > 0) enemy.vy = 0; }
 
   if (enemy.state === 'patrol') {
@@ -10403,7 +10423,7 @@ function moveGoomba(enemy, dt, player) {
         enemy.vx = enemy.dir * enemy.baseSpeed;
       }
     } else {
-      enemy.vx = 0;
+      enemy.vx = enemy.bouncePad?(enemy.bounceVX??enemy.dir*enemy.baseSpeed):0;
     }
   } else if (enemy.state === 'chase') {
     enemy.vx = enemy.dir * enemy.baseSpeed * 2;
@@ -10449,12 +10469,14 @@ function moveGoomba(enemy, dt, player) {
     else if (enemy.state === 'patrol') { enemy.dir *= -1; enemy.timer = 0.5; }
   }
 
-  const supportedAfterX = enemySupported({ x: enemy.x, y: enemy.y, w: enemy.w * CELL, h: enemy.h * CELL });
+  const supportedAfterX = !enemy.ignoredCarrier && enemySupported({ x: enemy.x, y: enemy.y, w: enemy.w * CELL, h: enemy.h * CELL });
   enemy.onGround = supportedAfterX && enemy.vy >= 0;
   if (!enemy.onGround) enemy.vy = Math.min(enemy.vy + GRAVITY * dt, MAX_FALL);
   else enemy.vy = 0;
 
   let nextY = enemy.y + enemy.vy * dt;
+  enemy.bounceSweepBottom=nextY+enemy.h*CELL;
+  enemy.bounceImpactSpeed=Math.max(0,enemy.vy);
   enemy.onGround = false;
   if (enemy.vy >= 0) {
     const leftCell = Math.floor((enemy.x + COLLISION_SKIN) / CELL);
@@ -10491,6 +10513,7 @@ function moveGoomba(enemy, dt, player) {
     }
     if (!enemy.onGround) {
       for (const o of getDynamicTopPlatforms()) {
+        if(o.ref===enemy.ignoredCarrier)continue;
         const top = o.top;
         const prevBottom = enemy.y + enemy.h * CELL;
         const nextBottom = nextY + enemy.h * CELL;
@@ -10630,7 +10653,11 @@ function getPushCubeSupportInfo(cube, ignoreSet=null) {
 
   const considerTopRect = (r, topValue=null) => {
     if (!r) return;
-    if (r.ref === cube) return;
+    if (r.ref === cube || r.ref && r.ref===cube.ignoredCarrier) return;
+    if(['mover','smart','drop'].includes(r.kind) && cube.supportLatch?.ref!==r.ref){
+      const previousTop=r.y-(r.ref?.dy||0);
+      if((cube.prevY??cube.y)+actorRect.h>previousTop+1.1)return;
+    }
     if (ignoreSet && r.ref && ignoreSet.has(r.ref)) return;
     if (dynamicSolidIsEnemyLike(r.kind) && !(r.ref && r.ref.type === 'E5')) return;
     const top = topValue ?? (Number.isFinite(r.top) ? r.top : r.y);
@@ -10685,12 +10712,6 @@ function rectHitsPushCubeObstacle(rect, ignoreSet=null, ignoreRef=null, opts={})
     }
     if (rectsOverlap(rect, r)) return true;
   }
-  for (const plat of getKinematicPlatforms()) {
-    if (plat.ref === ignoreRef) continue;
-    if (ignoreSet && plat.ref && ignoreSet.has(plat.ref)) continue;
-    if (extraIgnoreRefs && plat.ref && extraIgnoreRefs.has(plat.ref)) continue;
-    if (rectsOverlap(rect, plat)) return true;
-  }
   if (!ignorePlayer) {
     const p = state.player;
     if (p && rectsOverlap(rect, p)) return true;
@@ -10729,7 +10750,7 @@ function getPushCubeLandingInfoForRect(actorRect, selfRef=null, ignoreSet=null, 
   let bestScore = -Infinity;
 
   const considerSupport = (x, top, w, kind='', ref=null) => {
-    if (ref === selfRef) return;
+    if (ref === selfRef || ref && ref===selfRef?.ignoredCarrier) return;
     if (ignoreSet && ref && ignoreSet.has(ref)) return;
     if (top < bottom - 0.01 || top > bottom + maxDrop) return;
     const supportRect = pushCubeSupportProbeRect(x, top, w, kind || 'cube');
@@ -10876,7 +10897,7 @@ function stableTopSupportParams(actorW, supportW, kind='') {
 function rectHasStableTopSupport(actorRect, supportRect, kind='') {
   if (!actorRect || !supportRect) return false;
   const overlap = Math.min(actorRect.x + actorRect.w, supportRect.x + supportRect.w) - Math.max(actorRect.x, supportRect.x);
-  if(kind==='crusher')return overlap>0.01;
+  if(['crusher','mover','smart','drop','cube','pushCube','conveyor','conveyorCube'].includes(kind))return overlap>0.01;
   const params = stableTopSupportParams(actorRect.w, supportRect.w, kind || '');
   if (overlap < params.minOverlap) return false;
   const centerX = actorRect.x + actorRect.w * 0.5;
@@ -10884,15 +10905,7 @@ function rectHasStableTopSupport(actorRect, supportRect, kind='') {
   return true;
 }
 function rectHasStrongMovingCubeTopSupport(actorRect, supportRect) {
-  if (!actorRect || !supportRect) return false;
-  const overlap = Math.min(actorRect.x + actorRect.w, supportRect.x + supportRect.w) - Math.max(actorRect.x, supportRect.x);
-  const minOverlap = Math.max(CELL * 0.34, actorRect.w * 0.28);
-  if (overlap < minOverlap) return false;
-  const centerX = actorRect.x + actorRect.w * 0.5;
-  const centerMargin = Math.max(0.25, Math.min(CELL * 0.03, supportRect.w * 0.02));
-  if (centerX <= supportRect.x + centerMargin) return false;
-  if (centerX >= supportRect.x + supportRect.w - centerMargin) return false;
-  return true;
+  return !!actorRect && !!supportRect && rectOverlapX(actorRect,supportRect)>0.01;
 }
 
 function pushCubeSupported(cube, ignoreSet=null) {
@@ -10948,10 +10961,7 @@ function resolvePushCubeStaticPenetration(cube, opts={}) {
       if (dynamicSolidIsEnemyLike(r.kind) && !(r.ref && r.ref.type === 'E5')) continue;
       considerRect(r);
     }
-    for (const k of getKinematicPlatforms()) {
-      if (!k || k.ref === cube) continue;
-      considerRect(k);
-    }
+
 
     if (!best) break;
     cube.x += best.dx;
@@ -11009,7 +11019,7 @@ function pushCubeSupportRectFromInfo(info) {
   return { x:info.x, y:info.top, w:info.w, h:CELL * 0.5 };
 }
 function pushCubeSupportLatchStillValid(cube, latch) {
-  if (!cube || cube.dead || !latch) return null;
+  if (!cube || cube.dead || !latch || latch.ref && latch.ref===cube.ignoredCarrier) return null;
   const box = pushCubeRect(cube);
   const rawSupportRect = pushCubeSupportRectFromInfo(latch);
   const supportRect = rawSupportRect ? pushCubeSupportProbeRect(rawSupportRect.x, rawSupportRect.y, rawSupportRect.w, latch.kind || '') : null;
@@ -11487,6 +11497,7 @@ function updatePushCubes(dt) {
   const p = state.player;
 
   for (const cube of cubes) {
+    cube.landedThisFrame=false;
     cube.prevX = cube.pressPrevX??cube.x;
     cube.prevY = cube.pressPrevY??cube.y;
     delete cube.pressPrevX;delete cube.pressPrevY;
@@ -11534,8 +11545,18 @@ function updatePushCubes(dt) {
       continue;
     }
 
+    if(cube.ignoredCarrier){
+      const r=getDynamicTopPlatforms().find(r=>r.ref===cube.ignoredCarrier);
+      if(!r||cube.y>r.y+(r.h||CELL*.5)+2||rectOverlapX(pushCubeRect(cube),r)<=0)cube.ignoredCarrier=null;
+    }
     let supportInfo = pushCubeSupportLatchStillValid(cube, cube.supportLatch);
     if (!supportInfo) supportInfo = getPushCubeSupportInfo(cube);
+    if(supportInfo){
+      const target={...pushCubeRect(cube),y:supportInfo.top-pushCubeRect(cube).h};
+      if(rectHitsPushCubeObstacle(target,new Set([cube]),supportInfo.ref,{ignorePlayer:true})){
+        cube.ignoredCarrier=supportInfo.ref;cube.supportLatch=null;cube.onGround=false;supportInfo=null;
+      }
+    }
     if (supportInfo) {
       supportInfo = normalizePushCubeSupportInfo(supportInfo);
       const box = pushCubeRect(cube);
@@ -11599,6 +11620,7 @@ function updatePushCubes(dt) {
     applyPushCubeGroupMotion([cube], 0, cube.vy * dt, { ignorePlayer:true });
     if (state._pushCubeRoomReloaded) return;
     let landed = getPushCubeSupportInfo(cube);
+    cube.landedThisFrame=!!landed;
     if (landed) {
       landed = normalizePushCubeSupportInfo(landed);
       cube.y = landed.top - pushCubeRect(cube).h;
@@ -11645,7 +11667,7 @@ function playerOccupiesTopOfPushCube(p, cube) {
   const rectPrev = { x:(p.prevX ?? p.x), y:(p.prevY ?? p.y), w:p.w, h:p.h };
   const overlapNowX = Math.min(rectNow.x + rectNow.w, box.x + box.w) - Math.max(rectNow.x, box.x);
   const overlapPrevX = Math.min(rectPrev.x + rectPrev.w, prevBox.x + prevBox.w) - Math.max(rectPrev.x, prevBox.x);
-  const minOverlap = Math.max(CELL * 0.34, p.w * 0.28);
+  const minOverlap = 0.01;
   if (Math.max(overlapNowX, overlapPrevX) < minOverlap) return false;
   const feetNow = rectNow.y + rectNow.h;
   const feetPrev = rectPrev.y + rectPrev.h;
@@ -12407,14 +12429,15 @@ function conveyorLaunchVelocity(conveyor,inputDirection=0,gravityDir=1){
 }
 function bounceGroundEnemy(enemy){
   if(!['E1','E6'].includes(enemy.type))return false;
-  const before=(enemy.prevY??enemy.y)+enemy.h*CELL,after=enemy.y+enemy.h*CELL;
+  const before=(enemy.prevY??enemy.y)+enemy.h*CELL,after=Math.max(enemy.y+enemy.h*CELL,enemy.bounceSweepBottom??-Infinity);
   if(after<before)return false;
-  const pad=getBounceRects().find(r=>rectOverlapX(enemyRect(enemy),r)>CELL*.2&&before<=r.top+1.25&&after>=r.top);
+  const pad=getBounceRects().find(r=>rectOverlapX(enemyRect(enemy),r)>CELL*.2&&before<=r.top+1.25&&after>=r.top-1.25);
   if(!pad)return false;
   const speed=Math.max(0,(after-before)/Math.max(state.lastDt||1/60,1/120));
-  const same=enemy.bouncePad===pad.ref;
-  const height=same?(enemy.bounceStage===2?ENEMY_BOUNCE_LOW_HEIGHT:0):speed>getPortalEjectThreshold()?ENEMY_BOUNCE_HIGH_HEIGHT:ENEMY_BOUNCE_LOW_HEIGHT;
-  enemy.y=pad.top-enemy.h*CELL;enemy.bouncePad=pad.ref;
+  const same=!!enemy.bouncePad;
+  const height=same?ENEMY_BOUNCE_LOW_HEIGHT:Math.max(speed,enemy.bounceImpactSpeed||0,enemy.bounceFallSpeed||0)>getPortalEjectThreshold()?ENEMY_BOUNCE_HIGH_HEIGHT:ENEMY_BOUNCE_LOW_HEIGHT;
+  enemy.y=pad.top-enemy.h*CELL;enemy.bouncePad=pad.ref;enemy.bounceVX=enemy.vx||enemy.dir*enemy.baseSpeed||0;
+  enemy.bounceFallSpeed=0;
   enemy.bounceStage=height===ENEMY_BOUNCE_HIGH_HEIGHT?2:height?1:0;
   enemy.vy=height?-Math.sqrt(2*GRAVITY*height):0;enemy.onGround=!height;
   return !!height;
@@ -12494,6 +12517,22 @@ function applyConveyorToPlayer(p, dt) {
 }
 function applyConveyorToEnemy(enemy, dt) {
   if (!enemy || enemy.dead || dt <= 0) return false;
+  if(enemy.conveyorCrawlRef)return false;
+  if(enemy.type==='E4'&&!enemy.leechFall){
+    const r=enemyRect(enemy),side=leechCurrentSide(enemy);
+    if(side!=='floor'){
+      const belt=(state.room.conveyors||[]).find(c=>{
+        const b=conveyorRect(c);if(!isConveyorActive(c))return false;
+        return side==='ceiling'?rectOverlapX(r,b)>.01&&Math.abs(r.y-b.y-b.h)<2.25
+          :rectOverlapY(r,b)>.01&&(side==='left'?Math.abs(r.x-b.x-b.w)<2.25:Math.abs(r.x+r.w-b.x)<2.25);
+      });
+      if(!belt)return false;
+      const v=conveyorVelocity(belt)*dt,dx=side==='ceiling'?-v:0,dy=side==='left'?v:side==='right'?-v:0;
+      const next={...r,x:r.x+dx,y:r.y+dy};
+      if(rectHitsEnemyCrushObstacle(next,enemy,belt))return false;
+      enemy.x=next.x;enemy.y=next.y;return true;
+    }
+  }
   const isFloorLeech = enemy.type === 'E4' && !enemy.leechFall && leechCurrentSide(enemy) === 'floor';
   const canRide = enemy.type === 'E1' || enemy.type === 'E6' || isFloorLeech;
   if (!canRide) return false;
@@ -12857,6 +12896,22 @@ function drawBosses() {
   }
 }
 
+function carryEnemyOnPlatform(enemy) {
+  if(!['E1','E2','E6'].includes(enemy.type)||enemy.dead||enemy.vy<-.01)return;
+  const r=enemyRect(enemy);
+  const platforms=getKinematicPlatforms().filter(p=>isOneWayKinematicKind(p.kind));
+  if(enemy.ignoredCarrier){const p=platforms.find(p=>p.ref===enemy.ignoredCarrier);if(!p||r.y>p.y+p.h+2||rectOverlapX(r,p)<=0)enemy.ignoredCarrier=null;}
+  const support=platforms.find(p=>p.ref!==enemy.ignoredCarrier&&Math.abs(r.y+r.h-p.prevY)<=1.6&&rectOverlapX(r,{...p,x:p.prevX})>.01);
+  if(!support)return;
+  const next={...r,x:r.x+support.dx,y:support.y-r.h};
+  if(rectHitsEnemyCrushObstacle(next,enemy,support.ref)){
+    enemy.ignoredCarrier=support.ref;enemy.onGround=false;enemy.vy=Math.max(0,enemy.vy||0);
+    if(enemy.type==='E4'){enemy.leechFall=true;enemy.route=null;enemy.path=null;}
+    return;
+  }
+  enemy.x=next.x;enemy.y=next.y;enemy.onGround=true;
+  if(enemy.type==='E2'){enemy.startX+=next.x-r.x;enemy.startY+=next.y-r.y;}
+}
 function updateEnemies(dt) {
   const room = state.room;
   const p = state.player;
@@ -13023,6 +13078,7 @@ function updateEnemies(dt) {
         continue;
       }
     }
+    carryEnemyOnPlatform(enemy);
     if (enemy.type === 'E1') {
       moveGoomba(enemy, dt, p);
     } else if (enemy.type === 'E2') {
@@ -13110,7 +13166,8 @@ function updateEnemies(dt) {
         });
       }
     } else if (enemy.type === 'E4') {
-      if (enemy.leechFall) {
+      if(moveConveyorLeech(enemy,dt)) { /* Perimeter solver includes conveyor force. */ }
+      else if (enemy.leechFall) {
         enemy.onGround = false;
         enemy.vy = Math.min((enemy.vy || 0) + GRAVITY * dt, MAX_FALL);
         const nextY = enemy.y + enemy.vy * dt;
@@ -13189,6 +13246,7 @@ function updateEnemies(dt) {
           }
           for (const r of getDynamicSolids()) {
             if (r.ref === enemy || r.ref === enemy.owner) continue;
+            if(r.kind==='conveyor'&&enemy.conveyorDeparture===r.ref&&enemy.y+enemy.h*CELL<=r.y+2.25)continue;
             if (dynamicSolidIsBulletLike(r.kind) || dynamicSolidIsEnemyLike(r.kind)) continue;
             if (rectsOverlap({ x:nextX, y:enemy.y, w:enemy.w*CELL, h:enemy.h*CELL }, r)) { hit = true; break; }
           }
@@ -13199,7 +13257,7 @@ function updateEnemies(dt) {
       const footL = enemy.x + CELL * 0.35;
       const footR = enemy.x + enemy.w*CELL - CELL * 0.35;
       const footYNow = enemy.y + enemy.h*CELL + 1;
-      const supportedNow = pointHitsBomberSupport(footL, footYNow) || pointHitsBomberSupport(footR, footYNow);
+      const supportedNow = !enemy.ignoredCarrier && (pointHitsBomberSupport(footL, footYNow) || pointHitsBomberSupport(footR, footYNow) || !!belt);
       if (enemy.onGround && supportedNow && (enemy.vy || 0) >= 0) {
         enemy.vy = 0;
       } else {
@@ -13216,10 +13274,10 @@ function updateEnemies(dt) {
           if (solidAtTile(tx, tileY)) { nextY = tileY*CELL - enemy.h*CELL; enemy.vy = 0; landed = true; break; }
         }
         if (!landed) {
-          for (const r of getDynamicSolids()) {
-            if (r.ref === enemy || r.ref === enemy.owner) continue;
+          for (const r of [...getDynamicSolids(),...getOneWayRects(),...getDynamicTopPlatforms()]) {
+            if (r.ref === enemy || r.ref === enemy.owner || r.ref===enemy.ignoredCarrier) continue;
             if (dynamicSolidIsBulletLike(r.kind) || dynamicSolidIsEnemyLike(r.kind)) continue;
-            const top = r.y;
+            const top = r.top??r.y;
             const prevBottom = enemy.y + enemy.h*CELL;
             const nextBottom = nextY + enemy.h*CELL;
             const xOverlap = Math.min(enemy.x + enemy.w*CELL, r.x + r.w) - Math.max(enemy.x, r.x);
@@ -13256,6 +13314,7 @@ function updateEnemies(dt) {
           }
         }
       }
+      enemy.bounceSweepBottom=nextY+enemy.h*CELL;
       enemy.y = landed ? Math.round(nextY) : (Math.round(nextY * 1000) / 1000);
       enemy.onGround = landed || (enemy.vy == 0 && supportedNow);
       if (enemy.onGround) {
@@ -13267,7 +13326,7 @@ function updateEnemies(dt) {
     }
 
     bounceGroundEnemy(enemy);
-    if(enemy.bouncePad&&enemy.onGround&&!getBounceRects().some(r=>r.ref===enemy.bouncePad&&Math.abs(enemy.y+enemy.h*CELL-r.top)<1.5)) {enemy.bouncePad=null;enemy.bounceStage=0;}
+    if(enemy.onGround&&!getBounceRects().some(r=>rectOverlapX(enemyRect(enemy),r)>.01&&Math.abs(enemy.y+enemy.h*CELL-r.top)<1.5)) {enemy.bouncePad=null;enemy.bounceStage=0;enemy.bounceFallSpeed=0;}
     applyConveyorToEnemy(enemy, dt);
     if (enemy.type !== 'E5') applyEnemyPushMotion(enemy, dt);
 
@@ -13616,6 +13675,7 @@ function goToNextRoomFromPause() {
 
 function hangingShouldAutoRelease(p) {
   if (!p.hanging) return false;
+  if(p.hangRefKind==='pushCube'&&p.hangRef?.landedThisFrame)return true;
   const footY = p.y + p.h + 1;
   const inset = Math.max(2, Math.min(5, p.w * 0.25));
   const leftTop = supportTopAt(p.x + inset, footY);
@@ -13670,7 +13730,7 @@ function updatePlayer(dt) {
     const support = getKinematicGroundSupport(p, p.groundRef);
     if (isPushCube(p.groundRef)) {
       if (support && playerActuallySupportedByMovingCube(p, p.groundRef)) {
-        if (!p.e5CarriedThisFrame) applyCarryMotion(p, support.dx || 0, support.dy || 0, support.ref);
+        if (!p.e5CarriedThisFrame) applyCarryMotion(p, support.dx || 0, p.kinematicTopResolvedRef===support.ref?0:(support.dy||0), support.ref);
       } else {
         p.groundRef = null;
         p.onGround = false;
@@ -13725,7 +13785,7 @@ function updatePlayer(dt) {
     const hangGone = !!(p.hangRef && (
       hangMissingBullet ||
       (typeof p.hangRef.ttl === 'number' && p.hangRef.ttl <= 0) ||
-      (typeof p.hangRef.active === 'boolean' && !p.hangRef.active)
+      (p.hangRefKind==='conveyor' ? isConveyorActive(p.hangRef) : typeof p.hangRef.active === 'boolean' && !p.hangRef.active)
     ));
     if (hangGone) {
       p.hanging = false;
@@ -13744,12 +13804,17 @@ function updatePlayer(dt) {
         const tx = p.hangSide === 1 ? hangRect.x - p.w : hangRect.x + hangRect.w;
         const ty = hangRect.y;
         const test = { x:tx, y:ty, w:p.w, h:p.h };
-        if (rectHitsSideObstacle(test, p.hangRef)) { damagePlayer(0, -2*CELL); return; }
+        if (rectHitsSideObstacle(test, p.hangRef)) {
+          p.hanging=false;p.hangRef=null;p.hangRefKind=null;p.hangSide=0;
+          p.vx=0;p.vy=0;snapToGroundIfSupported(p,2.01);return;
+        }
         p.x = tx; p.y = ty;
       }
       p.vx = 0; p.vy = 0;
       if (jumpPressedNow) {
-        p.hanging = false; p.hangRef = null; p.hangRefKind = null; p.x += -p.hangSide * CELL * 0.2;
+        p.hanging = false; p.hangRef = null; p.hangRefKind = null;
+        const awayX=p.x-p.hangSide*CELL*.2;
+        if(!rectHitsBlocking({...p,x:awayX},null,true))p.x=awayX;
         beginJump(p, 0, p.driftFieldActive ? DRIFT_FIELD_HANG_JUMP_HEIGHT : null);
         p.vx = 0;
         if (p.driftFieldActive) p.vy = Math.max(p.vy, -DRIFT_FIELD_ASCEND_SPEED);
@@ -13988,7 +14053,11 @@ function updateCamera() {
   const centerY = p.y + p.h * 0.5;
   const canScrollX = room.innerW>20 && cam.drawW < width;
   const canScrollY = room.innerH>20 && cam.drawH < height;
-  const lookAhead = canScrollX ? (p.facing || 1) * Math.min(5*CELL,cam.drawW*.2) : 0;
+  const desiredLook = canScrollX ? (p.facing || 1) * Math.min(5*CELL,cam.drawW*.2) : 0;
+  const lookDt = Math.min(.1, Math.max(0, state.renderDt ?? 1/60));
+  if (!Number.isFinite(cam.x) || !Number.isFinite(cam.lookAhead)) cam.lookAhead = desiredLook;
+  cam.lookAhead += (desiredLook - cam.lookAhead) * (1 - Math.exp(-1.8 * lookDt));
+  const lookAhead = cam.lookAhead;
   const centeredTargetX = canScrollX
     ? centerX - cam.drawW * 0.5 + lookAhead
     : (bounds.minX - (cam.drawW - width) * 0.5);
@@ -14857,7 +14926,7 @@ function drawLevelDoors() {
   for (const door of (state.room.levelDoors || [])) drawLevelDoor(door);
 }
 
-function drawExitAndSpawn() {
+function drawExitAndSpawn(spawnOnly=false) {
   const s = state.room.spawn, e = state.room.exit;
   if(state.room.lobbyNumber&&(state.room.arrivalDoorId||state.room.levelDoors.some(d=>d.kind==='back')))return;
 
@@ -14870,7 +14939,7 @@ function drawExitAndSpawn() {
   ctx.fillStyle = 'rgba(255,255,255,.22)';
   ctx.fillRect(Math.round(spawnPos.x), Math.round(spawnPos.y), Math.ceil(sw), Math.max(1, Math.round(sh * .14)));
 
-  if (state.room.showDefaultExit !== false && e) drawExitDoor(e);
+  if (!spawnOnly && state.room.showDefaultExit !== false && e) drawExitDoor(e);
 }
 function drawExitDoor(e, secret=false) {
     const exitRect = getExitDoorWorldRect(e);
@@ -14924,6 +14993,26 @@ function drawPortalPreviewGhost(body, kind='enemy') {
   return;
 }
 
+function drawPortalBall(enemy,x,y,opacity=1){
+  if(opacity<=0)return;
+  const pos=worldToScreen(x,y),w=enemy.w*CELL*state.cam.scale,h=enemy.h*CELL*state.cam.scale;
+  ctx.save();ctx.globalAlpha*=opacity;
+      ctx.fillStyle = '#ffa5ff';
+      traceRoundedRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h), Math.max(4, w * 0.18));
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.24)';
+      traceRoundedRect(Math.round(pos.x + w * 0.08), Math.round(pos.y + h * 0.08), Math.ceil(w * 0.84), Math.ceil(h * 0.28), Math.max(3, w * 0.12));
+      ctx.fill();
+      ctx.strokeStyle = '#8c4c96';
+      ctx.beginPath();
+      ctx.moveTo(pos.x + w * 0.5, pos.y + h);
+      ctx.lineTo(pos.x + w * 0.5, pos.y + h + CELL * state.cam.scale * 1.5);
+      ctx.stroke();
+      drawTinyTag(pos.x + w*.5, pos.y - 8, 'E2', '#ffbaff');
+
+  ctx.restore();
+}
+
 function drawEnemies() {
   for (const enemy of [...state.room.enemies, ...(state.room.pushBlocks || [])]) {
     if (enemy.dead) continue;
@@ -14950,18 +15039,11 @@ function drawEnemies() {
         ctx.stroke();
         ctx.lineWidth = 1;
       }
-      ctx.fillStyle = '#ffa5ff';
-      traceRoundedRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h), Math.max(4, w * 0.18));
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.24)';
-      traceRoundedRect(Math.round(pos.x + w * 0.08), Math.round(pos.y + h * 0.08), Math.ceil(w * 0.84), Math.ceil(h * 0.28), Math.max(3, w * 0.12));
-      ctx.fill();
-      ctx.strokeStyle = '#8c4c96';
-      ctx.beginPath();
-      ctx.moveTo(pos.x + w * 0.5, pos.y + h);
-      ctx.lineTo(pos.x + w * 0.5, pos.y + h + CELL * state.cam.scale * 1.5);
-      ctx.stroke();
-      drawTinyTag(pos.x + w*.5, pos.y - 8, 'E2', '#ffbaff');
+      const visual=enemy.portalVisual,progress=visual?clamp(((state.room.localTime||0)-visual.started)/.09,0,1):1;
+      // Fade at the two mouths; never interpolate across the space between portals.
+      const opacity=progress*progress*(3-2*progress);
+      if(visual&&progress<1)drawPortalBall(enemy,visual.x,visual.y,1-opacity);
+      drawPortalBall(enemy,drawX,drawY,opacity);
     } else if (enemy.type === 'E3') {
       ctx.fillStyle = '#9ec1ff'; ctx.fillRect(Math.round(pos.x), Math.round(pos.y), Math.ceil(w), Math.ceil(h));
       ctx.strokeStyle = '#32527f'; ctx.strokeRect(Math.round(pos.x)+.5, Math.round(pos.y)+.5, Math.round(w), Math.round(h));
@@ -15353,6 +15435,7 @@ function render(alpha=1) {
     ctx.translate(cam.drawTranslateX, cam.drawTranslateY);
     try {
       drawBackgroundAndGrid();
+      drawExitAndSpawn(true);
       drawTiles();
       drawLabels();
       drawDriftFields();
@@ -15367,7 +15450,7 @@ function render(alpha=1) {
       drawPickups();
       drawCollections();
       drawLevelDoors();
-      drawExitAndSpawn();
+      if(state.room.showDefaultExit!==false&&state.room.exit)drawExitDoor(state.room.exit);
       drawEnemies();
       drawBosses();
       drawPlayer();
@@ -15835,7 +15918,7 @@ function captureRenderSnapshot() {
   const capture = (body, units = 1) => {
     if (!body || !Number.isFinite(body.x) || !Number.isFinite(body.y)) return;
     entries.push({ body, x:body.x, y:body.y, units, portalCooldown:body.portalCooldown || 0,
-      phase:body.state, cornerVisualX:body.cornerVisualX, cornerVisualY:body.cornerVisualY });
+      phase:body.state, cycle:body.clockCycle, enabled:body.enabled, cornerVisualX:body.cornerVisualX, cornerVisualY:body.cornerVisualY });
   };
   capture(player);
   for (const key of ['enemies', 'bosses', 'pushBlocks', 'bullets']) for (const body of room[key] || []) capture(body);
@@ -15853,7 +15936,7 @@ function withInterpolatedWorld(alpha, draw) {
   for (const old of snapshot.entries) {
     const body = old.body;
     // Teleports, respawns and discontinuities must appear at the destination.
-    if ((body.portalCooldown || 0) > old.portalCooldown || body.state !== old.phase ||
+    if ((body.portalCooldown || 0) > old.portalCooldown || body.state !== old.phase || (old.cycle !== undefined && body.clockCycle !== old.cycle) || body.enabled !== old.enabled ||
         Math.hypot(body.x - old.x, body.y - old.y) * old.units > CELL * 4) continue;
     for (const key of ['x', 'y', 'cornerVisualX', 'cornerVisualY']) {
       if (Number.isFinite(old[key]) && Number.isFinite(body[key])) set(body, key, old[key] + (body[key] - old[key]) * blend);
