@@ -2871,7 +2871,10 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
   let spawnFound = false;
   let exitFound = false;
   const editorObjects = Array.isArray(level.objects) ? level.objects : [];
-  const linkedTargetIds = new Set(editorObjects.filter(object => object && (object.type === 'button'||object.type === 'boss')).flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets.map(target=>parseTargetDescriptor(target).id) : []));
+  const controlTargets = editorObjects.filter(object => object && (object.type === 'button'||object.type === 'boss')).flatMap(object => Array.isArray(object.props && object.props.targets) ? object.props.targets.map(parseTargetDescriptor) : []);
+  const linkedTargetIds = new Set(controlTargets.map(target=>target.id));
+  const motionTargetIds = new Set(controlTargets.filter(target=>['state','toggle','on','off','invert'].includes(target.action)).map(target=>target.id));
+  const visibilityTargetIds = new Set(controlTargets.filter(target=>target.action==='visibility').map(target=>target.id));
 
   for (const object of editorObjects) {
     if (!object || !Number.isFinite(object.x) || !Number.isFinite(object.y)) continue;
@@ -2883,6 +2886,13 @@ function makeRoomFromEditorLevel(level, testSpawn=null) {
     const props = { ...editorLevelObjectOptions(object) };
     const linked = linkedTargetIds.has(id);
     if(linked)props.controlledBy='button';
+    // Deleted motion and visibility wires must not leave an authored off flag latched.
+    // Auxiliary controls (press spikes / platform visibility) do not control motion.
+    if(object.type==='crusherWall'&&!motionTargetIds.has(id))props.enabled=true;
+    if(object.type==='movingPlatform'){
+      if(!motionTargetIds.has(id))props.moving=true;
+      if(!visibilityTargetIds.has(id))props.enabled=true;
+    }
     if (object.type === 'blinkPlatform' || object.type === 'spike') props.mode = linked ? 'toggle' : (props.mode === 'cycle' ? 'cycle' : 'always');
     if (!linked && (object.type === 'blinkPlatform' || object.type === 'spike') && props.mode === 'always') props.startActive = true;
     if (object.type === 'conveyor') { props.mode = linked ? 'toggle' : 'always'; if (props.enabled != null) props.startActive = props.enabled !== false; }

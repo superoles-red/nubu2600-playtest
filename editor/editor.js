@@ -362,7 +362,22 @@
   function targetDescriptorAllowed(descriptor,target,source=null){if(source?.type==='boss'&&target?.type==='button')return descriptor===target.id&&target.props?.buttonType!=='H';if(typeof descriptor!=='string'||!target||!LINKABLE_TYPES.has(target.type))return false;if(descriptor===target.id)return true;const suffix=descriptor.slice(target.id.length);if(!descriptor.startsWith(`${target.id}@`))return false;if(suffix==='@visibility')return target.type==='movingPlatform';if(suffix==='@reverse')return target.type==='conveyor';if(suffix==='@spikes')return target.type==='crusherWall';return['@toggle','@on','@off','@invert'].includes(suffix);}
   function buttonHasTarget(button,targetId){return (button?.props?.targets||[]).some(value=>targetDescriptorId(value)===targetId);}
   function incomingLinks(targetId,level=state.level){return level?.objects.filter(object=>isControlSource(object)&&buttonHasTarget(object,targetId))||[];}
-  function normalizeDisconnectedDoors(level){for(const object of level.objects||[]){const motionLinked=(level.objects||[]).some(source=>isControlSource(source)&&(source.props?.targets||[]).some(target=>target===object.id||['@toggle','@on','@off','@invert'].some(suffix=>target===object.id+suffix)));if(!motionLinked){if(['conveyor','smartPlatform'].includes(object.type)){object.props.enabled=true;object.props.startActive=true;}if(object.type==='crusherWall')object.props.enabled=true;if(object.type==='movingPlatform')object.props.moving=true;}if(incomingLinks(object.id,level).length)continue;if(object.type==='door')object.props.open=false;else if(['spike','blinkPlatform'].includes(object.type)&&object.props?.mode==='always')object.props.startActive=true;}return level;}
+  function normalizeDisconnectedDoors(level){
+    const controls=(level.objects||[]).filter(isControlSource);
+    for(const object of level.objects||[]){
+      const motionLinked=controls.some(source=>(source.props?.targets||[]).some(target=>target===object.id||['@toggle','@on','@off','@invert'].some(suffix=>target===object.id+suffix)));
+      if(!motionLinked){
+        if(['conveyor','smartPlatform'].includes(object.type)){object.props.enabled=true;object.props.startActive=true;}
+        if(object.type==='crusherWall')object.props.enabled=true;
+        if(object.type==='movingPlatform')object.props.moving=true;
+      }
+      if(object.type==='movingPlatform'&&!controls.some(source=>(source.props?.targets||[]).includes(`${object.id}@visibility`)))object.props.enabled=true;
+      if(incomingLinks(object.id,level).length)continue;
+      if(object.type==='door')object.props.open=false;
+      else if(['spike','blinkPlatform'].includes(object.type)&&object.props?.mode==='always')object.props.startActive=true;
+    }
+    return level;
+  }
   function initialObjectEnabled(object,level=state.level){
     if(object.type==='door')return !incomingLinks(object.id,level).length||object.props?.open!==true;
     if(object.type==='blinkPlatform'||object.type==='spike')return !incomingLinks(object.id,level).length&&object.props?.mode==='always'||object.props?.startActive!==false;
