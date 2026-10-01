@@ -8272,6 +8272,7 @@ function updatePlatforms(dt) {
     wall.dx = (wall.x - wall.prevX) * CELL;
     wall.dy = (wall.y - wall.prevY) * CELL;
   }
+  resolvePressContacts(dt);
   resolveBossPresses(dt);
   for(const wall of room.crusherWalls||[])moveWeightsWithPress(wall);
   syncAttachedButtons(room);
@@ -12702,7 +12703,7 @@ function bossBlocked(boss,solids) {
   for(let y=Math.floor(rect.y/CELL);y<=Math.floor((rect.y+rect.h-epsilon)/CELL);y++)
     for(let x=Math.floor(rect.x/CELL);x<=Math.floor((rect.x+rect.w-epsilon)/CELL);x++)
       if(roomSolidAt(state.room,x,y))return true;
-  return solids.some(solid=>rectsOverlap(rect,solid));
+  return solids.some(solid=>!solid.oneWay&&rectsOverlap(rect,solid));
 }
 function bossMoveAxis(boss,axis,delta,solids) {
   if (!delta) return false;
@@ -12711,7 +12712,7 @@ function bossMoveAxis(boss,axis,delta,solids) {
     const start=boss[axis],before=bossRect(boss);boss[axis]+=step;
     if(axis==='y'&&step>0&&!(boss.ignoreOneWay>0)){
       const after=bossRect(boss);
-      const top=(state.room.oneWays||[]).map(p=>({x:p.x*CELL,y:p.y*CELL,w:p.w*CELL})).filter(p=>before.y+before.h<=p.y+1e-5&&after.y+after.h>=p.y&&rectOverlapX(after,p)>CELL*.2).sort((a,b)=>a.y-b.y)[0];
+      const top=solids.filter(p=>p.oneWay&&before.y+before.h<=p.y+1e-5&&after.y+after.h>=p.y&&rectOverlapX(after,p)>CELL*.2).sort((a,b)=>a.y-b.y)[0];
       if(top){boss.y=top.y-boss.h*CELL;boss.landedOnOneWay=true;return true;}
     }
     if (!bossBlocked(boss,solids)) continue;
@@ -12841,7 +12842,34 @@ function bossTakeHit(boss) {
   else{setBossPhase(boss,'reboot',.7);pushMsg(`БРОНЯ ${3-boss.hits}/3 · ДВЕ КНОПКИ`,'#ffe6a4',1.5);}
   return true;
 }
-function bossSolids(room){return getInitialDynamicRects(room);}
+function bossSolids(room){
+  // Buttons have the same full solid body for every actor. Platform tops are
+  // directional supports, shared by real movement and navigation probes.
+  const solids=[];
+  for(const d of room.doors)if(!d.open)solids.push(doorRect(d));
+  for(const btn of room.buttons)solids.push(...getButtonSolidRects(btn));
+  for(const sp of room.spawners)solids.push(...getSpawnerSolidRects(sp));
+  for(const c of room.conveyors||[])solids.push(conveyorRect(c));
+  for(const cube of room.pushBlocks||[])if(!cube.dead)solids.push(pushCubeRect(cube));
+  for(const wall of room.crusherWalls||[])solids.push(crusherWallRect(wall));
+  const top=(p,w=p.w,h=p.h||1)=>solids.push({x:p.x*CELL,y:p.y*CELL,w:w*CELL,h:h*CELL,oneWay:true,ref:p});
+  for(const p of room.oneWays)top(p);
+  for(const p of room.fragile)if(!p.broken)top(p);
+  for(const p of room.blink)if(p.active)top(p);
+  for(const p of room.movers)if(p.enabled)top(p);
+  for(const s of room.smarts)if(s.enabled)for(const p of s.instances||[])if(p.active)top(p,s.w,s.h);
+  for(const p of room.dropPlatforms||[])if(p.enabled&&p.state!=='respawn')top(p,p.w,.5);
+  for(const p of room.bouncePads||[])top(p);
+  return solids;
+}
+function settleBossAboveButtons(boss,solids){
+  // Older authored bosses start with their feet inside a pedal. Settle onto
+  // its actual top once, preserving the authored controls and a clear body.
+  const box=bossRect(boss),buttons=solids.filter(s=>s.kind==='button'&&rectsOverlap(box,s));
+  if(!buttons.length)return;
+  const y=Math.min(...buttons.map(s=>s.y))-boss.h*CELL;
+  if(!bossBlocked({...boss,y},solids)){boss.y=y;boss.vy=0;boss.onGround=true;}
+}
 function bossReversePress(wall) {
   // Reverse the route at its current position, preserving its distance phase.
   const pts=wall.points||[];if(pts.length<2)return;
@@ -12851,6 +12879,28 @@ function bossReversePress(wall) {
   wall.motionTime=duration-(wall.loop?positiveModulo(time,duration):Math.min(duration,time));
   wall.finished=false;wall.enabled=true;wall.seg=pts.length-2-(wall.seg||0);wall.segT=1-(wall.segT||0);
   wall.bossReverseCooldown=.15;
+}
+function pressContactFraction(a,b){
+  const dx=a.dx-b.dx,dy=a.dy-b.dy,ax=a.prevX*CELL,ay=a.prevY*CELL,bx=b.prevX*CELL,by=b.prevY*CELL;
+  let entry=-Infinity,exit=Infinity;
+  for(const [start,end,min,max,delta]of [[ax,ax+a.w*CELL,bx,bx+b.w*CELL,dx],[ay,ay+a.h*CELL,by,by+b.h*CELL,dy]]){
+    if(Math.abs(delta)<1e-9){if(end<=min+1e-7||start>=max-1e-7)return null;continue;}
+    const t1=(min-end)/delta,t2=(max-start)/delta;entry=Math.max(entry,Math.min(t1,t2));exit=Math.min(exit,Math.max(t1,t2));
+  }
+  // A negative entry is an old overlap or separating contact, not a new hit.
+  return entry>=-1e-7&&entry<=1&&entry<=exit&&exit>=0?Math.max(0,entry):null;
+}
+function resolvePressContacts(dt){
+  const walls=state.room.crusherWalls||[],hits=new Map();
+  for(let i=0;i<walls.length;i++)for(let j=i+1;j<walls.length;j++){
+    const a=walls[i],b=walls[j],fraction=pressContactFraction(a,b);if(fraction===null)continue;
+    for(const wall of [a,b])if(Math.hypot(wall.dx,wall.dy)>1e-7)hits.set(wall,Math.min(hits.get(wall)??1,fraction));
+  }
+  for(const [wall,fraction]of hits){
+    const safe=Math.max(0,fraction-1e-6);wall.x=wall.prevX+wall.dx/CELL*safe;wall.y=wall.prevY+wall.dy/CELL*safe;
+    wall.motionTime=Math.max(0,(wall.motionTime||0)-dt*(1-safe));bossReversePress(wall);
+    wall.dx=(wall.x-wall.prevX)*CELL;wall.dy=(wall.y-wall.prevY)*CELL;
+  }
 }
 function resolveBossPresses(dt){
   for(const wall of state.room.crusherWalls||[]){
@@ -13124,6 +13174,7 @@ function updateBosses(dt) {
     if(boss.defeated)continue;
     const wasRiding=bossHasRider(boss);
     boss.prevX=boss.x;boss.prevY=boss.y;
+    settleBossAboveButtons(boss,solids);
     carryBossOnSupport(boss,solids,supports);
     boss.contactGrace=Math.max(0,boss.contactGrace-dt);
     if(!bossCanAct(boss)){boss.awake=false;continue;}
@@ -13144,7 +13195,9 @@ function updateBosses(dt) {
     if(boss.state==='walk'){
       boss.targetTimer=(boss.targetTimer||0)-dt;
       if(boss.targetTimer<=0){const x=boss.targetX,y=boss.targetY;bossUpdateTarget(boss);boss.targetTimer=.35;
-        if(Math.hypot(x-boss.targetX,y-boss.targetY)>CELL*2){boss.walkRoute=boss.airRoute=null;bossNavJobs.delete(boss);boss.navPending=false;}
+        // Finish the bounded search before following a newer moving target;
+        // repeatedly discarding its frontier could leave the boss at “…”.
+        if(!boss.navPending&&Math.hypot(x-boss.targetX,y-boss.targetY)>CELL*2){boss.walkRoute=boss.airRoute=null;bossNavJobs.delete(boss);}
         boss.hoverY=clamp(boss.targetY-boss.h*CELL-4*CELL,CELL,(room.innerH-boss.h)*CELL);
       }
     }

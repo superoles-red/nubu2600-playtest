@@ -353,7 +353,7 @@
   function setSelectedObjectIds(ids) { state.groupSelection=false;state.selectedIds = new Set(ids || []); state.selectedId = state.selectedIds.values().next().value || null; }
   function discreteSize(value,sizes){return sizes.reduce((a,b)=>Math.abs(b-value)<Math.abs(a-value)?b:a);}
   function authoringWidthCap(type){return AUTHORING_WIDTH_CAPS[type]||null;}
-  function constrainCrusherSize(object){if(object.type!=='crusherWall')return object;const sizes=[[3,3],[5,5],[2,5],[5,2],[2,9],[10,2]];const best=sizes.reduce((a,b)=>Math.hypot(b[0]-object.w,b[1]-object.h)<Math.hypot(a[0]-object.w,a[1]-object.h)?b:a);[object.w,object.h]=best;return object;}
+  function constrainCrusherSize(object){if(object.type!=='crusherWall')return object;const sizes=[[3,3],[5,5],[2,5],[5,2],[2,9],[9,2]];const best=sizes.reduce((a,b)=>Math.hypot(b[0]-object.w,b[1]-object.h)<Math.hypot(a[0]-object.w,a[1]-object.h)?b:a);[object.w,object.h]=best;return object;}
   function constrainNewObjectWidth(object){constrainCrusherSize(object);if(['movingPlatform','smartPlatform'].includes(object.type))object.w=discreteSize(object.w,[1,3,5]);const maximum=authoringWidthCap(object?.type);if(maximum&&object.w>maximum)object.w=maximum;return object;}
   function targetDescriptorId(value){const text=String(value??'');const at=text.lastIndexOf('@');return at>0?text.slice(0,at):text;}
   function isControlSource(object){return object?.type==='button'||object?.type==='boss';}
@@ -431,6 +431,7 @@
     if (type === 'spawn') { object.w = 3; object.h = 3; object.props.semantics = 'playerBody'; object.props.anchor = 'centerTop'; }
     if (type === 'exit'||type==='secretExit') { object.w = 3; object.h = 3; if(type==='secretExit')object.props.route='secret'; }
     if (type === 'fallingPlatform' || type === 'bouncePad') object.h = 1;
+    if(type==='crusherWall'&&((object.w===10&&object.h===2)||(object.w===2&&object.h===10))){object.w=Math.min(object.w,9);object.h=Math.min(object.h,9);}
     if(type==='movingPlatform'&&Number(object.props.speedCellsPerSecond)<2.4)object.props.speedCellsPerSecond=2.4;
     if (type === 'fallingPlatform') object.props.speed = object.props.speed === 'fast' ? 'fast' : 'slow';
     if (type === 'bouncePad') object.w = clamp(Math.round(Number(object.w) || 3), 1, 5);
@@ -2239,7 +2240,8 @@
     // Existing long hoists keep their authored vector when saved or moved as a whole.
     // Creating or changing a route still uses the ten-cell authoring limit.
     const previous=level?.objects.find(item=>item.id===object.id&&item.type==='movingPlatform'&&item.props?.loop!==false),end=previous&&pathEnd(previous);
-    return !!previous&&Math.abs(end.x-previous.x-(path[1].x-path[0].x))<.001&&Math.abs(end.y-previous.y-(path[1].y-path[0].y))<.001;
+    const dx=path[1].x-path[0].x,dy=path[1].y-path[0].y;
+    return !!previous&&[1,-1].some(sign=>Math.abs(end.x-previous.x-sign*dx)<.001&&Math.abs(end.y-previous.y-sign*dy)<.001);
   }
   function pairedPathPlacement(object,path,level=state.level,{checkStyle=true}={}) {
     if(!routeLengthAllowed(object,path,level))return{ok:false,message:'Максимальная длина маршрута лифта — 10 клеток.'};
@@ -2834,6 +2836,12 @@
   }
   function centerArrowRun(button,arrow,count){const glyph=button.querySelector('.context-glyph');if(!glyph)return;glyph.textContent='';Object.assign(glyph.style,{display:'flex',width:'100%',maxWidth:'none',overflow:'visible',alignItems:'center',justifyContent:'center',gap:'0',fontSize:'11px',letterSpacing:'0'});for(let index=0;index<count;index++){const item=document.createElement('span');item.textContent=arrow;Object.assign(item.style,{display:'block',width:'7px',flex:'0 0 7px',textAlign:'center'});glyph.append(item);}}
   function contextMutation(label,callback,feedback){const changed=mutate(label,callback);if(changed&&feedback)toast(feedback,'ok');return changed;}
+  function switchPathEndpoints(object){
+    const path=object.props?.path;if(!Array.isArray(path)||path.length<2)return;
+    const reversed=path.slice().reverse().map(point=>({...point})),next={...deepClone(object),x:reversed[0].x,y:reversed[0].y};next.props.path=reversed;
+    const placement=pairedPathPlacement(next,reversed);if(!placement.ok){toast(placement.message,'error');return;}
+    contextMutation('Начало и конец маршрута поменяны',()=>{Object.assign(object,next);},'Начало и конец маршрута поменяны');
+  }
   function cycleContextValue(object,key,values,label,labels=values){const current=object.props?.[key],index=Math.max(0,values.findIndex(value=>value===current)),nextIndex=(index+1)%values.length,next=values[nextIndex],feedback=`${label}: ${labels[nextIndex]}`;contextMutation(`${label} изменено`,()=>{object.props[key]=next;},feedback);}
   function cycleContextNumber(object,key,values,label,suffix=''){const current=Number(object.props?.[key]),index=Math.max(0,values.reduce((best,value,candidate)=>Math.abs(value-current)<Math.abs(values[best]-current)?candidate:best,0)),next=values[(index+1)%values.length];const human=key==='distance'?(next<=2?'близко':next>=10?'далеко':'средне'):key==='speedCellsPerSecond'?(next>=4?'быстро':['movingPlatform','smartPlatform'].includes(object.type)?'медленно':next>=2?'средне':'медленно'):key==='cycle'?(next>=4?'медленно':next>=2?'средне':'быстро'):key==='rotateInterval'?(next<=.25?'быстро':next<=.5?'средне':'медленно'):null;contextMutation(`${label} изменено`,()=>{object.props[key]=next;},`${label}: ${human||`${formatNumber(next)}${suffix}`}`);}
   function modeIcon(value){return value==='always'?'∞':value==='toggle'?'⌁':'◷';}
@@ -2859,6 +2867,7 @@
     }
 
     if(def.rotate)add(object.type==='playerCannon'?directionArrow(object.props?.direction||'right'):'↻',object.type==='playerCannon'?'Начальное направление пушки':'Повернуть предмет',rotateSelected,'context-rotate',true,'rotate');
+    if(['movingPlatform','crusherWall'].includes(object.type))add('⇄','Свич: поменять начало и конец маршрута',()=>switchPathEndpoints(object),'context-variant',false,'path-switch');
     if(object.type==='portal'){const current=PORTAL_COLORS.includes(object.props?.color)?object.props.color:'purple',used=new Set(state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId!==object.props?.pairId).map(candidate=>candidate.props?.color)),choices=PORTAL_COLORS.filter(color=>color===current||!used.has(color)),next=choices[(choices.indexOf(current)+1)%choices.length],colorButton=add('●',`Цвет портала: ${PORTAL_COLOR_LABELS[current]}`,()=>contextMutation('Цвет пары порталов изменён',()=>{for(const portal of state.level.objects.filter(candidate=>candidate.type==='portal'&&candidate.props?.pairId===object.props?.pairId))portal.props.color=next;},`Цвет порталов: ${PORTAL_COLOR_LABELS[next]}`),'context-variant',false,'portal-color');colorButton.style.setProperty('--context-color',PORTAL_COLOR_VALUES[current]);colorButton.style.setProperty('--context-ink',PORTAL_COLOR_VALUES[current]);}
     if(object.type==='blinkPlatform'&&!incomingLinks(object.id).length){const value=Number(object.props?.cycle)||2,label=value>=4?'Медленно':value>=2?'Средне':'Быстро';add(value>=4?'>':value>=2?'>>':'>>>',`Скорость цикла: ${label}`,()=>cycleContextNumber(object,'cycle',[4,2,1],'Скорость','','',['медленно','средне','быстро']),'context-variant',false,'cycle');}
     if(['movingPlatform','smartPlatform','crusherWall'].includes(object.type)){const value=Number(object.props?.speedCellsPerSecond)||2.4,label=value>=4?'Быстро':['movingPlatform','smartPlatform'].includes(object.type)?'Медленно':value>=2?'Средне':'Медленно';add(['movingPlatform','smartPlatform'].includes(object.type)?(value>=4?'>>':'>'):value>=4?'>>>':value>=2?'>>':'>',`Скорость: ${label}`,()=>cycleContextNumber(object,'speedCellsPerSecond',['movingPlatform','smartPlatform'].includes(object.type)?[2.4,4]:[1.2,2.4,4],'Скорость',''),'context-variant',false,'speed');}
