@@ -1,7 +1,7 @@
 const PRECACHE_ENTRIES = [
   {
     "url": "./build-manifest.json",
-    "revision": "30c80fe8e2390d9c"
+    "revision": "e66ae0f42ac78457"
   },
   {
     "url": "./campaign/ep1/ep1-01-easy.level.json",
@@ -461,15 +461,15 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep2/ep2-15-easy.level.json",
-    "revision": "43ef47944ef94f43"
+    "revision": "cd5e8f00a51dfdfa"
   },
   {
     "url": "./campaign/ep2/ep2-15-hard.level.json",
-    "revision": "faa0fff0b7dd8984"
+    "revision": "b6c2adff82b93965"
   },
   {
     "url": "./campaign/ep2/ep2-15-medium.level.json",
-    "revision": "ba3e59b93473a8ec"
+    "revision": "84ccb6f8bc38cf4f"
   },
   {
     "url": "./campaign/ep2/ep2-16-easy.level.json",
@@ -521,15 +521,15 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep2/ep2-20-easy.level.json",
-    "revision": "d5b7c953f401c145"
+    "revision": "1e65fe09e4e1068b"
   },
   {
     "url": "./campaign/ep2/ep2-20-hard.level.json",
-    "revision": "91e59e42853969f1"
+    "revision": "21e3560911ec843c"
   },
   {
     "url": "./campaign/ep2/ep2-20-medium.level.json",
-    "revision": "ddd7a6b0b05952b2"
+    "revision": "9b44e0380f682b08"
   },
   {
     "url": "./campaign/ep2/ep2-21-easy.level.json",
@@ -593,7 +593,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-02-easy.level.json",
-    "revision": "857d5b81fc2d2dc2"
+    "revision": "f620944d7a1f4b16"
   },
   {
     "url": "./campaign/ep3/ep3-02-hard.level.json",
@@ -605,7 +605,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-03-easy.level.json",
-    "revision": "0152b2a568cd1565"
+    "revision": "8be0c2756166c5a1"
   },
   {
     "url": "./campaign/ep3/ep3-03-hard.level.json",
@@ -617,7 +617,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-04-easy.level.json",
-    "revision": "5139287486bf31a1"
+    "revision": "c925c56b0fe7be61"
   },
   {
     "url": "./campaign/ep3/ep3-04-hard.level.json",
@@ -641,7 +641,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-06-easy.level.json",
-    "revision": "2cffce7c5e4cb7e4"
+    "revision": "7b3ec13c853ac257"
   },
   {
     "url": "./campaign/ep3/ep3-06-hard.level.json",
@@ -653,7 +653,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-07-easy.level.json",
-    "revision": "cde84dcbb7c49b26"
+    "revision": "43506ff9f8e9795d"
   },
   {
     "url": "./campaign/ep3/ep3-07-hard.level.json",
@@ -701,7 +701,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-11-easy.level.json",
-    "revision": "c8c8366b6b307757"
+    "revision": "3e2281d832364e29"
   },
   {
     "url": "./campaign/ep3/ep3-11-hard.level.json",
@@ -725,11 +725,11 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./campaign/ep3/ep3-13-easy.level.json",
-    "revision": "a36939dedce0bc77"
+    "revision": "d9c61b5192d49521"
   },
   {
     "url": "./campaign/ep3/ep3-13-hard.level.json",
-    "revision": "c3a51899c1fe0b89"
+    "revision": "34de238e05968be9"
   },
   {
     "url": "./campaign/ep3/ep3-13-medium.level.json",
@@ -3053,15 +3053,15 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep2/ep2-15-easy.level.json",
-    "revision": "43ef47944ef94f43"
+    "revision": "cd5e8f00a51dfdfa"
   },
   {
     "url": "./editor/campaign/ep2/ep2-15-hard.level.json",
-    "revision": "faa0fff0b7dd8984"
+    "revision": "b6c2adff82b93965"
   },
   {
     "url": "./editor/campaign/ep2/ep2-15-medium.level.json",
-    "revision": "ba3e59b93473a8ec"
+    "revision": "84ccb6f8bc38cf4f"
   },
   {
     "url": "./editor/campaign/ep2/ep2-16-easy.level.json",
@@ -3113,15 +3113,15 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep2/ep2-20-easy.level.json",
-    "revision": "d5b7c953f401c145"
+    "revision": "1e65fe09e4e1068b"
   },
   {
     "url": "./editor/campaign/ep2/ep2-20-hard.level.json",
-    "revision": "91e59e42853969f1"
+    "revision": "21e3560911ec843c"
   },
   {
     "url": "./editor/campaign/ep2/ep2-20-medium.level.json",
-    "revision": "ddd7a6b0b05952b2"
+    "revision": "9b44e0380f682b08"
   },
   {
     "url": "./editor/campaign/ep2/ep2-21-easy.level.json",
@@ -3185,7 +3185,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-02-easy.level.json",
-    "revision": "857d5b81fc2d2dc2"
+    "revision": "f620944d7a1f4b16"
   },
   {
     "url": "./editor/campaign/ep3/ep3-02-hard.level.json",
@@ -3197,7 +3197,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-03-easy.level.json",
-    "revision": "0152b2a568cd1565"
+    "revision": "8be0c2756166c5a1"
   },
   {
     "url": "./editor/campaign/ep3/ep3-03-hard.level.json",
@@ -3209,7 +3209,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-04-easy.level.json",
-    "revision": "5139287486bf31a1"
+    "revision": "c925c56b0fe7be61"
   },
   {
     "url": "./editor/campaign/ep3/ep3-04-hard.level.json",
@@ -3233,7 +3233,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-06-easy.level.json",
-    "revision": "2cffce7c5e4cb7e4"
+    "revision": "7b3ec13c853ac257"
   },
   {
     "url": "./editor/campaign/ep3/ep3-06-hard.level.json",
@@ -3245,7 +3245,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-07-easy.level.json",
-    "revision": "cde84dcbb7c49b26"
+    "revision": "43506ff9f8e9795d"
   },
   {
     "url": "./editor/campaign/ep3/ep3-07-hard.level.json",
@@ -3293,7 +3293,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-11-easy.level.json",
-    "revision": "c8c8366b6b307757"
+    "revision": "3e2281d832364e29"
   },
   {
     "url": "./editor/campaign/ep3/ep3-11-hard.level.json",
@@ -3317,11 +3317,11 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/campaign/ep3/ep3-13-easy.level.json",
-    "revision": "a36939dedce0bc77"
+    "revision": "d9c61b5192d49521"
   },
   {
     "url": "./editor/campaign/ep3/ep3-13-hard.level.json",
-    "revision": "c3a51899c1fe0b89"
+    "revision": "34de238e05968be9"
   },
   {
     "url": "./editor/campaign/ep3/ep3-13-medium.level.json",
@@ -5189,11 +5189,11 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./editor/editor.js",
-    "revision": "d33f5b52cc1f52ff"
+    "revision": "8544420e25a8eb74"
   },
   {
     "url": "./editor/index.html",
-    "revision": "6c1f1a4e03e6787a"
+    "revision": "1cb549ed28fb1290"
   },
   {
     "url": "./editor/nubu-level.schema.json",
@@ -5221,7 +5221,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./index.html",
-    "revision": "cd602547b5475056"
+    "revision": "a3437195b428b5b9"
   },
   {
     "url": "./manifest.webmanifest",
@@ -5243,7 +5243,7 @@ const SCOPE_KEY = SCOPE_URL.pathname
   .replace(/^\/+|\/+$/g, '')
   .replace(/[^a-z0-9_-]+/gi, '-') || 'root';
 const CACHE_PREFIX = `nubu2600-app-${SCOPE_KEY}-`;
-const CACHE_NAME = `${CACHE_PREFIX}b0e42b9822b6f307`;
+const CACHE_NAME = `${CACHE_PREFIX}9a0ce512b7135f60`;
 const ROOT_DOCUMENT_URL = new URL('index.html', SCOPE_URL).href;
 const EDITOR_DOCUMENT_URL = new URL('editor/index.html', SCOPE_URL).href;
 const PRECACHE_URLS = new Set(PRECACHE_ENTRIES.map(entry => new URL(entry.url, SCOPE_URL).href));

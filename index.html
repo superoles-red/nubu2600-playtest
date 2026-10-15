@@ -14050,11 +14050,18 @@ function collideHazardsAndEnemies(jumpHeldNow=false) {
     const box = { x: enemy.x, y: enemy.y, w: enemy.w * CELL, h: enemy.h * CELL };
     const hurtBox = enemyHurtRect(enemy, box);
     const stompBox = enemyStompRect(box);
-    if (!rectsOverlap(p, hurtBox) && !rectsOverlap(p, stompBox)) continue;
-
     const prevBottom = p.prevY + p.h;
     const currBottom = p.y + p.h;
     const enemyTop = box.y;
+    const prevEnemyTop = Number.isFinite(enemy.prevY) ? enemy.prevY : enemyTop;
+    // A supported player's feet may only touch the enemy top, without any
+    // vertical overlap. Resolve that contact before a crawler turns upward
+    // around an edge; require real body overlap so a nearby enemy stays safe.
+    const touchingTop = Math.abs(currBottom - enemyTop) <= 0.001
+      && rectOverlapX(p, box) > 0.01
+      && prevBottom <= prevEnemyTop + STOMP_TOLERANCE;
+    if (!rectsOverlap(p, hurtBox) && !rectsOverlap(p, stompBox) && !touchingTop) continue;
+
     const overlapLeft = Math.max(p.x, stompBox.x);
     const overlapRight = Math.min(p.x + p.w, stompBox.x + stompBox.w);
     const xOverlap = overlapRight - overlapLeft;
@@ -14063,8 +14070,10 @@ function collideHazardsAndEnemies(jumpHeldNow=false) {
     const enemyTopBand = { x:stompBox.x, y:box.y, w:stompBox.w, h:Math.max(2, CELL * 0.36) };
     const footTouchesTop = rectsOverlap(playerFootBand, enemyTopBand);
     const playerMostlyAbove = (p.y + p.h * 0.7) <= (box.y + box.h * 0.6 + STOMP_TOLERANCE);
-    const crossedTopFromAbove = prevBottom <= enemyTop + STOMP_TOLERANCE && currBottom >= enemyTop - STOMP_TOLERANCE;
-    let canStomp = centeredEnough && playerMostlyAbove && (crossedTopFromAbove || footTouchesTop);
+    // Classify the approach relative to both bodies: a rising enemy can
+    // cross stationary feet just as a falling player can cross its top.
+    const crossedTopFromAbove = prevBottom <= prevEnemyTop + STOMP_TOLERANCE && currBottom >= enemyTop - STOMP_TOLERANCE;
+    let canStomp = centeredEnough && playerMostlyAbove && (crossedTopFromAbove || footTouchesTop || touchingTop);
     if (isSpikeCubeEntity(enemy) && enemy.sides.includes('u')) canStomp = false;
 
     if (canStomp && !isSpikeCubeEntity(enemy)) {
