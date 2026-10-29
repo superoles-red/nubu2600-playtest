@@ -7427,6 +7427,7 @@ function snapToGroundIfSupported(p, tolerance = 1.01) {
       strictTop = true;
       const supportRect = { x:r.x, y:top, w:r.w, h:CELL * 0.5 };
       if (!rectHasStableTopSupport({ x:p.x, y:p.y, w:p.w, h:p.h }, supportRect, r.kind)) return false;
+      if ((r.kind === 'cube' || r.kind === 'pushCube') && p.groundRef !== r.ref && (p.prevY ?? p.y) + p.h > top + 1.25) return false;
       overlapNeeded = Math.max(CELL * 1.0, p.w * 0.5);
     }
     if (!strictTop && overlap < overlapNeeded) return false;
@@ -8067,6 +8068,7 @@ function moveVertical(p, dt, jumpHeldNow) {
       const nextBottom = nextY + p.h;
       const xOverlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
       if (xOverlap <= (r.kind==='pushCube'?.01:CELL*.2)) continue;
+      if (r.kind === 'pushCube' && prevBottom > top + 1.25) continue;
       if (prevBottom <= top + STOMP_TOLERANCE && nextBottom >= top) {
         if (nextY > top - p.h) nextY = top - p.h;
         p.vy = 0; p.onGround = true; landedRef = r.ref || null; break;
@@ -10697,6 +10699,7 @@ function getPushCubeSupportInfo(cube, ignoreSet=null) {
     if (dynamicSolidIsEnemyLike(r.kind) && !(r.ref && r.ref.type === 'E5')) return;
     const top = topValue ?? (Number.isFinite(r.top) ? r.top : r.y);
     if (bottom < top - snapTol || bottom > top + snapTol) return;
+    if (r.kind === 'crusherWall' && (r.ref?.dy || 0) > 0 && bottom < top - 0.001) return;
     considerSupport(r.x, top, r.w, r.kind || 'cube', r.ref || null);
   };
 
@@ -11061,6 +11064,7 @@ function pushCubeSupportLatchStillValid(cube, latch) {
   if (!supportRect) return null;
   const overlap = Math.min(box.x + box.w, supportRect.x + supportRect.w) - Math.max(box.x, supportRect.x);
   const bottom = box.y + box.h;
+  if (latch.kind === 'crusherWall' && (latch.ref?.dy || 0) > 0 && bottom < supportRect.y - 0.001) return null;
   const carrierDX = Math.abs(latch.ref && latch.ref.dx || 0);
   const carrierDY = Math.abs(latch.ref && latch.ref.dy || 0);
   const tol = Math.max(1.25, carrierDY + 1.25, carrierDX * 0.35 + 1.25);
@@ -11512,12 +11516,15 @@ function resolveWeightMotionContacts(cube){
 function moveWeightsWithPress(wall){
   if(!wall.dx&&!wall.dy)return;
   const cubes=getPushCubes(),box=crusherWallRect(wall),prev={...box,x:wall.prevX*CELL,y:wall.prevY*CELL};
-  const group=new Set(cubes.filter(c=>{const r=pushCubeRect(c);return rectsOverlap(r,box)||(Math.abs(r.y+r.h-prev.y)<=1.5&&rectOverlapX(r,prev)>.1);}));
+  const group=new Set(cubes.filter(c=>{const r=pushCubeRect(c);return rectsOverlap(r,box)||(wall.dy<=0 && Math.abs(r.y+r.h-prev.y)<=1.5&&rectOverlapX(r,prev)>.1);}));
   let changed=true;
   while(changed){changed=false;for(const cube of cubes){if(group.has(cube))continue;const r=pushCubeRect(cube);if([...group].some(c=>{const a=pushCubeRect(c);return rectsOverlap({...a,x:a.x+wall.dx,y:a.y+wall.dy},r)||Math.abs(r.y+r.h-a.y)<=1.5&&rectOverlapX(r,a)>.1;})){group.add(cube);changed=true;}}}
   if(!group.size)return;
   const blocked=[...group].some(c=>{const r=pushCubeRect(c);return rectHitsPushCubeObstacle({...r,x:r.x+wall.dx,y:r.y+wall.dy},group,wall,{ignorePlayer:true,extraIgnoreRefs:new Set([wall])});});
   if(blocked){
+    // A horizontal press may slide out from under a weight held by a wall.
+    // Reverse only when its new body actually pushes into the weight.
+    if (![...group].some(c=>rectsOverlap(pushCubeRect(c),box))) return;
     const length=wall.points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-wall.points[i].x,p.y-wall.points[i].y),0),duration=mechanismTravelSeconds(length,wall.speed);
     wall.motionTime=positiveModulo(duration-(wall.motionTime-(state.lastDt||1/60)),duration);
     wall.x=wall.prevX;wall.y=wall.prevY;wall.dx=wall.dy=0;return;
@@ -11697,7 +11704,7 @@ function playerHasFirmGroundForCubePush(p) {
 function playerOccupiesTopOfPushCube(p, cube) {
   if (!p || !cube || cube.dead) return false;
   const box = pushCubeRect(cube);
-  const prevBox = { x:(cube.prevX ?? cube.x), y:(cube.prevY ?? cube.y), w:box.w, h:box.h };
+  const prevBox = pushCubeRect({ ...cube, x:(cube.prevX ?? cube.x), y:(cube.prevY ?? cube.y) });
   const rectNow = { x:p.x, y:p.y, w:p.w, h:p.h };
   const rectPrev = { x:(p.prevX ?? p.x), y:(p.prevY ?? p.y), w:p.w, h:p.h };
   const overlapNowX = Math.min(rectNow.x + rectNow.w, box.x + box.w) - Math.max(rectNow.x, box.x);
@@ -11815,7 +11822,7 @@ function resolvePlayerPushCubeOverlap() {
     const box = pushCubeRect(cube);
     if (!rectsOverlap(p, box)) continue;
 
-    const prevBox = { x:(cube.prevX ?? cube.x), y:(cube.prevY ?? cube.y), w:box.w, h:box.h };
+    const prevBox = pushCubeRect({ ...cube, x:(cube.prevX ?? cube.x), y:(cube.prevY ?? cube.y) });
     const tol = Math.max(1.2, CELL * 0.12);
     const overlapX = Math.min(p.x + p.w, box.x + box.w) - Math.max(p.x, box.x);
     const overlapY = Math.min(p.y + p.h, box.y + box.h) - Math.max(p.y, box.y);
@@ -12130,10 +12137,13 @@ function leechAttachToNearbySurface(enemy) {
     const world = crawlerSupportWorldBounds(candidate);
     const overlapX = Math.min(rect.x + rect.w, world.x + world.w) - Math.max(rect.x, world.x);
     const bottom = rect.y + rect.h;
-    const nearTop = bottom >= world.y - CELL * 1.05 && bottom <= world.y + CELL * 0.7;
-    if (overlapX > CELL * 0.2 && nearTop) onewayPreferred.push(candidate);
+    const prevBottom = (enemy.prevY ?? enemy.y) + rect.h;
+    const previousTop = world.y - (candidate.ref?.dy || 0);
+    const crossesTop = prevBottom <= previousTop + 1 && bottom >= world.y - 0.1;
+    const fitsOnTop = rect.x >= world.x - 1 && rect.x + rect.w <= world.x + world.w + 1;
+    if (overlapX > CELL * 0.2 && crossesTop && fitsOnTop) onewayPreferred.push(candidate);
   }
-  const scan = onewayPreferred.length ? onewayPreferred : candidates;
+  const scan = onewayPreferred.length ? onewayPreferred : candidates.filter(candidate => !candidate.oneway);
   for (const candidate of scan) {
     const info = leechRouteDistanceForRect(enemy, candidate);
     let score = info.dist;
@@ -13916,13 +13926,39 @@ function spikeHitbox(sp) {
   return { x, y, w:CELL*.49, h };
 }
 
+// A weight shields the part of a spike actually covered by its visible body.
+function spikeHitsUncoveredArea(actor, sp) {
+  const hit = spikeHitbox(sp);
+  const left = Math.max(actor.x, hit.x), top = Math.max(actor.y, hit.y);
+  const right = Math.min(actor.x + actor.w, hit.x + hit.w), bottom = Math.min(actor.y + actor.h, hit.y + hit.h);
+  if (right <= left || bottom <= top) return false;
+  let remaining = [{x:left,y:top,w:right-left,h:bottom-top}];
+  for (const cube of getPushCubes()) {
+    if (cube.dead) continue;
+    const cover = {x:cube.x,y:cube.y,w:cube.w*CELL,h:cube.h*CELL};
+    const next = [];
+    for (const r of remaining) {
+      const x1=Math.max(r.x,cover.x), x2=Math.min(r.x+r.w,cover.x+cover.w);
+      const y1=Math.max(r.y,cover.y), y2=Math.min(r.y+r.h,cover.y+cover.h);
+      if(x2<=x1||y2<=y1){next.push(r);continue;}
+      if(x1>r.x)next.push({x:r.x,y:r.y,w:x1-r.x,h:r.h});
+      if(x2<r.x+r.w)next.push({x:x2,y:r.y,w:r.x+r.w-x2,h:r.h});
+      if(y1>r.y)next.push({x:x1,y:r.y,w:x2-x1,h:y1-r.y});
+      if(y2<r.y+r.h)next.push({x:x1,y:y2,w:x2-x1,h:r.y+r.h-y2});
+    }
+    remaining=next;
+    if(!remaining.length)return false;
+  }
+  return true;
+}
+
 function collideHazardsAndEnemies(jumpHeldNow=false) {
   const p = state.player;
 
   // spikes
   for (const sp of state.room.spikes) {
     if (!isSpikeActive(sp)) continue;
-    if (rectsOverlap(p, spikeHitbox(sp))) { damagePlayer(0, -2*CELL); return; }
+    if (spikeHitsUncoveredArea(p, sp)) { damagePlayer(0, -2*CELL); return; }
   }
 
   for (const cube of [...state.room.enemies, ...(state.room.pushBlocks || [])]) {
