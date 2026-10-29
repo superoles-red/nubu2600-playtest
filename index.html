@@ -7854,6 +7854,15 @@ function ledgeSpaceFree(p, x, y, dir, ref=null) {
   const grip={x:dir>0?x+p.w:x-CELL*.5,y:y-CELL*.5,w:CELL*.5,h:CELL*.5};
   return !rectHitsBlocking(body,ref,true) && !rectHitsBlocking(grip,ref,true);
 }
+function ledgeWithinFallingReach(p, ledgeTop, upperEndY) {
+  if (p.y <= ledgeTop && upperEndY >= ledgeTop) return true;
+  // Preserve a contact crossed during this falling step, allowing only the
+  // normal collision skin above the edge in the preceding position.
+  const previousY = p.prevY ?? p.y;
+  const fallStep = Math.max(0, p.y - previousY);
+  const tolerance = Math.min(CELL * 0.55, fallStep + COLLISION_SKIN);
+  return previousY <= ledgeTop + COLLISION_SKIN && p.y > ledgeTop && p.y <= ledgeTop + tolerance;
+}
 function tryLedgeGrab(p, inputX) {
   if (!hasLedgeGrab() || p.buffs.vv) return false;
   if (p.onGround || p.hanging || p.vy <= 0 || Math.abs(inputX) < 0.5) return false;
@@ -7867,7 +7876,7 @@ function tryLedgeGrab(p, inputX) {
     if (!solidAtTile(sideX, ty)) continue;
     if (solidAtTile(sideX, ty - 1)) continue;
     const ledgeTop = ty * CELL;
-    if (!(p.y <= ledgeTop && upperEndY >= ledgeTop)) continue;
+    if (!ledgeWithinFallingReach(p, ledgeTop, upperEndY)) continue;
     const hangX = dir > 0 ? sideX * CELL - p.w : (sideX + 1) * CELL;
     const hangY = ledgeTop;
     if (!ledgeSpaceFree(p,hangX,hangY,dir)) continue;
@@ -7885,7 +7894,7 @@ function tryLedgeGrab(p, inputX) {
       ? (p.x + p.w <= wallRect.x + 1.5 && p.x + p.w >= wallRect.x - 2.0)
       : (p.x >= wallRect.x + wallRect.w - 1.5 && p.x <= wallRect.x + wallRect.w + 2.0);
     if (!touchingSide) continue;
-    if (!(p.y <= ledgeTop && upperEndY >= ledgeTop)) continue;
+    if (!ledgeWithinFallingReach(p, ledgeTop, upperEndY)) continue;
     const hangX = dir > 0 ? wallRect.x - p.w : wallRect.x + wallRect.w;
     const hangY = ledgeTop;
     if (!ledgeSpaceFree(p,hangX,hangY,dir,wallRect.ref)) continue;
