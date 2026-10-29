@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
+<script>if(new URLSearchParams(location.search).get('editorPlay')==='1')document.documentElement.classList.add('editor-play-bootstrap');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>NuBu2600 — Ядерный бункер 2600</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111b18'/%3E%3Cpath d='M15 43V21h7l10 12V21h7v22h-7L22 31v12zm29 0V21h7v22z' fill='%23e7ff72'/%3E%3C/svg%3E">
@@ -35,6 +36,8 @@
   #menuBtn{pointer-events:auto;width:56px;height:56px;border:1px solid var(--line);border-radius:18px;background:rgba(8,14,28,.39);color:var(--text);font-size:28px;backdrop-filter:blur(6px);opacity:.5}
   .overlay{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));background:rgba(4,8,16,.58);backdrop-filter:blur(10px)}
   .overlay.show{display:flex}
+  html.editor-play-bootstrap #startOverlay{display:none}
+  html.editor-play-bootstrap #bootLoading.hidden{display:grid !important}
   .panel{width:min(92vw,620px);max-height:min(88vh,780px);overflow:auto;background:linear-gradient(180deg, rgba(14,18,30,.96), rgba(9,12,22,.96));border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.38)}
   h1,h2,p{margin:0}
   .title{font-size:clamp(28px,5vw,42px);font-weight:900;letter-spacing:.02em}
@@ -16701,6 +16704,7 @@ if (pendingEditorPlaytest) {
   }
   preloadEmbeddedEditor();
 }
+requestAnimationFrame(() => document.documentElement.classList.remove('editor-play-bootstrap'));
 requestAnimationFrame(step);
 })();
 </script>

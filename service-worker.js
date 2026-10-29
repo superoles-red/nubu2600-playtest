@@ -1,7 +1,7 @@
 const PRECACHE_ENTRIES = [
   {
     "url": "./build-manifest.json",
-    "revision": "f8961e403c78bcb0"
+    "revision": "5c77d91237e31a4e"
   },
   {
     "url": "./campaign/ep1/ep1-01-easy.level.json",
@@ -5221,7 +5221,7 @@ const PRECACHE_ENTRIES = [
   },
   {
     "url": "./index.html",
-    "revision": "b8ef5dcfc5802386"
+    "revision": "d52211dd104e54b9"
   },
   {
     "url": "./manifest.webmanifest",
@@ -5243,7 +5243,7 @@ const SCOPE_KEY = SCOPE_URL.pathname
   .replace(/^\/+|\/+$/g, '')
   .replace(/[^a-z0-9_-]+/gi, '-') || 'root';
 const CACHE_PREFIX = `nubu2600-app-${SCOPE_KEY}-`;
-const CACHE_NAME = `${CACHE_PREFIX}dc89112a58f9cb50`;
+const CACHE_NAME = `${CACHE_PREFIX}5e9f5b1a55c17f5a`;
 const ROOT_DOCUMENT_URL = new URL('index.html', SCOPE_URL).href;
 const EDITOR_DOCUMENT_URL = new URL('editor/index.html', SCOPE_URL).href;
 const PRECACHE_URLS = new Set(PRECACHE_ENTRIES.map(entry => new URL(entry.url, SCOPE_URL).href));
@@ -5389,6 +5389,16 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     const fallbackUrl = navigationFallback(request);
+    // A Play request from the same release may use the verified runtime shell
+    // already installed by this worker. A different build must still check
+    // the network so an old worker cannot serve a stale game.
+    const currentEditorPlay = url.searchParams.get('editorPlay') === '1'
+      && url.searchParams.get('build') === CACHE_NAME.slice(CACHE_PREFIX.length)
+      && fallbackUrl === ROOT_DOCUMENT_URL;
+    if (currentEditorPlay) {
+      event.respondWith(cachedResponse(fallbackUrl).then(response => response || networkFirst(request, fallbackUrl)));
+      return;
+    }
     event.respondWith(url.searchParams.has('build')
       ? networkFirst(request, fallbackUrl)
       : cachedResponse(fallbackUrl).then(response => response || networkFirst(request, fallbackUrl)));
