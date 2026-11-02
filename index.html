@@ -7424,7 +7424,7 @@ function snapToGroundIfSupported(p, tolerance = 1.01) {
     if (r.ref && isIgnoredKinematicTopForPlayer(r.ref)) return false;
     if(['mover','smart','drop'].includes(r.kind)&&!p.onGround&&Number.isFinite(r.ref?.prevY)&&p.prevY+p.h>r.ref.prevY*CELL+1.25)return false;
     const overlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
-    let overlapNeeded = minOverlap;
+    let overlapNeeded = r.kind === 'door' ? 0.01 : minOverlap;
     let strictTop = false;
     if (r.kind === 'conveyor' || r.kind === 'cube' || r.kind === 'pushCube' || r.kind === 'mover' || r.kind === 'smart' || r.kind === 'drop') {
       strictTop = true;
@@ -7465,7 +7465,8 @@ function snapToGroundIfSupported(p, tolerance = 1.01) {
   }
 
   const leftCell = Math.floor(p.x / CELL);
-  const rightCell = Math.floor((p.x + p.w - 1) / CELL);
+  // A subpixel overlap still supports the feet at a tile edge.
+  const rightCell = Math.floor((p.x + p.w - COLLISION_LEADING_EDGE_EPSILON) / CELL);
   const candidateRows = [Math.floor(foot / CELL), Math.floor((foot + tolerance) / CELL)];
   for (const belowY of candidateRows) {
     let supported = false;
@@ -8079,7 +8080,8 @@ function moveVertical(p, dt, jumpHeldNow) {
       const prevBottom = p.y + p.h;
       const nextBottom = nextY + p.h;
       const xOverlap = Math.min(p.x + p.w, r.x + r.w) - Math.max(p.x, r.x);
-      if (xOverlap <= (r.kind==='pushCube'?.01:CELL*.2)) continue;
+      // Closed doors retain their full top surface beside inset weights.
+      if (xOverlap <= (r.kind === 'pushCube' || r.kind === 'door' ? .01 : CELL * .2)) continue;
       if (r.kind === 'pushCube' && prevBottom > top + 1.25) continue;
       if (prevBottom <= top + STOMP_TOLERANCE && nextBottom >= top) {
         if (nextY > top - p.h) nextY = top - p.h;
@@ -12501,7 +12503,7 @@ function bounceGroundEnemy(enemy){
   return !!height;
 }
 
-function applyConveyorToPlayer(p, dt) {
+function applyConveyorToPlayer(p, dt, inputX=0) {
   if (!p || (!p.onGround && p.vy*p.gravityDir<0)) return false;
   if (p.gravityDir === -1) {
     const conveyor = (state.room.conveyors || []).find(c => {
@@ -12534,6 +12536,8 @@ function applyConveyorToPlayer(p, dt) {
   }
   if (!conveyor) return false;
 
+  // A landing at the edge may leave again during this same carry step.
+  p.conveyorCharge = conveyorLaunchVelocity(conveyor, inputX, p.gravityDir);
   const box = conveyorRect(conveyor);
   p.y = box.y - p.h;
   p.onGround = true;
@@ -12568,6 +12572,8 @@ function applyConveyorToPlayer(p, dt) {
     return true;
   }
 
+  // Belt carry can cross the edge after the ordinary departure check.
+  p.conveyorAir = p.conveyorCharge || 0;
   p.groundRef = null;
   p.onGround = false;
   p.vy = Math.max(p.vy, CELL * 0.85);
@@ -14469,7 +14475,7 @@ function updatePlayer(dt) {
   if (p.onGround && !p.hanging) p.jpFuel = JETPACK_CAPACITY;
   if (resolveCrusherWallsVsPlayer(p)) { updateHUD(); return; }
   tryPortalTeleport(p, { player:true, dt });
-  applyConveyorToPlayer(p, dt);
+  applyConveyorToPlayer(p, dt, inputX);
   resolvePlayerPushCubeOverlap();
   refreshPlayerPushBlockGround(p);
 
